@@ -3,3 +3,5 @@ Thumbs.db
 node_modules/
 .sites-runtime/
 *.tar.gz
+dist/server/
+.local/

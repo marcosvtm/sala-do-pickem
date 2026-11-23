@@ -19,6 +19,7 @@
           ><img src="assets/mark.svg" alt="" />Sala do Pick’Em</a
         >
         <nav>
+          <a href="/cartoes" class="wall-nav">Cartões da galera</a>
           <a href="#modelos">Modelos</a><a href="#jogos">Partidas</a
           ><button id="share" class="outline">Compartilhar cartão</button>
         </nav>
@@ -46,6 +47,32 @@
           </div>
           <p class="lead">Toque em uma equipe para trocar seu palpite.</p>
           <div id="slots"></div>
+          <form id="saveCard" class="save-card">
+            <h3>Fechar meu cartão</h3>
+            <p>
+              Seu nick, seus dez picks e o modelo escolhido ficam públicos em
+              <a href="/cartoes">Cartões da galera</a>. Você pode salvar mesmo
+              sem simular. O cartão fica definitivo.
+            </p>
+            <label for="nick">Seu nick</label>
+            <input
+              id="nick"
+              name="nick"
+              maxlength="32"
+              required
+              autocomplete="nickname"
+              placeholder="Seu nome no jogo"
+            />
+            <p id="saveModel" class="hint"></p>
+            <button id="saveButton" class="primary" disabled>
+              Salvar cartão
+            </button>
+            <p id="saveDeadline" class="hint"></p>
+            <div role="status" id="saveMessage"></div>
+            <button type="button" id="anotherNick" class="text-btn" hidden>
+              Usar outro nick neste aparelho
+            </button>
+          </form>
         </section>
         <section class="panel evaluation" id="resultado">
           <div class="panel-title">

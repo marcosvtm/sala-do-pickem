@@ -4,10 +4,17 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": ">=22.13"
   },
   "scripts": {
     "test": "node --test",
-    "dev": "node scripts/serve.js"
+    "dev": "node scripts/serve.js",
+    "build": "node scripts/build.js",
+    "db:generate": "drizzle-kit generate"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.8",
+    "drizzle-orm": "0.45.1",
+    "esbuild": "0.25.12"
   }
 }

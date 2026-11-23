@@ -1,5 +1,7 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
+import { openDb } from './local-db.js';
+import { cardsApi } from '../server/api.js';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -13,9 +15,44 @@ const types = {
   '.webp': 'image/webp',
 };
 const port = Number(process.env.PORT || 4173);
+await mkdir(new URL('../.local/', import.meta.url), { recursive: true });
+const db = openDb(
+  fileURLToPath(new URL('../.local/cards.sqlite', import.meta.url))
+);
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
+    if (url.pathname.startsWith('/api/')) {
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of req) {
+        size += chunk.length;
+        if (size > 4096) {
+          res.writeHead(413);
+          res.end();
+          return;
+        }
+        chunks.push(chunk);
+      }
+      const api = await cardsApi(
+        new Request(new URL(req.url, 'http://' + req.headers.host), {
+          method: req.method,
+          headers: req.headers,
+          body: chunks.length ? Buffer.concat(chunks) : undefined,
+        }),
+        db
+      );
+      res.writeHead(api.status, Object.fromEntries(api.headers));
+      res.end(await api.text());
+      return;
+    }
+    if (url.pathname === '/cartoes' || url.pathname === '/cartoes/')
+      url.pathname = '/cartoes.html';
+    if (url.pathname.startsWith('/server/') || url.pathname.startsWith('/.')) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
     const file = path.resolve(
       root,
       '.' +

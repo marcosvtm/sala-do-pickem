@@ -4,9 +4,10 @@ Calculadora em português para montar um cartão do Stage 1 do PGL Major de Sing
 
 ## Rodar e contribuir
 
-Use Node.js 18 ou mais recente. A aplicação usa apenas módulos nativos.
+Use Node.js 22.13 ou mais recente, com SQLite nativo.
 
 ```sh
+npm ci
 npm run dev
 ```
 
@@ -20,13 +21,20 @@ Faça um fork, crie uma branch e envie o pull request contra `main`. Conte o que
 
 ## Organização
 
-- `dist/` contém o código-fonte servido diretamente pelo Sites. HTML, CSS e módulos JS são editáveis, sem compilação.
+- `dist/` contém o frontend editável. `npm run build` empacota os recursos e a API em um Worker do Sites em `dist/server/`.
+- `server/` valida e salva os cartões e consulta a chave da PGL. O banco público usa o binding D1 `DB`. O ambiente de desenvolvimento aplica as mesmas migrações a `.local/cards.sqlite`. Para alterar o esquema, edite `db/schema.js`, rode `npm run db:generate` e versione a migração.
 - `dist/data/stage.json` guarda os 16 seeds, os ratings e o cartão inicial. Os índices das equipes seguem a ordem dos seeds e fazem parte do formato dos links.
 - `dist/js/swiss.js` monta cada rodada a partir dos resultados anteriores. O pareamento segue recorde, Buchholz, seed e as prioridades de revanche da Valve.
 - `dist/js/models.js` calcula a probabilidade por confronto e formato. `simulation.js` pontua torneios completos, por amostragem ou enumeração. `worker.js` agenda o cálculo, `state.js` valida cartões e cenários e `app.js` cuida da interface.
 - `tests/` contém o replay das 33 partidas de Cologne, verificações de probabilidades, pontuação, caminhos ponderados e consistência da amostragem.
 
 ## Modelos e dados
+
+### Cartões da galera
+
+O mural em `/cartoes` aceita um cartão definitivo por nick e fase, mesmo sem simulação anterior. O nick é público e autodeclarado. A regra de fechamento usa o horário da estreia em `dist/data/stage.json` menos uma hora. O servidor e a escrita no banco verificam o prazo. O cartão registra os dez times, a versão dos dados, o modelo e seus ajustes. Os resultados hipotéticos do simulador ficam fora da disputa.
+
+Durante a fase, o mural consulta o servidor a cada minuto enquanto estiver aberto. O servidor limita consultas à PGL e guarda em D1 a última chave validada. Só entram séries encerradas, pareadas por adversários, rodada e formato. Se a fonte mudar ou ficar indisponível, o mural sinaliza a última leitura. Cada expansão mostra acerto, erro ou vaga em aberto. As probabilidades inicial e condicional usam os parâmetros congelados, 12 mil fases por estimativa e enumeração exata quando restam até nove jogos. O índice de Brier compara as probabilidades de vitória por confronto com os vencedores publicados. O ranking de cartões conta os acertos das dez vagas.
 
 A fase usa o quadro de participantes e seeds da PGL. Os dados de força têm corte em **20 de novembro de 2026, 18h UTC**. Os pontos VRS vêm do ranking de 2 de novembro. O Elo de forma foi estimado no estudo original com resultados anteriores à fase, ajuste por adversário, meia-vida de 160 dias e redução da influência de elencos antigos. A extração histórica do projeto incluiu 14.148 séries. As forças estão congeladas durante a etapa. A foto de Singapura e as marcas das equipes são creditadas à página do evento e a seus respectivos titulares.
 

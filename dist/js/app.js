@@ -2,6 +2,7 @@ import { MODELS, makeMatrix } from './models.js';
 import { availableGames } from './swiss.js';
 import { defaults, validate, swap, updateLock, STAGE } from './state.js';
 import { wilson } from './simulation.js';
+import { bindSaving } from './save-card.js';
 
 const $ = (id) => document.getElementById(id);
 const percent = (p) =>
@@ -40,6 +41,7 @@ async function init() {
   $('left').value = 13;
   $('right').value = 5;
   bind();
+  bindSaving(() => state, stage);
   renderCard();
   renderSettings();
   renderMatches();
@@ -219,6 +221,7 @@ function runHint() {
         : 'A mesma sequência de sorteios permite comparar os quatro modelos.';
 }
 function renderEstimate() {
+  $('saveModel').textContent = 'Modelo que ficará salvo: ' + MODELS[state.model];
   const model = state.model;
   const histograms = last?.histograms || {};
   const pass = (h) => h.slice(5).reduce((a, b) => a + b, 0);

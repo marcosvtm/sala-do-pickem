@@ -20,10 +20,10 @@ function randomStream() {
   return next;
 }
 
-export function sampleRun(teams, state) {
+export function sampleRun(teams, state, models = Object.keys(MODELS)) {
   const rand = randomStream(),
     uniforms = new Float64Array(33);
-  const entries = Object.keys(MODELS).map((id) => ({
+  const entries = models.map((id) => ({
     id,
     matrix: makeMatrix(teams, id, state),
     hist: Array(11).fill(0),
