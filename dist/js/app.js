@@ -274,14 +274,22 @@ function cancelWorker() {
   $('stop').hidden = true;
   $('run').hidden = false;
 }
-function invalidate() {
+function queuePreview() {
+  clearTimeout(delay);
+  delay = setTimeout(() => start('preview'), 180);
+}
+function invalidate({ editing = false } = {}) {
+  clearTimeout(delay);
   cancelWorker();
   last = null;
   renderEstimate();
-  $('status').textContent = '';
-  persist();
-  clearTimeout(delay);
-  delay = setTimeout(() => start('preview'), 180);
+  $('status').textContent = editing
+    ? 'Ajustando hipóteses…'
+    : 'Preparando a prévia…';
+  if (!editing) {
+    persist();
+    queuePreview();
+  }
 }
 function start(mode) {
   clearTimeout(delay);
@@ -333,7 +341,14 @@ function bind() {
   $('activeModel').onchange = (e) => chooseModel(e.target.value);
   $('editTeam').onchange = renderSettings;
   for (const id of ['left', 'right', 'bo']) $(id).onchange = renderDuel;
-  for (const id of ['form', 'trust', 'bonus'])
+  for (const id of ['form', 'trust', 'bonus']) {
+    let pending = false;
+    const finishEdit = () => {
+      if (!pending) return;
+      pending = false;
+      persist();
+      queuePreview();
+    };
     $(id).oninput = () => {
       const n = Number($(id).value);
       if (id === 'form') state.form = n;
@@ -341,8 +356,14 @@ function bind() {
       state.model = 'custom';
       $('activeModel').value = state.model;
       renderSettings();
-      invalidate();
+      pending = true;
+      invalidate({ editing: true });
     };
+    $(id).onchange = finishEdit;
+    // A drag can end back on its initial value, or be cancelled by touch.
+    $(id).onlostpointercapture = finishEdit;
+    $(id).onblur = finishEdit;
+  }
   $('resetModel').onclick = () => {
     const base = defaults(stage.card);
     Object.assign(state, {

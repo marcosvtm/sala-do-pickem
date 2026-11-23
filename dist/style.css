@@ -316,6 +316,7 @@ h3 {
   flex: none;
 }
 .evaluation {
+  container-type: inline-size;
   border-top: 3px solid var(--acid);
   padding-top: 22px;
 }
@@ -348,7 +349,9 @@ select {
   padding-right: 34px;
 }
 .big {
-  font-size: clamp(3.5rem, 5vw, 5rem);
+  --estimate-size: clamp(3.5rem, 5vw, 5rem);
+  min-block-size: calc(1.04 * var(--estimate-size));
+  font-size: var(--estimate-size);
   font-weight: 660;
   font-variant-numeric: tabular-nums;
   line-height: 1.04;
@@ -357,7 +360,7 @@ select {
   margin: 15px 0 5px;
 }
 .big.bounds {
-  font-size: 2.2rem;
+  font-size: min(2.2rem, 9cqi);
 }
 .uncertainty,
 .hint,
@@ -366,8 +369,15 @@ select {
   font-size: 0.85rem;
   color: var(--muted);
 }
-.uncertainty {
-  min-height: 1.3em;
+.uncertainty,
+#status {
+  min-block-size: 1lh;
+}
+@container (max-width: 26rem) {
+  .uncertainty,
+  #status {
+    min-block-size: 2lh;
+  }
 }
 .bench {
   margin: 14px 0;
@@ -400,6 +410,7 @@ select {
 .run-controls > .primary,
 .run-controls > .outline {
   width: 100%;
+  min-block-size: 3.1rem;
   margin: 5px 0;
 }
 .hint {
@@ -426,8 +437,14 @@ select {
 .ends {
   justify-content: space-between;
 }
+.settings-grid label:has(output) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8ch;
+  gap: 0.5rem;
+}
 output {
-  float: right;
+  text-align: right;
+  white-space: nowrap;
   color: var(--acid);
   font-variant-numeric: tabular-nums;
 }
@@ -658,12 +675,18 @@ dialog::backdrop {
   }
 }
 .save-card {
+  container-type: inline-size;
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--line);
 }
 .save-card p {
   color: var(--muted);
+}
+@container (max-width: 22rem) {
+  #saveModel {
+    min-block-size: 2lh;
+  }
 }
 .save-card input {
   font: inherit;
