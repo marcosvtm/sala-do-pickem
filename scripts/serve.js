@@ -54,6 +54,8 @@ const server = http.createServer(async (req, res) => {
       url.pathname = '/index.html';
     if (url.pathname === '/cartoes' || url.pathname === '/cartoes/')
       url.pathname = '/cartoes.html';
+    if (url.pathname === '/ranking' || url.pathname === '/ranking/')
+      url.pathname = '/ranking.html';
     if (url.pathname.startsWith('/server/') || url.pathname.startsWith('/.')) {
       res.writeHead(404);
       res.end();

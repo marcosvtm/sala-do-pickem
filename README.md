@@ -1,4 +1,4 @@
-# Sala do Pick’Em
+# Pick'em dos Broxinhas
 
 Calculadora em português para montar um cartão do Stage 1 do PGL Major de Singapura, testar modelos pessoais e compartilhar cartões salvos e modelos por link. O cálculo roda no navegador em um Web Worker. O endereço de produção fica no campo **About** deste repositório.
 
@@ -30,7 +30,13 @@ Faça um fork, crie uma branch e envie o pull request contra `main`. Conte o que
 
 ## Modelos e dados
 
-### Cartões da galera
+### Ranking dos Broxas
+
+Em `/ranking`, cada participante aparece com os acertos confirmados do cartão do Stage 1. Empates dividem posição, e as três primeiras posições com pontos recebem destaque. O placar usa a mesma pontuação do mural e consulta os resultados oficiais a cada minuto enquanto a página está visível.
+
+Ao abrir um nick, o servidor procura uma correspondência única nas estatísticas públicas do [Ranking Broxas](https://rankingbroxas.duckdns.org/). A comparação tolera maiúsculas, acentos e pontuação. O painel mostra a nota e os jogos do mês vigente em Cuiabá e o nível GC da última partida com esse dado. Somente cartões registrados têm um perfil consultável. Uma indisponibilidade da fonte externa afeta apenas os dados complementares.
+
+### Cartões dos Broxas
 
 O mural em `/cartoes` aceita um cartão por nick e fase, mesmo sem simulação anterior. Até o contador zerar, o visitante pode editar ou excluir os cartões que salvou nesse navegador. Uma chave aleatória local autoriza as mudanças e o banco guarda apenas seu hash. O mural confere a revisão do registro a cada alteração. A exclusão libera o nick, remove os dados do cartão e retira do mural a cópia do modelo vinculada a ele. O identificador fica reservado para que uma requisição antiga não restaure o cartão. Cartões criados antes da emissão dessas chaves permanecem disponíveis para consulta e compartilhamento. O nick é público e autodeclarado. A regra de fechamento usa o horário da estreia em `dist/data/stage.json` menos uma hora. O servidor e a escrita no banco verificam o prazo. O cartão registra os dez times, a versão dos dados, o modelo e seus ajustes. Os resultados hipotéticos do simulador ficam fora da disputa.
 
@@ -74,7 +80,7 @@ O coeficiente minimiza a perda logarítmica nas 318 séries anteriores a outubro
 
 ### Sugestão de cartão
 
-Na Sala, a busca usa o modelo ativo, seus ajustes e os resultados fixados para maximizar a chance de cinco ou mais acertos. O Web Worker testa trocas de equipes entre as três categorias e os seis times de fora. Na busca rápida, oito pontos de partida usam 8.192 torneios simulados. Uma segunda amostra de 16.384 compara finalistas entre rodadas de busca. As porcentagens exibidas para o cartão atual e o sugerido usam os mesmos 32.768 torneios de validação, com uma terceira semente. A busca é heurística.
+Na página inicial, a busca usa o modelo ativo, seus ajustes e os resultados fixados para maximizar a chance de cinco ou mais acertos. O Web Worker testa trocas de equipes entre as três categorias e os seis times de fora. Na busca rápida, oito pontos de partida usam 8.192 torneios simulados. Uma segunda amostra de 16.384 compara finalistas entre rodadas de busca. As porcentagens exibidas para o cartão atual e o sugerido usam os mesmos 32.768 torneios de validação, com uma terceira semente. A busca é heurística.
 
 O refinamento conserva o candidato mais bem pontuado na seleção, renova a amostra de busca a cada oito pontos de partida e continua por 10, 30 ou 60 segundos, ou até a pessoa parar. Cada refinamento concluído acrescenta 32.768 cenários de validação até 131.072. Com a chave inteira fixada, o resultado é calculado diretamente. Aplicar altera apenas o rascunho.
 

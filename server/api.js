@@ -7,6 +7,7 @@ import {
 } from '../dist/js/state.js';
 import { progress } from '../dist/js/progress.js';
 import { CLOSE, liveResults } from './results.js';
+import { broxasProfile } from './broxas.js';
 
 const json = (body, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -82,6 +83,20 @@ async function changeCard(db, now, id, hash, revision, update) {
 }
 export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   const url = new URL(req.url);
+  const profileId = url.pathname.match(
+    /^\/api\/ranking\/([^/]+)\/perfil$/
+  )?.[1];
+  if (req.method === 'GET' && profileId && uuid.test(profileId)) {
+    const row = await db
+      .prepare(
+        'SELECT nick FROM cards WHERE stage=? AND id=? AND removed_at IS NULL'
+      )
+      .bind(stage.id, profileId)
+      .first();
+    if (!row) return failure('Cartão não encontrado.', 404);
+    return json(await broxasProfile(row.nick, now, fetcher));
+  }
+  const ranking = url.pathname === '/api/ranking' && req.method === 'GET';
   if (url.pathname === '/api/stage' && req.method === 'GET')
     return json({ serverTime: now, closesAt: CLOSE });
   if (url.pathname === '/api/results' && req.method === 'GET')
@@ -132,7 +147,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     ? url.pathname.slice('/api/cards/'.length)
     : '';
   const single = uuid.test(cardId);
-  if (url.pathname !== '/api/cards' && !modelOnly && !single)
+  if (url.pathname !== '/api/cards' && !modelOnly && !single && !ranking)
     return failure('Página não encontrada.', 404);
   if (single && req.method === 'GET') {
     const card = await db
@@ -165,6 +180,25 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
        WHERE json_extract(?, '$[' || p.value || ']')= CASE WHEN p.key<2 THEN 0 WHEN p.key<8 THEN 1 ELSE 2 END) hits
       FROM cards WHERE stage=? AND removed_at IS NULL`;
     const ordering = 'ORDER BY hits DESC,submitted ASC,id ASC';
+    if (ranking) {
+      const { results } = await db
+        .prepare(
+          'WITH scored AS (' +
+            ranked +
+            ') SELECT id,nick,hits,RANK() OVER (ORDER BY hits DESC) AS place FROM scored ' +
+            ordering +
+            ' LIMIT ? OFFSET ?'
+        )
+        .bind(JSON.stringify(bucket), stage.id, size + 1, page * size)
+        .all();
+      return json({
+        page,
+        hasMore: results.length > size,
+        finished: live.locks.filter((x) => x >= 0).length,
+        stale: live.stale,
+        rows: results.slice(0, size),
+      });
+    }
     const focus = url.searchParams.get('focus');
     if (focus && uuid.test(focus)) {
       const pos = await db

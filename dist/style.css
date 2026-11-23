@@ -1027,6 +1027,87 @@ dialog::backdrop {
 .wall > .panel {
   margin-block: 18px;
 }
+.broxas-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.broxas-table th,
+.broxas-table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.broxas-table th {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.broxas-table th:first-child {
+  width: 6rem;
+}
+.broxas-table th:last-child,
+.broxas-table td:last-child:not([colspan]) {
+  text-align: right;
+}
+.rank-place,
+.gc-level {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.1em;
+  min-height: 2.1em;
+  border-radius: 50%;
+}
+.podium-1 {
+  background: #ebc865;
+  color: #231b0a;
+}
+.podium-2 {
+  background: #c9d1db;
+  color: #1c242a;
+}
+.podium-3 {
+  background: #daa17d;
+  color: #311b10;
+}
+.rank-nick {
+  border: 0;
+  padding: 8px 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.rank-nick::after {
+  content: '+';
+  color: var(--acid);
+  margin-left: 0.6em;
+}
+.rank-nick[aria-expanded='true']::after {
+  content: '−';
+}
+.rank-profile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 20px;
+  margin: 8px 0;
+  color: var(--muted);
+}
+.gc-level {
+  color: #101417;
+  background: #83bbee;
+}
+.gc-level[data-band='green'] {
+  background: #98c16a;
+}
+.gc-level[data-band='gold'] {
+  background: #f0bc00;
+}
+.gc-level[data-band='orange'] {
+  background: #ff895b;
+}
 .wall-card {
   border-top: 1px solid var(--line);
 }

@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#101518" />
-    <title>Sala do Pick’Em · Singapura 2026</title>
+    <title>Pick'em dos Broxinhas · Singapura 2026</title>
     <meta
       name="description"
       content="Compare seu cartão do Major de Singapura com diferentes modelos e simule a chance de fazer cinco acertos."
@@ -18,11 +18,12 @@
     <header>
       <div class="wrap top">
         <a href="/" class="brand"
-          ><img src="assets/mark.svg" alt="" />Sala do Pick’Em</a
+          ><img src="assets/mark.svg" alt="" />Pick'em dos Broxinhas</a
         >
         <nav aria-label="Navegação principal">
           <a href="/modelos">Modelos</a><a href="/partidas">Partidas</a
-          ><a href="/cartoes">Cartões da galera</a>
+          ><a href="/cartoes">Cartões dos Broxas</a>
+          <a href="/ranking">Ranking dos Broxas</a>
         </nav>
       </div>
     </header>
@@ -34,7 +35,7 @@
       <section class="hero" data-page="/">
         <div class="hero-copy">
           <span class="kicker"><i></i> PGL MAJOR · SINGAPURA 2026</span>
-          <h1>Simulador de <em>Pick’Em</em></h1>
+          <h1>Pick'em dos <em>Broxinhas</em></h1>
           <p>Monte seu cartão e compare a chance de fazer cinco acertos.</p>
           <div class="eventline">
             <b>Stage 1</b><span>24–27 de novembro</span><span>16 equipes</span>
@@ -64,14 +65,18 @@
             <h3>Fechar meu cartão</h3>
             <p>
               Seu nick, seus dez picks e o modelo escolhido ficam públicos em
-              <a href="/cartoes">Cartões da galera</a>. Você pode salvar mesmo
+              <a href="/cartoes">Cartões dos Broxas</a>. Você pode salvar mesmo
               sem simular. Neste navegador, você pode editar ou excluir seu
               cartão até o fim do timer.
             </p>
             <label for="nick">Seu nick</label>
+            <p id="nickHint" class="hint">
+              Use o mesmo nick do Ranking Broxas.
+            </p>
             <input
               id="nick"
               name="nick"
+              aria-describedby="nickHint"
               maxlength="32"
               required
               autocomplete="nickname"
@@ -317,11 +322,11 @@
           </p>
           <p>
             Por exemplo, a Lynn Vision tem <strong>52,48%</strong> de chance de
-            vencer a 9z em MD1 e <strong>49,95%</strong> em MD3. Na Sala,
-            <strong>Sugerir cartão</strong> usa as chances de cada duelo para
-            simular a fase e procurar um cartão com boa chance de render pelo
-            menos cinco acertos. Os resultados que você fixou já entram na
-            chave.
+            vencer a 9z em MD1 e <strong>49,95%</strong> em MD3. Na página
+            inicial, <strong>Sugerir cartão</strong> usa as chances de cada
+            duelo para simular a fase e procurar um cartão com boa chance de
+            render pelo menos cinco acertos. Os resultados que você fixou já
+            entram na chave.
           </p>
           <a
             class="study-link"
@@ -425,7 +430,7 @@
             <form id="publishModel" class="publish-model">
               <h3>Salvar modelo</h3>
               <p class="hint">
-                Publique uma cópia dos ajustes em Cartões da galera. Você pode
+                Publique uma cópia dos ajustes em Cartões dos Broxas. Você pode
                 salvar o modelo antes de montar seu cartão.
               </p>
               <label for="modelNick">Seu nick</label
@@ -539,7 +544,7 @@
       </section>
     </main>
     <footer class="wrap">
-      <span>Sala do Pick’Em · Singapura 2026</span
+      <span>Pick'em dos Broxinhas · Singapura 2026</span
       ><a href="https://github.com/marcosvtm/sala-do-pickem"
         >Contribuir no GitHub</a
       >

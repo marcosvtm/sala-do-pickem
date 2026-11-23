@@ -160,10 +160,10 @@ export function bindPages(teams, apply) {
     }
     document.title =
       ({
-        '/': 'Sala do Pick’Em',
+        '/': "Pick'em dos Broxinhas",
         '/partidas': 'Partidas',
         '/modelos': 'Modelos',
-      }[path] || 'Sala do Pick’Em') + ' · Singapura 2026';
+      }[path] || "Pick'em dos Broxinhas") + ' · Singapura 2026';
     if (id && id !== requested) {
       showPublic(id);
       $('importPanel').scrollIntoView({ block: 'start' });
