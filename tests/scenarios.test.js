@@ -141,7 +141,7 @@ test('personal weights have exact endpoints; team confidence and Major adjustmen
   }
 });
 
-test('four-way mixes average series probabilities and retain team adjustments', () => {
+test('five-way mixes average series probabilities and retain team adjustments', () => {
   const s = newDraft();
   s.trust[3] = 25;
   s.bonus[6] = 8;
@@ -161,7 +161,7 @@ test('four-way mixes average series probabilities and retain team adjustments', 
       pure[key]
     );
   }
-  s.weights = { neutral: 8, vrs: 5, hltv: 2, elo: 1 };
+  s.weights = { neutral: 8, vrs: 5, hltv: 2, elo: 1, study: 4 };
   const matrix = makeMatrix(stage.teams, 'custom', s);
   for (const bo of [1, 3]) {
     for (let a = 0; a < 16; a++) {
@@ -170,18 +170,18 @@ test('four-way mixes average series probabilities and retain team adjustments', 
           PRESETS.reduce(
             (sum, k) => sum + s.weights[k] * pure[k][bo][a][b],
             0
-          ) / 16;
+          ) / 20;
         assert.ok(Math.abs(matrix[bo][a][b] - expected) < 1e-12);
         assert.ok(Math.abs(matrix[bo][a][b] + matrix[bo][b][a] - 1) < 1e-12);
       }
     }
   }
-  const scaled = { neutral: 80, vrs: 50, hltv: 20, elo: 10 };
+  const scaled = { neutral: 80, vrs: 50, hltv: 20, elo: 10, study: 40 };
   assert.deepEqual(
     makeMatrix(stage.teams, 'custom', { ...s, weights: scaled }),
     matrix
   );
-  const zeros = { neutral: 0, vrs: 0, hltv: 0, elo: 0 };
+  const zeros = { neutral: 0, vrs: 0, hltv: 0, elo: 0, study: 0 };
   assert.deepEqual(
     makeMatrix(stage.teams, 'custom', { ...s, weights: zeros }),
     pure.neutral
@@ -191,12 +191,14 @@ test('four-way mixes average series probabilities and retain team adjustments', 
     vrs: 0,
     hltv: 0,
     elo: 0,
+    study: 0,
   });
   assert.deepEqual(mixPercentages({ ...zeros, vrs: 1, hltv: 1, elo: 1 }), {
     neutral: 0,
     vrs: 33.3,
     hltv: 33.3,
     elo: 33.3,
+    study: 0,
   });
   assert.deepEqual(mixWeights({ base: 'hltv', weight: 51 }), {
     ...zeros,
@@ -209,6 +211,8 @@ test('four-way mixes average series probabilities and retain team adjustments', 
     { ...s.weights, elo: 101 },
     { ...s.weights, vrs: 0.5 },
     { ...s.weights, fake: 0 },
+    { ...s.weights, study: null },
+    { ...s.weights, study: -1 },
   ]) {
     assert.equal(validate({ ...s, weights: invalid }, { draft: true }), false);
   }
@@ -216,6 +220,53 @@ test('four-way mixes average series probabilities and retain team adjustments', 
     validate({ ...s, base: 'vrs', weight: 50 }, { draft: true }),
     false
   );
+});
+
+test('study trust interpolates between the original matchup and an average opponent', () => {
+  const s = newDraft();
+  s.weights = { neutral: 0, vrs: 0, hltv: 0, elo: 0, study: 100 };
+  const original = makeMatrix(stage.teams, 'study', s);
+  assert.deepEqual(makeMatrix(stage.teams, 'custom', s), original);
+  const a = 15,
+    b = 7;
+  s.trust[a] = 50;
+  const adjusted = makeMatrix(stage.teams, 'custom', s);
+  for (const bo of [1, 3]) {
+    const averageAgainstB = 1 - fieldStrength(original[bo])[b];
+    const expected = (original[bo][a][b] + averageAgainstB) / 2;
+    assert.ok(Math.abs(adjusted[bo][a][b] - expected) < 1e-12);
+    assert.ok(Math.abs(adjusted[bo][b][a] - (1 - expected)) < 1e-12);
+    assert.equal(adjusted[bo][0][1], original[bo][0][1]);
+  }
+});
+
+test('legacy four-weight models retain their probabilities and serialized settings', () => {
+  const settings = newDraft();
+  settings.weights = { neutral: 25, vrs: 50, hltv: 10, elo: 15 };
+  const explicit = { ...settings, weights: { ...settings.weights, study: 0 } };
+  assert.ok(validate(settings, { draft: true }));
+  assert.equal(mixWeights(settings).study, 0);
+  assert.deepEqual(personalSettings(explicit).weights, settings.weights);
+  assert.equal(
+    JSON.stringify(personalSettings(settings)),
+    JSON.stringify(personalSettings(explicit))
+  );
+  const oldMix = makeMatrix(stage.teams, 'custom', settings);
+  const parts = Object.entries(settings.weights).map(([key, points]) => [
+    makeMatrix(stage.teams, key, settings),
+    points / 100,
+  ]);
+  for (const bo of [1, 3]) {
+    oldMix[bo].forEach((row, a) =>
+      row.forEach((p, b) => {
+        const expected = parts.reduce(
+          (sum, [m, w]) => sum + m[bo][a][b] * w,
+          0
+        );
+        assert.ok(Math.abs(p - expected) < 1e-12);
+      })
+    );
+  }
 });
 
 test('new Elo and archived Elo retain their own matchup probabilities across personal versions', () => {
@@ -252,7 +303,7 @@ test('new Elo and archived Elo retain their own matchup probabilities across per
 test('mixed weights round trip through both a shared model and a saved card', async () => {
   const db = openDb(),
     state = newDraft();
-  state.weights = { neutral: 0, vrs: 20, hltv: 66, elo: 13 };
+  state.weights = { neutral: 0, vrs: 20, hltv: 66, elo: 13, study: 41 };
   state.bonus[4] = 3;
   state.card = [...stage.card];
   db.sqlite.function('unixepoch', () => CLOSE / 1000 - 15);

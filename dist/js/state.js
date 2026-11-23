@@ -19,7 +19,7 @@ export function newDraft() {
     ...defaults(zeros(10, -1)),
     model: 'custom',
     formVersion: FORM_VERSION,
-    weights: { neutral: 25, vrs: 25, hltv: 25, elo: 25 },
+    weights: { neutral: 20, vrs: 20, hltv: 20, elo: 20, study: 20 },
   };
 }
 const inRange = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
@@ -42,8 +42,10 @@ export function validPersonal(settings) {
         !Array.isArray(w) &&
         settings.base === undefined &&
         settings.weight === undefined &&
-        Object.keys(w).length === PRESETS.length &&
-        PRESETS.every((key) => Object.hasOwn(w, key) && inRange(w[key], 0, 100))
+        Object.keys(w).every((key) => PRESETS.includes(key)) &&
+        PRESETS.every((key) =>
+          Object.hasOwn(w, key) ? inRange(w[key], 0, 100) : key === 'study'
+        )
     );
   }
   if (settings.base !== undefined || settings.weight !== undefined)
@@ -56,7 +58,10 @@ export function personalSettings(s) {
   const formula = s.weights
     ? {
         weights: Object.fromEntries(
-          PRESETS.map((key) => [key, s.weights[key]])
+          // Keep zero-study snapshots byte-compatible with existing signatures and retries.
+          PRESETS.filter((key) => key !== 'study' || s.weights.study > 0).map(
+            (key) => [key, s.weights[key]]
+          )
         ),
       }
     : s.base

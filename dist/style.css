@@ -472,6 +472,9 @@ select {
 .mix-elo {
   --mix-color: #f4b28e;
 }
+.mix-study {
+  --mix-color: #c8a5fa;
+}
 .mix-bar span {
   background: var(--mix-color);
   flex-basis: 0;
@@ -585,11 +588,46 @@ select {
   gap: 10px;
   margin: 14px 0;
 }
-.strength-tools label {
+#strengthFormatLabel {
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+.format-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg);
+}
+.format-toggle label {
+  position: relative;
   margin: 0;
 }
-.strength-tools select {
-  width: auto;
+.format-toggle input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.format-toggle span {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  min-width: 54px;
+  border-radius: 6px;
+  color: var(--muted);
+}
+.format-toggle input:checked + span {
+  background: var(--acid);
+  color: var(--bg);
+  font-weight: 700;
+}
+.format-toggle input:focus-visible + span {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 .strength-tools small {
   margin-left: auto;

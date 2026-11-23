@@ -37,6 +37,9 @@ export function bindEditor(teams, current, onEdit) {
   const list = $('strengthList'),
     rows = [],
     fixed = {};
+  const formatControl = $('strengthFormat');
+  const strengthFormat = () =>
+    Number(formatControl.querySelector(':checked').value);
   for (const key of ['neutral', 'vrs', 'hltv', 'study'])
     fixed[key] = makeMatrix(teams, key, current());
   let fixedVersion;
@@ -205,7 +208,7 @@ export function bindEditor(teams, current, onEdit) {
   list.append(...alphabetical.map((i) => rows[i].wrap));
   function render() {
     const s = current(),
-      bo = Number($('strengthBo').value);
+      bo = strengthFormat();
     const version = s.formVersion ?? 1;
     if (version !== fixedVersion) {
       fixed.elo = makeMatrix(teams, 'elo', s);
@@ -236,12 +239,12 @@ export function bindEditor(teams, current, onEdit) {
     render();
     onEdit(editing);
   });
-  $('strengthBo').onchange = render;
+  formatControl.onchange = render;
   $('sortStrength').onclick = () => {
     const order = [...alphabetical].sort((a, b) => strengths[b] - strengths[a]);
     list.append(...order.map((i) => rows[i].wrap));
     $('strengthOrder').textContent =
-      'Ordem do último clique · MD' + $('strengthBo').value;
+      'Ordem do último clique · MD' + strengthFormat();
   };
   $('resetModel').onclick = () => {
     const s = current(),
