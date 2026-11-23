@@ -36,8 +36,9 @@ export function bindEditor(teams, current, onEdit) {
   const list = $('strengthList'),
     rows = [],
     fixed = {};
-  for (const key of Object.keys(columns))
-    if (key !== 'custom') fixed[key] = makeMatrix(teams, key, current());
+  for (const key of ['neutral', 'vrs', 'hltv'])
+    fixed[key] = makeMatrix(teams, key, current());
+  let fixedVersion;
   let personal,
     strengths,
     feed,
@@ -204,6 +205,11 @@ export function bindEditor(teams, current, onEdit) {
   function render() {
     const s = current(),
       bo = Number($('strengthBo').value);
+    const version = s.formVersion ?? 1;
+    if (version !== fixedVersion) {
+      fixed.elo = makeMatrix(teams, 'elo', s);
+      fixedVersion = version;
+    }
     renderMixer();
     personal = makeMatrix(teams, 'custom', s);
     const matrices = { ...fixed, custom: personal };

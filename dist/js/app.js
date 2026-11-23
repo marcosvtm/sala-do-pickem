@@ -1,9 +1,9 @@
-import { MODELS, makeMatrix, modelName } from './models.js';
+import { MODELS, makeMatrix, modelName, FORM_VERSION } from './models.js';
 import { bindSuggestions } from './suggestion-dialog.js';
 import { bindBracket } from './bracket.js';
 import { bindPages, renderCatalog } from './pages.js';
 import { bindFeed } from './schedule.js';
-import { newDraft, validate, swap, STAGE } from './state.js';
+import { newDraft, validate, swap, STAGE, personalSettings } from './state.js';
 import { bindEditor } from './model-editor.js';
 import { bindModelSaving } from './save-model.js';
 import { wilson } from './simulation.js';
@@ -59,8 +59,24 @@ async function init() {
         saved = wall.cards.find((card) => card.id === receipt.token)?.settings;
       }
     }
-    if (saved && validate(saved, { draft: true })) state = saved;
-    else if (saved) toast('Cartão incompatível. Abrimos um cartão vazio.');
+    if (saved && validate(saved, { draft: true })) {
+      state = saved;
+      let published;
+      try {
+        published = JSON.parse(
+          localStorage.getItem('published-model:' + STAGE)
+        );
+      } catch {
+        /* Storage may be unavailable. */
+      }
+      const frozen =
+        receipt?.saved ||
+        location.hash.startsWith('#c=') ||
+        (published?.signature &&
+          published.signature ===
+            JSON.stringify([published.nick, personalSettings(state)]));
+      state.formVersion ??= frozen ? 1 : FORM_VERSION;
+    } else if (saved) toast('Cartão incompatível. Abrimos um cartão vazio.');
   } catch {
     if (location.hash.startsWith('#c='))
       toast('Link inválido. Abrimos um cartão vazio.');
@@ -77,7 +93,7 @@ async function init() {
   refreshSuggestion = bindSuggestions(
     stage.teams,
     () => state,
-    () => modelName(state.model, publishedName || owner),
+    () => modelName(state.model, publishedName || owner, state.formVersion),
     (card) => {
       state.card = [...card];
       renderCard();
@@ -92,7 +108,12 @@ async function init() {
       state.model = 'custom';
       $('activeModel').value = 'custom';
       if (!editing)
-        renderCatalog('custom', publishedName || owner, chooseModel);
+        renderCatalog(
+          'custom',
+          publishedName || owner,
+          chooseModel,
+          state.formVersion
+        );
       modelSaving?.refresh();
       renderDuel();
       invalidate({ editing });
@@ -103,7 +124,10 @@ async function init() {
     delete state.base;
     delete state.weight;
     delete state.description;
-    Object.assign(state, settings, { model: 'custom' });
+    Object.assign(state, settings, {
+      model: 'custom',
+      formVersion: settings.formVersion ?? 1,
+    });
     renderSettings();
     refreshNames();
     invalidate();
@@ -272,23 +296,33 @@ function renderDuel() {
     strong.textContent = stage.teams[a].short + ' ' + percent(p);
     const label =
       key === 'hltv'
-        ? modelName(key, publishedName || owner) +
+        ? modelName(key, publishedName || owner, state.formVersion) +
           ' (#' +
           stage.teams[a].hltvRank +
           ' × #' +
           stage.teams[b].hltvRank +
           ')'
-        : modelName(key, publishedName || owner);
+        : modelName(key, publishedName || owner, state.formVersion);
     line.append(label, strong);
     $('duel').append(line);
   }
 }
 function refreshNames() {
+  $('legacyForm').hidden = $('legacyFormHome').hidden = state.formVersion !== 1;
   for (const opt of $('activeModel').options)
-    opt.textContent = modelName(opt.value, publishedName || owner);
+    opt.textContent = modelName(
+      opt.value,
+      publishedName || owner,
+      state.formVersion
+    );
   $('activeModel').value = state.model;
   $('personalName').textContent = modelName('custom', publishedName || owner);
-  renderCatalog(state.model, publishedName || owner, chooseModel);
+  renderCatalog(
+    state.model,
+    publishedName || owner,
+    chooseModel,
+    state.formVersion
+  );
   renderDuel();
   renderEstimate();
 }
@@ -309,7 +343,8 @@ function renderEstimate() {
   const incomplete = state.card.includes(-1);
   $('run').disabled = incomplete;
   $('saveModel').textContent =
-    'Modelo em uso: ' + modelName(state.model, publishedName || owner);
+    'Modelo em uso: ' +
+    modelName(state.model, publishedName || owner, state.formVersion);
   const model = state.model;
   const histograms = last?.histograms || {};
   const pass = (h) => h.slice(5).reduce((a, b) => a + b, 0);
@@ -342,7 +377,11 @@ function renderEstimate() {
       row.onclick = () => chooseModel(key);
       $('comparison').append(row);
     }
-    row.firstChild.textContent = modelName(key, publishedName || owner);
+    row.firstChild.textContent = modelName(
+      key,
+      publishedName || owner,
+      state.formVersion
+    );
     row.classList.toggle('active', key === model);
     row.setAttribute('aria-pressed', String(key === model));
     row.lastElementChild.textContent = histograms[key]
@@ -356,7 +395,7 @@ function chooseModel(key) {
   if (changed) refreshSuggestion?.();
   $('activeModel').value = key;
   persist();
-  renderCatalog(key, publishedName || owner, chooseModel);
+  renderCatalog(key, publishedName || owner, chooseModel, state.formVersion);
   if (changed && (activeRun === 'exact' || last?.kind === 'exact'))
     invalidate();
   else renderEstimate();
@@ -439,6 +478,13 @@ function start(mode) {
   });
 }
 function bind() {
+  $('upgradeForm').onclick = () => {
+    state.formVersion = FORM_VERSION;
+    renderSettings();
+    modelSaving?.refresh();
+    refreshNames();
+    invalidate();
+  };
   $('activeModel').onchange = (e) => chooseModel(e.target.value);
   for (const id of ['left', 'right', 'bo']) $(id).onchange = renderDuel;
   $('restore').onclick = () => {

@@ -1,7 +1,7 @@
 import { MODELS, explanations, modelName, describeBase } from './models.js';
 import { personalSettings } from './state.js';
 
-export function renderCatalog(selected, nick, choose) {
+export function renderCatalog(selected, nick, choose, formVersion) {
   const tiles = Object.keys(MODELS).map((id) => {
     const button = document.createElement('button'),
       name = document.createElement('strong'),
@@ -9,8 +9,11 @@ export function renderCatalog(selected, nick, choose) {
       status = document.createElement('small');
     button.type = 'button';
     button.className = 'model-tile';
-    name.textContent = modelName(id, nick);
-    desc.textContent = explanations[id];
+    name.textContent = modelName(id, nick, formVersion);
+    desc.textContent =
+      id === 'elo' && formVersion === 1
+        ? 'Esta cópia usa o Elo anterior à revisão regional.'
+        : explanations[id];
     button.setAttribute('aria-pressed', String(id === selected));
     status.textContent =
       id === selected ? 'Em uso no cartão' : 'Usar no cartão';
@@ -22,6 +25,21 @@ export function renderCatalog(selected, nick, choose) {
 }
 export function bindPages(teams, apply) {
   const $ = (id) => document.getElementById(id);
+  for (const team of teams) {
+    const e = team.formEvidence;
+    const row = $('formEvidence').insertRow();
+    const header = document.createElement('th');
+    header.scope = 'row';
+    header.textContent = team.name;
+    row.append(header);
+    for (const value of [
+      e.series,
+      e.opponents,
+      e.externalOpponents,
+      e.unknownSeries,
+    ])
+      row.insertCell().textContent = value;
+  }
   const rankedTeams = [...teams].sort((a, b) => a.hltvRank - b.hltvRank);
   for (const team of rankedTeams) {
     const item = document.createElement('li');
@@ -46,7 +64,12 @@ export function bindPages(teams, apply) {
       $('importInfo').textContent =
         model.description || 'Ajustes publicados por ' + model.nick + '.';
       const info = document.createElement('p');
-      info.textContent = describeBase(model) + '.';
+      info.textContent =
+        describeBase(model) +
+        '. ' +
+        (model.formVersion === 2
+          ? 'Forma recente com ajuste regional.'
+          : 'Forma recente da edição anterior.');
       const changes = teams.flatMap((t, i) =>
         model.trust[i] === 100 && model.bonus[i] === 0
           ? []
@@ -75,7 +98,9 @@ export function bindPages(teams, apply) {
         history.replaceState(null, '', '/modelos');
         render();
         $('modelos').scrollIntoView({ block: 'start' });
-        $(model.weights || model.base ? 'mix-neutral' : 'startMix').focus({ preventScroll: true });
+        $(model.weights || model.base ? 'mix-neutral' : 'startMix').focus({
+          preventScroll: true,
+        });
       };
     } catch {
       if (requested === id)

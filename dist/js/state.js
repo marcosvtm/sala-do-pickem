@@ -1,4 +1,4 @@
-import { MODELS, BASE_MODELS, PRESETS } from './models.js';
+import { MODELS, BASE_MODELS, PRESETS, FORM_VERSION } from './models.js';
 import { ROUND_SIZES, ROUND_START } from './swiss.js';
 
 export const STAGE = 'sg26-s1-v1';
@@ -18,6 +18,7 @@ export function newDraft() {
   return {
     ...defaults(zeros(10, -1)),
     model: 'custom',
+    formVersion: FORM_VERSION,
     weights: { neutral: 25, vrs: 25, hltv: 25, elo: 25 },
   };
 }
@@ -27,6 +28,8 @@ const intArray = (x, n, min, max) =>
 export function validPersonal(settings) {
   if (
     !settings ||
+    (settings.formVersion !== undefined &&
+      ![1, FORM_VERSION].includes(settings.formVersion)) ||
     !intArray(settings.trust, 16, 0, 100) ||
     !intArray(settings.bonus, 16, -15, 15)
   )
@@ -61,6 +64,7 @@ export function personalSettings(s) {
       : { form: s.form };
   return {
     ...formula,
+    ...(s.formVersion === FORM_VERSION ? { formVersion: FORM_VERSION } : {}),
     trust: [...s.trust],
     bonus: [...s.bonus],
   };

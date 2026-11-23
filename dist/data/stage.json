@@ -10,7 +10,15 @@
       "vrs": 1564,
       "elo": 99.87091559712886,
       "series": 99,
-      "hltvRank": 18
+      "hltvRank": 18,
+      "formElo": 66.29715563,
+      "formEvidence": {
+        "series": 42,
+        "opponents": 33,
+        "externalSeries": 6,
+        "externalOpponents": 6,
+        "unknownSeries": 1
+      }
     },
     {
       "name": "PVISION",
@@ -19,7 +27,15 @@
       "vrs": 1560,
       "elo": 38.22217593321265,
       "series": 80,
-      "hltvRank": 13
+      "hltvRank": 13,
+      "formElo": 16.69435171,
+      "formEvidence": {
+        "series": 25,
+        "opponents": 18,
+        "externalSeries": 7,
+        "externalOpponents": 5,
+        "unknownSeries": 1
+      }
     },
     {
       "name": "HEROIC",
@@ -28,7 +44,15 @@
       "vrs": 1548,
       "elo": 128.48346413578642,
       "series": 90,
-      "hltvRank": 23
+      "hltvRank": 23,
+      "formElo": 93.53309182,
+      "formEvidence": {
+        "series": 42,
+        "opponents": 31,
+        "externalSeries": 4,
+        "externalOpponents": 3,
+        "unknownSeries": 4
+      }
     },
     {
       "name": "FaZe Clan",
@@ -37,7 +61,15 @@
       "vrs": 1539,
       "elo": 52.9303731920372,
       "series": 77,
-      "hltvRank": 19
+      "hltvRank": 19,
+      "formElo": 15.99692834,
+      "formEvidence": {
+        "series": 27,
+        "opponents": 24,
+        "externalSeries": 4,
+        "externalOpponents": 4,
+        "unknownSeries": 2
+      }
     },
     {
       "name": "Team Liquid",
@@ -46,7 +78,15 @@
       "vrs": 1528,
       "elo": 65.8638103826339,
       "series": 82,
-      "hltvRank": 16
+      "hltvRank": 16,
+      "formElo": 34.70687339,
+      "formEvidence": {
+        "series": 39,
+        "opponents": 33,
+        "externalSeries": 26,
+        "externalOpponents": 22,
+        "unknownSeries": 3
+      }
     },
     {
       "name": "Eternal Fire",
@@ -55,7 +95,15 @@
       "vrs": 1513,
       "elo": 185.1417829080618,
       "series": 132,
-      "hltvRank": 22
+      "hltvRank": 22,
+      "formElo": 114.75281605,
+      "formEvidence": {
+        "series": 53,
+        "opponents": 36,
+        "externalSeries": 5,
+        "externalOpponents": 3,
+        "unknownSeries": 8
+      }
     },
     {
       "name": "100 Thieves",
@@ -64,7 +112,15 @@
       "vrs": 1511,
       "elo": 253.44036041802673,
       "series": 99,
-      "hltvRank": 29
+      "hltvRank": 29,
+      "formElo": 186.84581965,
+      "formEvidence": {
+        "series": 39,
+        "opponents": 33,
+        "externalSeries": 7,
+        "externalOpponents": 7,
+        "unknownSeries": 5
+      }
     },
     {
       "name": "9z Globant",
@@ -73,7 +129,15 @@
       "vrs": 1490,
       "elo": -22.431221154697543,
       "series": 98,
-      "hltvRank": 21
+      "hltvRank": 21,
+      "formElo": -20.70908428,
+      "formEvidence": {
+        "series": 21,
+        "opponents": 13,
+        "externalSeries": 17,
+        "externalOpponents": 10,
+        "unknownSeries": 0
+      }
     },
     {
       "name": "M80",
@@ -82,7 +146,15 @@
       "vrs": 1489,
       "elo": 71.07132394518341,
       "series": 82,
-      "hltvRank": 24
+      "hltvRank": 24,
+      "formElo": 41.19391363,
+      "formEvidence": {
+        "series": 26,
+        "opponents": 21,
+        "externalSeries": 19,
+        "externalOpponents": 15,
+        "unknownSeries": 0
+      }
     },
     {
       "name": "DENDELE",
@@ -91,7 +163,15 @@
       "vrs": 1466,
       "elo": 132.44704942123485,
       "series": 31,
-      "hltvRank": 33
+      "hltvRank": 33,
+      "formElo": 63.60738797,
+      "formEvidence": {
+        "series": 31,
+        "opponents": 22,
+        "externalSeries": 6,
+        "externalOpponents": 6,
+        "unknownSeries": 7
+      }
     },
     {
       "name": "Imperial Esports",
@@ -100,7 +180,15 @@
       "vrs": 1406,
       "elo": 222.0408596365334,
       "series": 112,
-      "hltvRank": 48
+      "hltvRank": 48,
+      "formElo": 99.43999478,
+      "formEvidence": {
+        "series": 50,
+        "opponents": 25,
+        "externalSeries": 0,
+        "externalOpponents": 0,
+        "unknownSeries": 5
+      }
     },
     {
       "name": "Wildcard",
@@ -109,7 +197,15 @@
       "vrs": 1391,
       "elo": 135.40570766122107,
       "series": 76,
-      "hltvRank": 42
+      "hltvRank": 42,
+      "formElo": 86.27561914,
+      "formEvidence": {
+        "series": 28,
+        "opponents": 22,
+        "externalSeries": 8,
+        "externalOpponents": 8,
+        "unknownSeries": 7
+      }
     },
     {
       "name": "GOSH",
@@ -118,7 +214,15 @@
       "vrs": 1337,
       "elo": 54.571726067444,
       "series": 57,
-      "hltvRank": 46
+      "hltvRank": 46,
+      "formElo": 25.3678557,
+      "formEvidence": {
+        "series": 30,
+        "opponents": 25,
+        "externalSeries": 14,
+        "externalOpponents": 12,
+        "unknownSeries": 4
+      }
     },
     {
       "name": "FlyQuest",
@@ -127,7 +231,15 @@
       "vrs": 1318,
       "elo": 251.186620822403,
       "series": 61,
-      "hltvRank": 58
+      "hltvRank": 58,
+      "formElo": 108.07349902,
+      "formEvidence": {
+        "series": 27,
+        "opponents": 16,
+        "externalSeries": 0,
+        "externalOpponents": 0,
+        "unknownSeries": 5
+      }
     },
     {
       "name": "Chinggis Warriors",
@@ -136,7 +248,15 @@
       "vrs": 1272,
       "elo": 62.01128151556866,
       "series": 70,
-      "hltvRank": 59
+      "hltvRank": 59,
+      "formElo": 8.2263111,
+      "formEvidence": {
+        "series": 27,
+        "opponents": 15,
+        "externalSeries": 0,
+        "externalOpponents": 0,
+        "unknownSeries": 1
+      }
     },
     {
       "name": "Lynn Vision Gaming",
@@ -145,7 +265,15 @@
       "vrs": 1267,
       "elo": 163.62890535503936,
       "series": 62,
-      "hltvRank": 44
+      "hltvRank": 44,
+      "formElo": 91.42924208,
+      "formEvidence": {
+        "series": 19,
+        "opponents": 14,
+        "externalSeries": 4,
+        "externalOpponents": 4,
+        "unknownSeries": 1
+      }
     }
   ],
   "card": [

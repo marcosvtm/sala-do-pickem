@@ -1,7 +1,7 @@
 import { MODELS, modelName, makeMatrix, describeBase } from './models.js';
 import { progress, pickStatus, fixtureBrier } from './progress.js';
 import { shareButton } from './share.js';
-import { defaults } from './state.js';
+import { newDraft } from './state.js';
 const $ = (id) => document.getElementById(id);
 const node = (tag, text, cls) => {
   const el = document.createElement(tag);
@@ -67,7 +67,7 @@ function render(data) {
     const who = node('strong', c.nick);
     const label = node(
       'span',
-      modelName(c.settings.model, c.nick),
+      modelName(c.settings.model, c.nick, c.settings.formVersion ?? 1),
       'wall-model'
     );
     const hits = node('b', c.hits + '/10', 'wall-hits'),
@@ -134,7 +134,9 @@ function render(data) {
         node(
           'p',
           describeBase(c.settings) +
-            '.' +
+            (c.settings.formVersion === 2
+              ? '. Forma recente revisada.'
+              : '. Forma recente da edição anterior.') +
             (tweaks.length ? ' ' + tweaks.join(' · ') : ''),
           'hint'
         )
@@ -205,10 +207,7 @@ function render(data) {
       node(
         'b',
         brier(
-          fixtureBrier(
-            makeMatrix(stage.teams, model, defaults(stage.card)),
-            finished
-          )
+          fixtureBrier(makeMatrix(stage.teams, model, newDraft()), finished)
         )
       )
     );

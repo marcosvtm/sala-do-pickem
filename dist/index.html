@@ -99,6 +99,10 @@
           </p>
           <label for="activeModel">Modelo em destaque</label
           ><select id="activeModel"></select>
+          <p class="hint" id="legacyFormHome" hidden>
+            Este rascunho usa a forma recente anterior.
+            <a href="/modelos">Ver edição revisada</a>
+          </p>
           <button type="button" id="suggest" aria-haspopup="dialog" disabled>
             <span class="suggest-icon" aria-hidden="true"
               ><i></i><i></i><i></i></span
@@ -153,6 +157,50 @@
         <h1>Modelos</h1>
         <p>Escolha como estimar a chance de cada equipe vencer um confronto.</p>
         <div id="catalog" class="catalog"></div>
+        <p id="legacyForm" class="hint" hidden>
+          Esta cópia preserva a forma recente anterior.
+          <button class="outline" type="button" id="upgradeForm">
+            Usar forma revisada neste rascunho
+          </button>
+        </p>
+        <details class="hltv-reference">
+          <summary>Forma recente e oposição inter-regional</summary>
+          <p>
+            O Elo leva em conta a força do adversário. Cada reencontro recente
+            vale menos. Uma partida também pesa menos quando nenhuma das equipes
+            tem contato recente com rivais de outras regiões. Vitórias e
+            derrotas seguem a mesma regra.
+          </p>
+          <p>
+            O histórico abaixo cobre os 120 dias anteriores a 20/11/2026, às 14h
+            de Cuiabá. As regiões são as da Valve na data da série: Europa,
+            Américas e Ásia (incluindo a Oceania). Uma série só conta como
+            inter-regional se ambas as regiões eram conhecidas e diferentes.
+          </p>
+          <div class="form-history">
+            <table>
+              <caption>
+                Oposição de cada equipe nos últimos 120 dias
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Equipe</th>
+                  <th scope="col">Séries</th>
+                  <th scope="col">Rivais distintos</th>
+                  <th scope="col">Rivais de outra região</th>
+                  <th scope="col">Séries com região desconhecida</th>
+                </tr>
+              </thead>
+              <tbody id="formEvidence"></tbody>
+            </table>
+          </div>
+          <p>
+            Em 324 séries de torneios posteriores ao ajuste, o Brier passou de
+            0,249 para 0,243 (menor é melhor). Houve apenas 20 confrontos
+            inter-regionais em que ao menos um time havia enfrentado menos de
+            dois rivais de fora.
+          </p>
+        </details>
         <details class="hltv-reference">
           <summary>Posições usadas pelo Ranking HLTV</summary>
           <p>
@@ -339,7 +387,8 @@
             <p>
               O modelo neutro usa 50/50. O Ranking Valve usa a diferença de
               pontos. O Ranking HLTV compara as posições mundiais de 16/11. A
-              forma recente usa Elo ajustado ao adversário, com meia-vida de 160
+              forma recente considera a força do adversário, os reencontros e a
+              exposição inter-regional. A força acumulada tem meia-vida de 160
               dias. MD1 e MD3 têm curvas próprias. O modelo personalizado
               combina as chances de vitória dos quatro modelos na proporção
               escolhida. Você pode regular a confiança na força de cada equipe e

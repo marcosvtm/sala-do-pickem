@@ -218,6 +218,37 @@ test('four-way mixes average series probabilities and retain team adjustments', 
   );
 });
 
+test('new Elo and archived Elo retain their own matchup probabilities across personal versions', () => {
+  const fresh = newDraft();
+  fresh.weights = { neutral: 0, vrs: 0, hltv: 0, elo: 100 };
+  const old = { ...fresh };
+  delete old.formVersion;
+  assert.equal(fresh.formVersion, 2);
+  const fixture = (state) => makeMatrix(stage.teams, 'elo', state)[1][15][7];
+  assert.ok(Math.abs(fixture(old) - 0.6897528426259973) < 1e-10);
+  assert.ok(Math.abs(fixture(fresh) - 0.6181103163) < 1e-9);
+  for (const draft of [fresh, old, { ...old, formVersion: 1 }]) {
+    const saved = personalSettings(draft);
+    assert.equal(
+      makeMatrix(stage.teams, 'custom', saved)[1][15][7],
+      fixture(draft)
+    );
+  }
+  assert.deepEqual(
+    personalSettings(old),
+    personalSettings({ ...old, formVersion: 1 })
+  );
+  assert.equal(validate({ ...fresh, formVersion: 3 }, { draft: true }), false);
+  assert.ok(
+    stage.teams.every(
+      ({ formEvidence: e }) =>
+        e.externalOpponents <= e.opponents &&
+        e.opponents <= e.series &&
+        e.externalSeries + e.unknownSeries <= e.series
+    )
+  );
+});
+
 test('mixed weights round trip through both a shared model and a saved card', async () => {
   const db = openDb(),
     state = newDraft();

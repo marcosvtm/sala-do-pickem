@@ -5,8 +5,13 @@ export const MODELS = {
   elo: 'Forma recente',
   custom: 'Modelo personalizado',
 };
-export const modelName = (id, nick) =>
-  id === 'custom' && nick ? 'Modelo ' + nick : MODELS[id];
+export const FORM_VERSION = 2;
+export function modelName(id, nick, formVersion = FORM_VERSION) {
+  if (id === 'elo' && formVersion === 1) return 'Forma recente (anterior)';
+  return id === 'custom' && nick ? 'Modelo ' + nick : MODELS[id];
+}
+const eloField = (settings) =>
+  settings?.formVersion === FORM_VERSION ? 'formElo' : 'elo';
 export const BASE_MODELS = ['vrs', 'hltv', 'elo'];
 export const PRESETS = ['neutral', ...BASE_MODELS];
 
@@ -52,7 +57,7 @@ export const explanations = {
   neutral: 'Cada equipe tem 50% de chance em qualquer confronto.',
   vrs: 'Usa a diferença de pontos no ranking da Valve. Uma vantagem pesa mais em MD3 do que em MD1.',
   hltv: 'Compara as posições no ranking mundial da HLTV. Posições próximas dão chances próximas de 50%. A vantagem do favorito cresce em MD3.',
-  elo: 'Usa o Elo calculado antes do Major. Considera os adversários, com meia-vida de 160 dias.',
+  elo: 'O Elo dá menos peso a reencontros e a partidas de circuitos com pouca oposição inter-regional confirmada.',
   custom:
     'Combine as previsões dos quatro modelos e ajuste a força de cada equipe.',
 };
@@ -66,7 +71,7 @@ export function hltvWinChance(rankA, rankB, bo, slope = 0.306262) {
 }
 
 function adjustedMatrix(teams, base, config) {
-  const field = { vrs: 'vrs', elo: 'elo', hltv: 'hltvRank' }[base];
+  const field = { vrs: 'vrs', elo: eloField(config), hltv: 'hltvRank' }[base];
   const ranked = base === 'hltv';
   const signals = teams.map((t) => (ranked ? Math.log(t[field]) : t[field]));
   const meanSignal = signals.reduce((total, x) => total + x, 0) / teams.length;
@@ -112,15 +117,16 @@ function mixedMatrix(teams, weights, config) {
   return result;
 }
 
-export function makeMatrix(teams, model, config) {
+export function makeMatrix(teams, model, config = { formVersion: FORM_VERSION }) {
   if (model === 'custom') {
     const weights = mixWeights(config);
     if (weights) return mixedMatrix(teams, weights, config);
   }
   const mean = (key) =>
     teams.reduce((sum, t) => sum + t[key], 0) / teams.length;
+  const field = eloField(config);
   const meanVrs = mean('vrs'),
-    meanElo = mean('elo');
+    meanElo = mean(field);
   const matrix = {};
   for (const bo of [1, 3]) {
     if (model === 'hltv') {
@@ -131,7 +137,7 @@ export function makeMatrix(teams, model, config) {
     }
     const strength = teams.map((team, i) => {
       const rank = (team.vrs - meanVrs) / (bo === 1 ? 340 : 255);
-      const form = ((team.elo - meanElo) / 170) * (bo === 1 ? 0.73 : 1);
+      const form = ((team[field] - meanElo) / 170) * (bo === 1 ? 0.73 : 1);
       if (model === 'neutral') return 0;
       if (model === 'vrs') return rank;
       if (model === 'elo') return form;
