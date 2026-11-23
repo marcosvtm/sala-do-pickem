@@ -86,6 +86,7 @@ async function init() {
     }
   );
   bindPages(stage.teams, (settings) => {
+    delete state.weights;
     delete state.base;
     delete state.weight;
     delete state.description;

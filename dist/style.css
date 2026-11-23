@@ -444,8 +444,124 @@ select {
   border-radius: 9px;
   padding: 18px 20px;
 }
-.base-settings label:first-child {
-  margin-top: 0;
+.mix-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mix-heading .outline {
+  white-space: nowrap;
+}
+.mix-bar {
+  display: flex;
+  height: 9px;
+  margin: 17px 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mix-neutral {
+  --mix-color: #b9c6cd;
+}
+.mix-vrs {
+  --mix-color: var(--acid);
+}
+.mix-hltv {
+  --mix-color: #82c6f5;
+}
+.mix-elo {
+  --mix-color: #f4b28e;
+}
+.mix-bar span {
+  background: var(--mix-color);
+  flex-basis: 0;
+}
+.mix-row,
+.mix-captions {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr) 5.5rem 6rem;
+  gap: 12px;
+  align-items: center;
+}
+.mix-captions {
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding-bottom: 5px;
+}
+.mix-captions span:first-child {
+  grid-column: span 2;
+}
+.mix-captions span:last-child,
+.mix-share {
+  text-align: right;
+}
+.mix-row {
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.mix-row label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+}
+.mix-row label::before {
+  content: '';
+  flex: 0 0 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mix-color);
+}
+.options .mix-row input[type='range'] {
+  accent-color: var(--mix-color);
+  min-width: 0;
+  height: 26px;
+  margin: 0;
+}
+.mix-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mix-entry small {
+  color: var(--muted);
+}
+.mix-entry input[type='number'] {
+  width: 4rem;
+  padding: 4px 6px;
+}
+.mix-share {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 620px) {
+  .mix-captions {
+    display: none;
+  }
+  .mix-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'name share' 'slider points';
+    gap: 4px 14px;
+  }
+  .mix-row label {
+    grid-area: name;
+  }
+  .mix-row input[type='range'] {
+    grid-area: slider;
+  }
+  .mix-entry {
+    grid-area: points;
+    justify-self: end;
+  }
+  .mix-share {
+    grid-area: share;
+  }
+  .mix-share::after {
+    content: ' da mistura';
+    font-weight: 400;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
 }
 .options input[type='range'] {
   width: 100%;

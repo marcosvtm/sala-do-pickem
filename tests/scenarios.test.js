@@ -7,7 +7,14 @@ import {
   newDraft,
   personalSettings,
 } from '../dist/js/state.js';
-import { BASE_MODELS, makeMatrix, fieldStrength } from '../dist/js/models.js';
+import {
+  BASE_MODELS,
+  PRESETS,
+  makeMatrix,
+  fieldStrength,
+  mixWeights,
+  mixPercentages,
+} from '../dist/js/models.js';
 import { project, fixProjected, mergeOfficial } from '../dist/js/bracket.js';
 import { currentGames } from '../dist/js/schedule.js';
 import { parseSchedule } from '../server/agenda.js';
@@ -100,7 +107,7 @@ test('a public model is accessible by stable id even for a card scored with a pr
 });
 
 test('personal weights have exact endpoints; team confidence and Major adjustments preserve reciprocity', () => {
-  const s = newDraft();
+  const s = defaults(stage.card);
   for (const base of BASE_MODELS) {
     s.base = base;
     s.weight = 100;
@@ -134,10 +141,123 @@ test('personal weights have exact endpoints; team confidence and Major adjustmen
   }
 });
 
-test('publish and share a standalone model without picks; retries and changed versions remain distinct', async () => {
+test('four-way mixes average series probabilities and retain team adjustments', () => {
+  const s = newDraft();
+  s.trust[3] = 25;
+  s.bonus[6] = 8;
+  const pure = {};
+  for (const key of PRESETS) {
+    const weights = Object.fromEntries(
+      PRESETS.map((k) => [k, k === key ? 31 : 0])
+    );
+    const previous = { ...personalSettings(s), base: key, weight: 100 };
+    delete previous.weights;
+    pure[key] =
+      key === 'neutral'
+        ? makeMatrix(stage.teams, 'neutral', s)
+        : makeMatrix(stage.teams, 'custom', previous);
+    assert.deepEqual(
+      makeMatrix(stage.teams, 'custom', { ...s, weights }),
+      pure[key]
+    );
+  }
+  s.weights = { neutral: 8, vrs: 5, hltv: 2, elo: 1 };
+  const matrix = makeMatrix(stage.teams, 'custom', s);
+  for (const bo of [1, 3]) {
+    for (let a = 0; a < 16; a++) {
+      for (let b = 0; b < 16; b++) {
+        const expected =
+          PRESETS.reduce(
+            (sum, k) => sum + s.weights[k] * pure[k][bo][a][b],
+            0
+          ) / 16;
+        assert.ok(Math.abs(matrix[bo][a][b] - expected) < 1e-12);
+        assert.ok(Math.abs(matrix[bo][a][b] + matrix[bo][b][a] - 1) < 1e-12);
+      }
+    }
+  }
+  const scaled = { neutral: 80, vrs: 50, hltv: 20, elo: 10 };
+  assert.deepEqual(
+    makeMatrix(stage.teams, 'custom', { ...s, weights: scaled }),
+    matrix
+  );
+  const zeros = { neutral: 0, vrs: 0, hltv: 0, elo: 0 };
+  assert.deepEqual(
+    makeMatrix(stage.teams, 'custom', { ...s, weights: zeros }),
+    pure.neutral
+  );
+  assert.deepEqual(mixPercentages(zeros), {
+    neutral: 100,
+    vrs: 0,
+    hltv: 0,
+    elo: 0,
+  });
+  assert.deepEqual(mixPercentages({ ...zeros, vrs: 1, hltv: 1, elo: 1 }), {
+    neutral: 0,
+    vrs: 33.3,
+    hltv: 33.3,
+    elo: 33.3,
+  });
+  assert.deepEqual(mixWeights({ base: 'hltv', weight: 51 }), {
+    ...zeros,
+    neutral: 49,
+    hltv: 51,
+  });
+  for (const invalid of [
+    null,
+    {},
+    { ...s.weights, elo: 101 },
+    { ...s.weights, vrs: 0.5 },
+    { ...s.weights, fake: 0 },
+  ]) {
+    assert.equal(validate({ ...s, weights: invalid }, { draft: true }), false);
+  }
+  assert.equal(
+    validate({ ...s, base: 'vrs', weight: 50 }, { draft: true }),
+    false
+  );
+});
+
+test('mixed weights round trip through both a shared model and a saved card', async () => {
   const db = openDb(),
     state = newDraft();
-  state.base = 'hltv';
+  state.weights = { neutral: 0, vrs: 20, hltv: 66, elo: 13 };
+  state.bonus[4] = 3;
+  state.card = [...stage.card];
+  db.sqlite.function('unixepoch', () => CLOSE / 1000 - 15);
+  try {
+    for (const path of ['models', 'cards']) {
+      const id = randomUUID(),
+        body = { id, nick: 'Misto' };
+      if (path === 'cards') body.state = state;
+      else body.settings = personalSettings(state);
+      const res = await cardsApi(
+        new Request('https://example.org/api/' + path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+        db,
+        CLOSE - 1000
+      );
+      assert.ok(res.ok);
+      const { id: saved } = await res.json();
+      const model = await (
+        await cardsApi(
+          new Request('https://example.org/api/models/' + saved),
+          db
+        )
+      ).json();
+      assert.deepEqual(personalSettings(model), personalSettings(state));
+    }
+  } finally {
+    db.sqlite.close();
+  }
+});
+
+test('publish and share a standalone model without picks; retries and changed versions remain distinct', async () => {
+  const db = openDb(),
+    state = { ...defaults(Array(10).fill(-1)), base: 'hltv', weight: 50 };
   state.trust[13] = 42;
   state.bonus[13] = 3;
   const id = randomUUID(),

@@ -1,4 +1,4 @@
-import { MODELS, BASE_MODELS } from './models.js';
+import { MODELS, BASE_MODELS, PRESETS } from './models.js';
 import { ROUND_SIZES, ROUND_START } from './swiss.js';
 
 export const STAGE = 'sg26-s1-v1';
@@ -18,8 +18,7 @@ export function newDraft() {
   return {
     ...defaults(zeros(10, -1)),
     model: 'custom',
-    base: 'vrs',
-    weight: 50,
+    weights: { neutral: 25, vrs: 25, hltv: 25, elo: 25 },
   };
 }
 const inRange = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
@@ -32,6 +31,18 @@ export function validPersonal(settings) {
     !intArray(settings.bonus, 16, -15, 15)
   )
     return false;
+  if (settings.weights !== undefined) {
+    const w = settings.weights;
+    return Boolean(
+      w &&
+        typeof w === 'object' &&
+        !Array.isArray(w) &&
+        settings.base === undefined &&
+        settings.weight === undefined &&
+        Object.keys(w).length === PRESETS.length &&
+        PRESETS.every((key) => Object.hasOwn(w, key) && inRange(w[key], 0, 100))
+    );
+  }
   if (settings.base !== undefined || settings.weight !== undefined)
     return (
       BASE_MODELS.includes(settings.base) && inRange(settings.weight, 0, 100)
@@ -39,8 +50,17 @@ export function validPersonal(settings) {
   return inRange(settings.form, 0, 100);
 }
 export function personalSettings(s) {
+  const formula = s.weights
+    ? {
+        weights: Object.fromEntries(
+          PRESETS.map((key) => [key, s.weights[key]])
+        ),
+      }
+    : s.base
+      ? { base: s.base, weight: s.weight }
+      : { form: s.form };
   return {
-    ...(s.base ? { base: s.base, weight: s.weight } : { form: s.form }),
+    ...formula,
     trust: [...s.trust],
     bonus: [...s.bonus],
   };

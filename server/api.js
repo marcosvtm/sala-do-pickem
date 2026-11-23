@@ -131,7 +131,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   const nickKey = nick.toLocaleLowerCase('pt-BR');
   if (modelOnly) {
     if (!uuid.test(body.id) || !validPersonal(body.settings))
-      return failure('Confira a base e os ajustes do modelo.', 400);
+      return failure('Confira os pesos e os ajustes do modelo.', 400);
     const snapshot = JSON.stringify(personalSettings(body.settings));
     await db
       .prepare(
@@ -157,7 +157,9 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     ...defaults(card),
     model,
     ...personalSettings(body.state),
-    ...(!body.state.base && body.state.description?.trim()
+    ...(!body.state.weights &&
+    !body.state.base &&
+    body.state.description?.trim()
       ? { description: body.state.description.trim() }
       : {}),
   });

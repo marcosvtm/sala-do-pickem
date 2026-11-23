@@ -1,4 +1,5 @@
-import { MODELS, makeMatrix, fieldStrength } from './models.js';
+import { makeMatrix, fieldStrength } from './models.js';
+import { bindMixer } from './mixer.js';
 import { newDraft } from './state.js';
 import { matchLink } from './schedule.js';
 import { progress } from './progress.js';
@@ -175,8 +176,8 @@ export function bindEditor(teams, current, onEdit) {
       controls,
       id,
       'trust',
-      'Confiança na base',
-      '100% usa a força prevista pela base. Em 0%, este time recebe a força média das 16 equipes.',
+      'Confiança na força prevista',
+      'Em 100%, cada modelo usa a força que calculou para este time. Em 0%, usa a força média das 16 equipes.',
       0,
       100
     );
@@ -185,7 +186,7 @@ export function bindEditor(teams, current, onEdit) {
       id,
       'bonus',
       'Ajuste de desempenho no Major',
-      'Com a base em 100%, +5 p.p. leva um duelo equilibrado a 55% contra um rival sem ajuste.',
+      'Com zero pontos no neutro, +5 p.p. leva um duelo equilibrado a 55% contra um rival sem ajuste.',
       -15,
       15
     );
@@ -203,12 +204,7 @@ export function bindEditor(teams, current, onEdit) {
   function render() {
     const s = current(),
       bo = Number($('strengthBo').value);
-    $('baseModel').value = s.base || 'legacy';
-    $('legacyBase').hidden = !!s.base;
-    $('baseWeight').disabled = !s.base;
-    $('baseWeight').value = s.weight ?? 0;
-    $('weightValue').textContent = s.base ? s.weight + '%' : '—';
-    $('baseEnd').textContent = MODELS[s.base] || 'Combinação anterior';
+    renderMixer();
     personal = makeMatrix(teams, 'custom', s);
     const matrices = { ...fixed, custom: personal };
     for (const key of Object.keys(columns)) {
@@ -219,7 +215,8 @@ export function bindEditor(teams, current, onEdit) {
       );
     }
     rows.forEach((row, i) => {
-      row.trust.input.disabled = row.bonus.input.disabled = !s.base;
+      row.trust.input.disabled = row.bonus.input.disabled =
+        !s.weights && !s.base;
       row.trust.input.value = s.trust[i];
       row.trust.value.textContent = s.trust[i] + '%';
       row.bonus.input.value = s.bonus[i];
@@ -228,18 +225,9 @@ export function bindEditor(teams, current, onEdit) {
     });
     if (openTeam !== null) renderGame(openTeam);
   }
-  $('baseModel').onchange = () => {
-    const s = current();
-    if (!s.base) {
-      s.trust.fill(100);
-      s.weight = 50;
-    }
-    s.base = $('baseModel').value;
+  const renderMixer = bindMixer(current, (editing) => {
     render();
-    onEdit(false);
-  };
-  sliderEvents($('baseWeight'), (n) => {
-    current().weight = n;
+    onEdit(editing);
   });
   $('strengthBo').onchange = render;
   $('sortStrength').onclick = () => {
@@ -249,8 +237,12 @@ export function bindEditor(teams, current, onEdit) {
       'Ordem do último clique · MD' + $('strengthBo').value;
   };
   $('resetModel').onclick = () => {
-    const { base, weight, trust, bonus } = newDraft();
-    Object.assign(current(), { base, weight, trust, bonus });
+    const s = current(),
+      { weights, trust, bonus } = newDraft();
+    delete s.base;
+    delete s.weight;
+    delete s.description;
+    Object.assign(s, { weights, trust, bonus });
     render();
     onEdit(false);
   };

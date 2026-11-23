@@ -183,27 +183,39 @@
           </div>
         </div>
         <p class="lead">Edite seu próprio modelo.</p>
-        <div class="base-settings">
-          <label for="baseModel">Base do modelo</label>
-          <select id="baseModel">
-            <option value="legacy" hidden>Combinação anterior</option>
-            <option value="vrs">Ranking Valve</option>
-            <option value="hltv">Ranking HLTV</option>
-            <option value="elo">Forma recente</option>
-          </select>
-          <p id="legacyBase" class="hint" hidden>
-            Esta cópia usa a fórmula anterior. Escolha uma nova base para
-            editar. A confiança de cada equipe volta a 100% e os ajustes de
-            Major são mantidos.
-          </p>
-          <label for="baseWeight"
-            >Peso da base <output id="weightValue" for="baseWeight"></output
-          ></label>
-          <input id="baseWeight" type="range" min="0" max="100" step="1" />
-          <div class="ends">
-            <span>Neutro 50/50</span><span id="baseEnd"></span>
+        <section class="base-settings" aria-labelledby="mixTitle">
+          <div class="mix-heading">
+            <h3 id="mixTitle">Misture os modelos</h3>
+            <button type="button" id="equalMix" class="outline">
+              Igualar pesos
+            </button>
           </div>
-        </div>
+          <div id="legacyMix" hidden>
+            <p class="hint">
+              Este modelo usa a fórmula antiga. Ao iniciar uma mistura, cada
+              modelo recebe 25% e a confiança das equipes volta a 100%. Os
+              ajustes de Major são preservados.
+            </p>
+            <button type="button" class="outline" id="startMix">
+              Iniciar mistura
+            </button>
+          </div>
+          <div id="mixEditor">
+            <p class="hint" id="mixHint">
+              Arraste ou digite os pontos de cada modelo. Com o dobro de pontos,
+              um modelo pesa o dobro na previsão de cada jogo.
+            </p>
+            <div id="mixBar" class="mix-bar" aria-hidden="true"></div>
+            <div class="mix-captions" aria-hidden="true">
+              <span>Modelo</span><span>Pontos</span><span>Participação</span>
+            </div>
+            <div id="mixControls"></div>
+            <p class="hint" id="emptyMix" hidden>
+              Todos os pesos estão zerados. Cada equipe tem 50% de chance em
+              qualquer confronto.
+            </p>
+          </div>
+        </section>
         <section class="strengths" aria-labelledby="strengthTitle">
           <div class="panel-title">
             <h3 id="strengthTitle">Força das equipes</h3>
@@ -322,9 +334,10 @@
               O modelo neutro usa 50/50. O Ranking Valve usa a diferença de
               pontos. O Ranking HLTV compara as posições mundiais de 16/11. A
               forma recente usa Elo ajustado ao adversário, com meia-vida de 160
-              dias. MD1 e MD3 têm curvas próprias. No modelo personalizado, o
-              peso mistura a base com 50/50. Você pode regular a confiança na
-              força de cada equipe e seu desempenho esperado no Major.
+              dias. MD1 e MD3 têm curvas próprias. O modelo personalizado
+              combina as chances de vitória dos quatro modelos na proporção
+              escolhida. Você pode regular a confiança na força de cada equipe e
+              seu desempenho esperado no Major.
             </p>
             <p>
               A faixa de 95% mede a variação do sorteio para um modelo fixo.

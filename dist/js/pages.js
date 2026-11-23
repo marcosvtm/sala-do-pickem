@@ -75,7 +75,7 @@ export function bindPages(teams, apply) {
         history.replaceState(null, '', '/modelos');
         render();
         $('modelos').scrollIntoView({ block: 'start' });
-        $('baseModel').focus({ preventScroll: true });
+        $(model.weights || model.base ? 'mix-neutral' : 'startMix').focus({ preventScroll: true });
       };
     } catch {
       if (requested === id)
