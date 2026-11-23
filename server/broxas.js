@@ -23,6 +23,13 @@ export function monthProfiles(months, year, month) {
   if (!Array.isArray(latest.monthStats?.players))
     throw Error('Estatísticas indisponíveis');
   const current = latest.year === year && latest.month === month;
+  // The Chopp table ranks eligible players by score, keeping source order on ties.
+  const choppPlaces = new Map(
+    latest.monthStats.players
+      .filter((p) => p.participates && Number.isFinite(p.notaTotal))
+      .sort((a, b) => b.notaTotal - a.notaTotal)
+      .map((p, index) => [p.ratingColumn, index + 1])
+  );
   const levels = new Map();
   for (const m of past) {
     for (const match of m.matches || []) {
@@ -42,6 +49,7 @@ export function monthProfiles(months, year, month) {
     .map((p) => ({
       name: p.name,
       level: levels.get(p.ratingColumn)?.level ?? null,
+      choppPlace: current ? choppPlaces.get(p.ratingColumn) ?? null : null,
       score: current && Number.isFinite(p.notaTotal) ? p.notaTotal : null,
       games: current && Number.isInteger(p.jogos) ? p.jogos : null,
     }));

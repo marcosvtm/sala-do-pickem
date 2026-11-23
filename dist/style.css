@@ -1049,8 +1049,7 @@ dialog::backdrop {
 .broxas-table td:last-child:not([colspan]) {
   text-align: right;
 }
-.rank-place,
-.gc-level {
+.rank-place {
   display: inline-grid;
   place-items: center;
   min-width: 2.1em;
@@ -1080,22 +1079,49 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 .rank-nick::after {
-  content: '+';
+  content: '+' / '';
   color: var(--acid);
   margin-left: 0.6em;
 }
 .rank-nick[aria-expanded='true']::after {
-  content: '−';
+  content: '−' / '';
 }
 .rank-profile {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 20px;
-  margin: 8px 0;
+  gap: 4px 12px;
+  margin: 4px 0;
   color: var(--muted);
 }
+.chopp-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0.55em;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.chopp-summary li,
+.rank-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.chopp-summary li + li::before {
+  content: '–' / '';
+  color: var(--muted);
+  margin-right: 0.15em;
+}
 .gc-level {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: #101417;
   background: #83bbee;
 }
@@ -1106,7 +1132,8 @@ dialog::backdrop {
   background: #f0bc00;
 }
 .gc-level[data-band='orange'] {
-  background: #ff895b;
+  background: #ba3c00;
+  color: #fff;
 }
 .wall-card {
   border-top: 1px solid var(--line);

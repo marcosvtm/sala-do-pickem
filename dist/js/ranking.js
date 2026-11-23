@@ -11,11 +11,11 @@ function link(text, href) {
   return a;
 }
 async function showProfile(card, cell) {
-  const info = element('div', 'Consultando o Ranking Broxas…', 'rank-profile');
-  cell.replaceChildren(
-    link('Ver cartão de ' + card.nick, '/cartoes#' + card.id),
-    info
-  );
+  const info = element('div', undefined, 'rank-profile');
+  const status = element('span', 'Consultando o Ranking Broxas…');
+  const cardLink = link('Ver cartão de ' + card.nick, '/cartoes#' + card.id);
+  info.append(cardLink, status);
+  cell.replaceChildren(info);
   try {
     const res = await fetch('/api/ranking/' + card.id + '/perfil');
     if (!res.ok) throw Error();
@@ -23,19 +23,15 @@ async function showProfile(card, cell) {
     if (data.unavailable) throw Error();
     const p = data.member;
     if (!p) {
-      info.textContent = 'Sem correspondência de nick no Ranking Broxas.';
+      status.textContent = 'Sem correspondência de nick no Ranking Broxas.';
       return;
     }
     const month = new Intl.DateTimeFormat('pt-BR', {
       month: 'long',
-      year: 'numeric',
       timeZone: 'UTC',
     }).format(Date.UTC(data.year, data.month - 1, 1));
-    info.replaceChildren(
-      link(p.name + ' no Ranking Broxas', 'https://rankingbroxas.duckdns.org/')
-    );
+    const player = element('span', undefined, 'rank-player');
     if (p.level !== null) {
-      const level = element('span', 'Nível GC ');
       const badge = element('b', p.level, 'gc-level');
       badge.dataset.band =
         p.level >= 19
@@ -45,22 +41,37 @@ async function showProfile(card, cell) {
             : p.level >= 12
               ? 'green'
               : 'blue';
-      badge.title = 'Último nível registrado nas partidas do grupo';
-      level.append(badge);
-      info.append(level);
+      badge.setAttribute('role', 'img');
+      badge.setAttribute('aria-label', 'Nível GC ' + p.level);
+      player.append(badge);
     }
-    info.append(
-      element(
-        'span',
-        'Nota de ' + month + ' · ' + (p.score ?? 'sem nota publicada')
-      )
-    );
+    cardLink.textContent = p.name;
+    cardLink.setAttribute('aria-label', 'Ver cartão de ' + p.name);
+    player.append(cardLink);
+    const parts = [
+      link('Ranking Broxas (chopp)', 'https://rankingbroxas.duckdns.org/'),
+      player,
+    ];
+    if (p.choppPlace != null)
+      parts.push(p.choppPlace + 'º lugar Chopp');
+    if (p.score !== null)
+      parts.push(p.score + (p.score === 1 ? ' ponto' : ' pontos'));
     if (p.games !== null)
-      info.append(element('span', p.games + ' jogos no mês'));
+      parts.push(
+        p.games + (p.games === 1 ? ' jogo em ' : ' jogos em ') +
+          month[0].toUpperCase() + month.slice(1)
+      );
+    const list = element('ul', undefined, 'chopp-summary');
+    for (const part of parts) {
+      const item = element('li');
+      item.append(part);
+      list.append(item);
+    }
+    info.replaceChildren(list);
     if (data.stale)
       info.append(element('small', 'Exibindo a última consulta disponível.'));
   } catch {
-    info.textContent =
+    status.textContent =
       'As estatísticas do grupo estão temporariamente indisponíveis.';
   }
 }

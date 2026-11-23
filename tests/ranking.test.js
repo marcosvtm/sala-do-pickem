@@ -15,8 +15,11 @@ const months = [
     month: 11,
     monthStats: {
       players: [
-        { name: 'mr.K', ratingColumn: 'D', notaTotal: 24, jogos: 66 },
-        { name: 'Vitox', ratingColumn: 'E', notaTotal: 0, jogos: 12 },
+        { name: 'mr.K', ratingColumn: 'D', notaTotal: 24, jogos: 66, participates: true },
+        { name: 'Vitox', ratingColumn: 'E', notaTotal: 0, jogos: 12, participates: false },
+        { name: 'LighT.', ratingColumn: 'F', notaTotal: 27, jogos: 60, participates: true },
+        { name: 'Empate', ratingColumn: 'G', notaTotal: 24, jogos: 40, participates: true },
+        { name: 'Reserva', ratingColumn: 'H', notaTotal: 30, jogos: 4, participates: false },
       ],
     },
     matches: [
@@ -36,15 +39,19 @@ test('monthly profiles match unique nicks and use the latest observed level inde
   assert.deepEqual(matchProfile(november, 'mrk'), {
     name: 'mr.K',
     level: 19,
+    choppPlace: 2,
     score: 24,
     games: 66,
   });
   assert.equal(matchProfile(november, 'Vitox').score, 0);
+  assert.equal(matchProfile(november, 'Vitox').choppPlace, null);
+  assert.equal(matchProfile(november, 'Empate').choppPlace, 3);
   assert.equal(matchProfile(november, 'mr'), null);
   assert.equal(matchProfile([...november, { name: 'M-rK' }], 'mrk'), null);
   const next = matchProfile(monthProfiles(months, 2026, 12), 'MRK');
   assert.equal(next.level, 19);
   assert.equal(next.score, null);
+  assert.equal(next.choppPlace, null);
 });
 
 test('leaderboard ranks confirmed picks, shares places on ties and exposes group stats only through a saved card', async () => {
