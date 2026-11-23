@@ -3,6 +3,8 @@ import { bindBracket } from './bracket.js';
 import { bindPages, renderCatalog } from './pages.js';
 import { bindFeed } from './schedule.js';
 import { newDraft, validate, swap, STAGE } from './state.js';
+import { bindEditor } from './model-editor.js';
+import { bindModelSaving } from './save-model.js';
 import { wilson } from './simulation.js';
 import { bindSaving, readReceipt } from './save-card.js';
 
@@ -17,6 +19,9 @@ const option = (text, value) => new Option(text, value);
 const categories = ['3–0', '3–1 / 3–2', '0–3'];
 const category = (slot) => (slot < 2 ? 0 : slot < 8 ? 1 : 2);
 let owner,
+  publishedName,
+  editor,
+  modelSaving,
   stage,
   state,
   worker,
@@ -61,21 +66,30 @@ async function init() {
   for (const [id, name] of Object.entries(MODELS))
     $('activeModel').add(option(name, id));
   $('activeModel').value = state.model;
-  for (const id of ['left', 'right', 'editTeam'])
+  for (const id of ['left', 'right'])
     stage.teams.forEach((t, i) => $(id).add(option(t.name, i)));
-  $('editTeam').value = 13;
   $('left').value = 13;
   $('right').value = 5;
   if (location.hash.startsWith('#c=')) persist();
   bind();
-  bindPages(stage.teams, ({ form, trust, bonus, description }) => {
-    Object.assign(state, {
-      model: 'custom',
-      form,
-      trust: [...trust],
-      bonus: [...bonus],
-      description,
-    });
+  editor = bindEditor(
+    stage.teams,
+    () => state,
+    (editing) => {
+      state.model = 'custom';
+      $('activeModel').value = 'custom';
+      if (!editing)
+        renderCatalog('custom', publishedName || owner, chooseModel);
+      modelSaving?.refresh();
+      renderDuel();
+      invalidate({ editing });
+    }
+  );
+  bindPages(stage.teams, (settings) => {
+    delete state.base;
+    delete state.weight;
+    delete state.description;
+    Object.assign(state, settings, { model: 'custom' });
     renderSettings();
     refreshNames();
     invalidate();
@@ -89,10 +103,19 @@ async function init() {
       owner = nick;
       if (switchingPerson) {
         state = { ...newDraft(), locks: state.locks };
+        modelSaving?.clear();
         renderCard();
         renderSettings();
         invalidate();
       }
+      refreshNames();
+    }
+  );
+  modelSaving = bindModelSaving(
+    stage,
+    () => state,
+    (nick) => {
+      publishedName = nick;
       refreshNames();
     }
   );
@@ -106,7 +129,7 @@ async function init() {
       invalidate();
     }
   );
-  bindFeed(stage, official);
+  bindFeed(stage, official, editor.setSchedule);
   runHint();
   start('preview');
 }
@@ -214,17 +237,8 @@ function pick(slot) {
   $('picker').showModal();
 }
 function renderSettings() {
-  $('hypothesis').value = state.description || '';
-  const t = Number($('editTeam').value);
-  for (const [key, value] of [
-    ['form', state.form],
-    ['trust', state.trust[t]],
-    ['bonus', state.bonus[t]],
-  ]) {
-    $(key).value = value;
-    $(key + 'Val').textContent =
-      key === 'bonus' ? (value > 0 ? '+' : '') + value + ' p.p.' : value + '%';
-  }
+  editor.render();
+  modelSaving?.refresh();
   renderDuel();
 }
 function renderDuel() {
@@ -244,23 +258,23 @@ function renderDuel() {
     strong.textContent = stage.teams[a].short + ' ' + percent(p);
     const label =
       key === 'hltv'
-        ? modelName(key, owner) +
+        ? modelName(key, publishedName || owner) +
           ' (#' +
           stage.teams[a].hltvRank +
           ' × #' +
           stage.teams[b].hltvRank +
           ')'
-        : modelName(key, owner);
+        : modelName(key, publishedName || owner);
     line.append(label, strong);
     $('duel').append(line);
   }
 }
 function refreshNames() {
   for (const opt of $('activeModel').options)
-    opt.textContent = modelName(opt.value, owner);
+    opt.textContent = modelName(opt.value, publishedName || owner);
   $('activeModel').value = state.model;
-  $('personalName').textContent = modelName('custom', owner);
-  renderCatalog(state.model, owner, chooseModel);
+  $('personalName').textContent = modelName('custom', publishedName || owner);
+  renderCatalog(state.model, publishedName || owner, chooseModel);
   renderDuel();
   renderEstimate();
 }
@@ -281,7 +295,7 @@ function renderEstimate() {
   const incomplete = state.card.includes(-1);
   $('run').disabled = incomplete;
   $('saveModel').textContent =
-    'Modelo em uso: ' + modelName(state.model, owner);
+    'Modelo em uso: ' + modelName(state.model, publishedName || owner);
   const model = state.model;
   const histograms = last?.histograms || {};
   const pass = (h) => h.slice(5).reduce((a, b) => a + b, 0);
@@ -314,7 +328,7 @@ function renderEstimate() {
       row.onclick = () => chooseModel(key);
       $('comparison').append(row);
     }
-    row.firstChild.textContent = modelName(key, owner);
+    row.firstChild.textContent = modelName(key, publishedName || owner);
     row.classList.toggle('active', key === model);
     row.setAttribute('aria-pressed', String(key === model));
     row.lastElementChild.textContent = histograms[key]
@@ -327,7 +341,7 @@ function chooseModel(key) {
   state.model = key;
   $('activeModel').value = key;
   persist();
-  renderCatalog(key, owner, chooseModel);
+  renderCatalog(key, publishedName || owner, chooseModel);
   if (changed && (activeRun === 'exact' || last?.kind === 'exact'))
     invalidate();
   else renderEstimate();
@@ -410,49 +424,7 @@ function start(mode) {
 }
 function bind() {
   $('activeModel').onchange = (e) => chooseModel(e.target.value);
-  $('hypothesis').oninput = () => {
-    state.description = $('hypothesis').value;
-    chooseModel('custom');
-  };
-  $('editTeam').onchange = renderSettings;
   for (const id of ['left', 'right', 'bo']) $(id).onchange = renderDuel;
-  for (const id of ['form', 'trust', 'bonus']) {
-    let pending = false;
-    const finishEdit = () => {
-      if (!pending) return;
-      pending = false;
-      renderCatalog(state.model, owner, chooseModel);
-      persist();
-      queuePreview();
-    };
-    $(id).oninput = () => {
-      const n = Number($(id).value);
-      if (id === 'form') state.form = n;
-      else state[id][Number($('editTeam').value)] = n;
-      state.model = 'custom';
-      $('activeModel').value = state.model;
-      renderSettings();
-      pending = true;
-      invalidate({ editing: true });
-    };
-    $(id).onchange = finishEdit;
-    // A drag can end back on its initial value, or be cancelled by touch.
-    $(id).onlostpointercapture = finishEdit;
-    $(id).onblur = finishEdit;
-  }
-  $('resetModel').onclick = () => {
-    const base = newDraft();
-    Object.assign(state, {
-      description: '',
-      form: base.form,
-      trust: base.trust,
-      bonus: base.bonus,
-      model: 'custom',
-    });
-    chooseModel('custom');
-    renderSettings();
-    invalidate();
-  };
   $('restore').onclick = () => {
     state.card = newDraft().card;
     renderCard();

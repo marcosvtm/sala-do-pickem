@@ -437,32 +437,203 @@ select {
 #jogos + .panel {
   margin-top: 18px;
 }
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1.12fr 1fr;
-  gap: 36px;
+.base-settings {
+  max-width: 45rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 18px 20px;
 }
-.settings-grid input[type='range'] {
+.base-settings label:first-child {
+  margin-top: 0;
+}
+.options input[type='range'] {
   width: 100%;
   accent-color: var(--acid);
   margin: 8px 0;
 }
+.options label:has(output) {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.strengths {
+  margin: 26px 0;
+}
+.strengths .panel-title {
+  align-items: center;
+}
+.strength-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+}
+.strength-tools label {
+  margin: 0;
+}
+.strength-tools select {
+  width: auto;
+}
+.strength-tools small {
+  margin-left: auto;
+  color: var(--muted);
+}
+.strength-row {
+  display: grid;
+  grid-template-columns: minmax(155px, 2.4fr) repeat(5, minmax(60px, 1fr));
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.strength-head {
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 8px 14px;
+}
+.strength-head span:first-child {
+  text-align: left;
+}
+.strength-team {
+  border-top: 1px solid var(--line);
+}
+.strength-team:last-child {
+  border-bottom: 1px solid var(--line);
+}
+button.strength-row {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  padding: 11px 14px;
+}
+button.strength-row:hover,
+button.strength-row[aria-expanded='true'] {
+  background: #242e30;
+}
+.strength-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-weight: 650;
+}
+.strength-name::before {
+  content: '+';
+  color: var(--muted);
+  min-width: 1ch;
+}
+[aria-expanded='true'] > .strength-name::before {
+  content: '−';
+  color: var(--acid);
+}
+.strength-name img {
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+}
+.strength-cell b {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.strength-cell small {
+  display: none;
+}
+.strength-cell.custom b,
+.strength-head strong,
+.fixture-chance {
+  color: var(--acid);
+  font-weight: 700;
+}
+.team-editor {
+  padding: 16px 20px;
+  background: #11181c;
+}
+.team-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 28px;
+}
+.team-controls label,
+.team-controls .hint {
+  margin: 0;
+}
+.team-fixture {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px 14px;
+  flex-wrap: wrap;
+}
+.team-fixture .hint {
+  margin: 0;
+}
+.team-fixture a,
+.publish-model a {
+  color: var(--blue);
+}
+#resetModel {
+  margin-top: 10px;
+}
+.publish-model {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 22px;
+}
+.publish-model input {
+  max-width: 26rem;
+  display: block;
+  margin-bottom: 12px;
+}
+#publishedModel:empty {
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .base-settings,
+  .team-editor {
+    padding: 14px;
+  }
+  .strength-head {
+    display: none;
+  }
+  button.strength-row {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    padding: 10px 3px;
+    text-align: center;
+  }
+  .strength-name {
+    grid-column: 1/-1;
+  }
+  .strength-cell small {
+    display: block;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+  .strength-cell b {
+    font-size: 0.8rem;
+  }
+  .team-controls {
+    display: block;
+  }
+  .team-control + .team-control {
+    margin-top: 15px;
+  }
+  .strength-tools {
+    flex-wrap: wrap;
+  }
+}
 .ends {
   justify-content: space-between;
-}
-.settings-grid label:has(output) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 8ch;
-  gap: 0.5rem;
 }
 output {
   text-align: right;
   white-space: nowrap;
   color: var(--acid);
   font-variant-numeric: tabular-nums;
-}
-.team-settings {
-  margin: 18px 0;
 }
 .match-preview {
   background: #11181c;
@@ -624,8 +795,7 @@ dialog::backdrop {
   .hero:before {
     background: linear-gradient(90deg, #172026f2 0%, #172026b5 67%, #17202668);
   }
-  .dashboard,
-  .settings-grid {
+  .dashboard {
     grid-template-columns: 1fr;
     gap: 14px;
   }
@@ -637,9 +807,6 @@ dialog::backdrop {
   }
   .tile {
     min-height: 50px;
-  }
-  .settings-grid {
-    gap: 18px;
   }
   .options,
   #jogos,
@@ -683,7 +850,8 @@ dialog::backdrop {
     min-block-size: 2lh;
   }
 }
-.save-card input {
+.save-card input,
+.publish-model input {
   font: inherit;
   width: 100%;
   padding: 10px 12px;
@@ -828,7 +996,8 @@ nav a {
 .deadline {
   margin: 16px 30px 16px 0;
   padding: 13px 18px;
-  background: #11191de8;
+  background: rgb(12 18 22 / 34%);
+  text-shadow: 0 1px 3px #080d10;
   border: 1px solid #64725d;
   border-radius: 9px;
   display: grid;
@@ -923,22 +1092,6 @@ nav a {
   font-weight: 650;
   color: var(--acid);
 }
-#hypothesis {
-  width: 100%;
-  max-width: 70ch;
-  font: inherit;
-  display: block;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  resize: vertical;
-  padding: 10px;
-}
-#hypothesis:focus-visible {
-  outline: 3px solid var(--acid);
-  outline-offset: 2px;
-}
 .import-panel {
   border-left: 3px solid var(--acid);
 }
@@ -985,7 +1138,11 @@ nav a {
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
-.saved-model-row > a {
+.saved-model-row .hint {
+  display: block;
+  margin: 0.15rem 0 0;
+}
+.saved-model-row > div {
   overflow-wrap: anywhere;
 }
 #copyNotice:not(:empty) {

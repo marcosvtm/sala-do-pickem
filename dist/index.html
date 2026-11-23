@@ -182,60 +182,90 @@
             <h2 id="personalName">Modelo personalizado</h2>
           </div>
         </div>
-        <p class="lead">Descreva e edite seu próprio modelo.</p>
-        <label for="hypothesis">Sua hipótese</label
-        ><textarea
-          id="hypothesis"
-          maxlength="280"
-          rows="2"
-          placeholder="Ex.: tenho menos confiança na forma recente da FlyQuest."
-        ></textarea>
-        <div class="settings-grid">
-          <div>
-            <label for="form"
-              >Peso da forma recente <output id="formVal"></output></label
-            ><input id="form" type="range" min="0" max="100" step="1" />
-            <div class="ends">
-              <span>Ranking Valve</span><span>Forma recente</span>
-            </div>
-            <div class="team-settings">
-              <label for="editTeam">Ajustar uma equipe</label
-              ><select id="editTeam"></select
-              ><label for="trust"
-                >Confiança na forma <output id="trustVal"></output></label
-              ><input id="trust" type="range" min="0" max="100" />
-              <p class="hint">
-                Reduza se os adversários recentes dizem pouco sobre a oposição
-                no Major. O peso restante volta ao ranking.
-              </p>
-              <label for="bonus"
-                >Ajuste de desempenho no Major
-                <output id="bonusVal"></output></label
-              ><input id="bonus" type="range" min="-15" max="15" />
-              <p class="hint">
-                Em um duelo equilibrado, +5 leva a chance de 50% a 55% contra
-                uma equipe sem ajuste.
-              </p>
-            </div>
-            <button class="text-btn" id="resetModel">
-              Restaurar ajustes iniciais
-            </button>
-          </div>
-          <div class="match-preview">
-            <span class="eyebrow">CONFRONTO DO MODELO</span>
-            <h3>Se eles se encontrarem</h3>
-            <div class="versus">
-              <label>Equipe A<select id="left"></select></label><b>×</b
-              ><label>Equipe B<select id="right"></select></label>
-            </div>
-            <label for="bo">Formato</label
-            ><select id="bo">
-              <option value="1">Melhor de um · MD1</option>
-              <option value="3">Melhor de três · MD3</option>
-            </select>
-            <div id="duel"></div>
+        <p class="lead">Edite seu próprio modelo.</p>
+        <div class="base-settings">
+          <label for="baseModel">Base do modelo</label>
+          <select id="baseModel">
+            <option value="legacy" hidden>Combinação anterior</option>
+            <option value="vrs">Ranking Valve</option>
+            <option value="hltv">Ranking HLTV</option>
+            <option value="elo">Forma recente</option>
+          </select>
+          <p id="legacyBase" class="hint" hidden>
+            Esta cópia usa a fórmula anterior. Escolha uma nova base para
+            editar. A confiança de cada equipe volta a 100% e os ajustes de
+            Major são mantidos.
+          </p>
+          <label for="baseWeight"
+            >Peso da base <output id="weightValue" for="baseWeight"></output
+          ></label>
+          <input id="baseWeight" type="range" min="0" max="100" step="1" />
+          <div class="ends">
+            <span>Neutro 50/50</span><span id="baseEnd"></span>
           </div>
         </div>
+        <section class="strengths" aria-labelledby="strengthTitle">
+          <div class="panel-title">
+            <h3 id="strengthTitle">Força das equipes</h3>
+            <button type="button" id="sortStrength" class="outline">
+              Ordenar por força
+            </button>
+          </div>
+          <p class="hint">
+            Chance média de vencer os outros 15 times, com o mesmo peso para
+            cada adversário. Abra uma equipe para ajustar sua força.
+          </p>
+          <div class="strength-tools">
+            <label for="strengthBo">Formato</label
+            ><select id="strengthBo">
+              <option value="1">MD1</option>
+              <option value="3">MD3</option></select
+            ><small id="strengthOrder">Ordem alfabética</small>
+          </div>
+          <div class="strength-row strength-head" aria-hidden="true">
+            <span>Equipe</span><span>Neutro</span><span>Valve</span
+            ><span>HLTV</span><span>Forma</span><strong>Seu modelo</strong>
+          </div>
+          <div id="strengthList"></div>
+          <button type="button" id="resetModel" class="text-btn">
+            Restaurar ajustes iniciais
+          </button>
+        </section>
+        <div class="match-preview">
+          <span class="eyebrow">CONFRONTO DO MODELO</span>
+          <h3>Se eles se encontrarem</h3>
+          <div class="versus">
+            <label>Equipe A<select id="left"></select></label><b>×</b
+            ><label>Equipe B<select id="right"></select></label>
+          </div>
+          <label for="bo">Formato</label
+          ><select id="bo">
+            <option value="1">Melhor de um · MD1</option>
+            <option value="3">Melhor de três · MD3</option>
+          </select>
+          <div id="duel"></div>
+        </div>
+
+        <form id="publishModel" class="publish-model">
+          <h3>Salvar modelo</h3>
+          <p class="hint">
+            Publique uma cópia dos ajustes em Cartões da galera. Você pode
+            salvar o modelo antes de montar seu cartão.
+          </p>
+          <label for="modelNick">Seu nick</label
+          ><input
+            id="modelNick"
+            maxlength="32"
+            required
+            autocomplete="nickname"
+          />
+          <div class="save-actions">
+            <button type="submit" class="primary" id="publishButton">
+              Salvar modelo</button
+            ><span id="modelShare"></span>
+          </div>
+          <p id="publishedModel" role="status"></p>
+        </form>
       </section>
       <section id="jogos" data-page="/partidas" hidden>
         <div class="page-intro">
@@ -292,8 +322,9 @@
               O modelo neutro usa 50/50. O Ranking Valve usa a diferença de
               pontos. O Ranking HLTV compara as posições mundiais de 16/11. A
               forma recente usa Elo ajustado ao adversário, com meia-vida de 160
-              dias. MD1 e MD3 têm curvas próprias. No modelo pessoal, a
-              confiança individual e o ajuste de Major são hipóteses suas.
+              dias. MD1 e MD3 têm curvas próprias. No modelo personalizado, o
+              peso mistura a base com 50/50. Você pode regular a confiança na
+              força de cada equipe e seu desempenho esperado no Major.
             </p>
             <p>
               A faixa de 95% mede a variação do sorteio para um modelo fixo.

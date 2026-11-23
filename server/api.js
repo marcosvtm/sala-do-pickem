@@ -1,5 +1,10 @@
 import stage from '../dist/data/stage.json' with { type: 'json' };
-import { defaults, validate } from '../dist/js/state.js';
+import {
+  defaults,
+  validate,
+  validPersonal,
+  personalSettings,
+} from '../dist/js/state.js';
 import { progress } from '../dist/js/progress.js';
 import { CLOSE, liveResults } from './results.js';
 
@@ -16,22 +21,26 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   if (url.pathname === '/api/results' && req.method === 'GET')
     return json(await liveResults(db, now, fetcher, true));
   if (req.method === 'GET' && url.pathname.startsWith('/api/models/')) {
-    const id = url.pathname.slice('/api/models/'.length);
+    const publicId = url.pathname.slice('/api/models/'.length);
+    const standalone = publicId.startsWith('m-');
+    const id = standalone ? publicId.slice(2) : publicId;
     const row =
       uuid.test(id) &&
       (await db
-        .prepare('SELECT id,nick,settings FROM cards WHERE stage=? AND id=?')
+        .prepare(
+          standalone
+            ? 'SELECT id,nick,settings FROM personal_models WHERE stage=? AND id=?'
+            : 'SELECT id,nick,settings FROM cards WHERE stage=? AND id=?'
+        )
         .bind(stage.id, id)
         .first());
     if (!row) return failure('Modelo não encontrado nesta fase.', 404);
-    const { form, trust, bonus, description = '' } = JSON.parse(row.settings);
+    const settings = JSON.parse(row.settings);
     return json({
-      id: row.id,
+      id: publicId,
       nick: row.nick,
-      form,
-      trust,
-      bonus,
-      description,
+      ...personalSettings(settings),
+      description: settings.description || '',
     });
   }
   if (url.pathname === '/api/models' && req.method === 'GET') {
@@ -40,16 +49,20 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     const size = 30;
     const { results } = await db
       .prepare(
-        'SELECT id,nick FROM cards WHERE stage=? ORDER BY nick_key,id LIMIT ? OFFSET ?'
+        `SELECT id,nick,submitted,source FROM (
+          SELECT id,nick,submitted,'card' AS source FROM cards WHERE stage=?
+          UNION ALL SELECT 'm-' || id,nick,submitted,'model' FROM personal_models WHERE stage=?
+        ) ORDER BY submitted DESC,id LIMIT ? OFFSET ?`
       )
-      .bind(stage.id, size + 1, Number(raw) * size)
+      .bind(stage.id, stage.id, size + 1, Number(raw) * size)
       .all();
     return json({
       models: results.slice(0, size),
       hasMore: results.length > size,
     });
   }
-  if (url.pathname !== '/api/cards')
+  const modelOnly = url.pathname === '/api/models' && req.method === 'POST';
+  if (url.pathname !== '/api/cards' && !modelOnly)
     return failure('Página não encontrada.', 404);
   if (req.method === 'GET') {
     const live = await liveResults(db, now, fetcher);
@@ -115,20 +128,39 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
       'Use um nick de 1 a 32 caracteres, começando com letra ou número.',
       400
     );
+  const nickKey = nick.toLocaleLowerCase('pt-BR');
+  if (modelOnly) {
+    if (!uuid.test(body.id) || !validPersonal(body.settings))
+      return failure('Confira a base e os ajustes do modelo.', 400);
+    const snapshot = JSON.stringify(personalSettings(body.settings));
+    await db
+      .prepare(
+        `INSERT INTO personal_models(id,stage,nick,nick_key,submitted,settings)
+      VALUES(?,?,?,?,unixepoch(),?) ON CONFLICT DO NOTHING`
+      )
+      .bind(body.id, stage.id, nick, nickKey, snapshot)
+      .run();
+    const row = await db
+      .prepare(
+        'SELECT id,nick FROM personal_models WHERE stage=? AND nick_key=? AND settings=?'
+      )
+      .bind(stage.id, nickKey, snapshot)
+      .first();
+    return row
+      ? json({ id: 'm-' + row.id, nick: row.nick })
+      : failure('Identificador de modelo já utilizado.', 409);
+  }
   if (!uuid.test(body.id) || !validate(body.state))
     return failure('O cartão ou o modelo está incompleto.', 400);
-  const { card, model, form, trust, bonus } = body.state;
+  const { card, model } = body.state;
   const settings = JSON.stringify({
     ...defaults(card),
     model,
-    form,
-    trust,
-    bonus,
-    ...(body.state.description?.trim()
+    ...personalSettings(body.state),
+    ...(!body.state.base && body.state.description?.trim()
       ? { description: body.state.description.trim() }
       : {}),
   });
-  const nickKey = nick.toLocaleLowerCase('pt-BR');
   const retry = async () => {
     const prior = await db
       .prepare('SELECT id,nick_key,settings FROM cards WHERE stage=? AND id=?')

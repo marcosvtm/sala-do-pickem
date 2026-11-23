@@ -15,6 +15,13 @@
       "when": 1795447538075,
       "tag": "0001_stage_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795468390300,
+      "tag": "0002_personal_models",
+      "breakpoints": true
     }
   ]
 }

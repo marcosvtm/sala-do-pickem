@@ -1,4 +1,5 @@
-import { MODELS, explanations, modelName } from './models.js';
+import { MODELS, explanations, modelName, describeBase } from './models.js';
+import { personalSettings } from './state.js';
 
 export function renderCatalog(selected, nick, choose) {
   const tiles = Object.keys(MODELS).map((id) => {
@@ -43,10 +44,9 @@ export function bindPages(teams, apply) {
       if (requested !== id) return;
       $('importName').textContent = modelName('custom', model.nick);
       $('importInfo').textContent =
-        model.description ||
-        'Ajustes salvos com o cartão de ' + model.nick + '.';
+        model.description || 'Ajustes publicados por ' + model.nick + '.';
       const info = document.createElement('p');
-      info.textContent = 'Peso da forma recente: ' + model.form + '%.';
+      info.textContent = describeBase(model) + '.';
       const changes = teams.flatMap((t, i) =>
         model.trust[i] === 100 && model.bonus[i] === 0
           ? []
@@ -71,11 +71,11 @@ export function bindPages(teams, apply) {
         );
       $('importCopy').hidden = false;
       $('importCopy').onclick = () => {
-        apply(model);
+        apply(personalSettings(model));
         history.replaceState(null, '', '/modelos');
         render();
         $('modelos').scrollIntoView({ block: 'start' });
-        $('hypothesis').focus({ preventScroll: true });
+        $('baseModel').focus({ preventScroll: true });
       };
     } catch {
       if (requested === id)

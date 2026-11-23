@@ -28,12 +28,28 @@ export function currentGames(games) {
         a.slot - b.slot
     );
 }
-export async function bindFeed(stage, applyOfficial) {
+export function matchLink(game, base) {
+  if (!base) return null;
+  const opening =
+    game.round === 1 &&
+    base.games.find(
+      (m) =>
+        m.round === 1 &&
+        ((m.a === game.a && m.b === game.b) ||
+          (m.a === game.b && m.b === game.a))
+    );
+  return base.links[
+    ROUND_START[game.round - 1] + (opening?.slot ?? game.slot) - 1
+  ];
+}
+export async function bindFeed(stage, applyOfficial, onSchedule) {
   const localKey = 'official:' + stage.id;
   let lastOfficial,
     base,
     signature,
-    busy = false;
+    busy = false,
+    confirmedLocks,
+    latestGames;
   function apply(locks) {
     if (
       !Array.isArray(locks) ||
@@ -42,6 +58,7 @@ export async function bindFeed(stage, applyOfficial) {
     )
       return;
     const sig = locks.join(',');
+    confirmedLocks = locks;
     if (sig === lastOfficial) return;
     lastOfficial = sig;
     applyOfficial(locks);
@@ -50,6 +67,8 @@ export async function bindFeed(stage, applyOfficial) {
     apply(JSON.parse(localStorage.getItem(localKey)));
   } catch {}
   function paint(games, stale, checked) {
+    latestGames = games;
+    onSchedule?.({ games, stale, base, locks: confirmedLocks });
     const rows = currentGames(games),
       sig = JSON.stringify([rows, stale, Boolean(base)]);
     $('agendaStatus').textContent =
@@ -111,15 +130,9 @@ export async function bindFeed(stage, applyOfficial) {
       );
       row.append(timing, info);
       if (base) {
-        const opening = base.games.find(
-          (m) =>
-            m.round === 1 &&
-            g.round === 1 &&
-            ((m.a === g.a && m.b === g.b) || (m.a === g.b && m.b === g.a))
-        );
-        const slot = opening?.slot ?? g.slot;
+        const slot = g.slot;
         const link = el('a', 'match-link', 'HLTV');
-        link.href = base.links[ROUND_START[g.round - 1] + slot - 1];
+        link.href = matchLink(g, base);
         link.setAttribute(
           'aria-label',
           'Partida ' + slot + ' da rodada ' + g.round + ' na HLTV'
@@ -163,6 +176,13 @@ export async function bindFeed(stage, applyOfficial) {
         ? 'PGL temporariamente indisponível. Exibindo os últimos resultados confirmados.'
         : 'Fonte: PGL · Resultados oficiais atualizados a cada minuto.';
     } catch {
+      if (latestGames)
+        onSchedule?.({
+          games: latestGames,
+          stale: true,
+          base,
+          locks: confirmedLocks,
+        });
       $('agendaStatus').textContent =
         'PGL indisponível. Exibindo a última agenda recebida · Horários de Cuiabá.';
       $('feedStatus').textContent =

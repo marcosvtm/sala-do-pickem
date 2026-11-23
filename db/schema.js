@@ -25,3 +25,16 @@ export const results = sqliteTable('stage_results', {
   checked: integer('checked').notNull(),
   attempted: integer('attempted').notNull(),
 });
+
+export const models = sqliteTable(
+  'personal_models',
+  {
+    id: text('id').primaryKey(),
+    stage: text('stage').notNull(),
+    nick: text('nick').notNull(),
+    nickKey: text('nick_key').notNull(),
+    submitted: integer('submitted').notNull(),
+    settings: text('settings').notNull(),
+  },
+  (t) => [uniqueIndex('stage_nick_settings').on(t.stage, t.nickKey, t.settings)]
+);

@@ -1,4 +1,4 @@
-import { MODELS } from './models.js';
+import { MODELS, BASE_MODELS } from './models.js';
 import { ROUND_SIZES, ROUND_START } from './swiss.js';
 
 export const STAGE = 'sg26-s1-v1';
@@ -15,23 +15,43 @@ export function defaults(card) {
   };
 }
 export function newDraft() {
-  return { ...defaults(zeros(10, -1)), model: 'custom' };
+  return {
+    ...defaults(zeros(10, -1)),
+    model: 'custom',
+    base: 'vrs',
+    weight: 50,
+  };
 }
 const inRange = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
 const intArray = (x, n, min, max) =>
   Array.isArray(x) && x.length === n && x.every((i) => inRange(i, min, max));
+export function validPersonal(settings) {
+  if (
+    !settings ||
+    !intArray(settings.trust, 16, 0, 100) ||
+    !intArray(settings.bonus, 16, -15, 15)
+  )
+    return false;
+  if (settings.base !== undefined || settings.weight !== undefined)
+    return (
+      BASE_MODELS.includes(settings.base) && inRange(settings.weight, 0, 100)
+    );
+  return inRange(settings.form, 0, 100);
+}
+export function personalSettings(s) {
+  return {
+    ...(s.base ? { base: s.base, weight: s.weight } : { form: s.form }),
+    trust: [...s.trust],
+    bonus: [...s.bonus],
+  };
+}
 export function validate(value, { draft = false } = {}) {
   if (!value || value.stage !== STAGE || !Object.hasOwn(MODELS, value.model))
     return false;
   if (!intArray(value.card, 10, draft ? -1 : 0, 15)) return false;
   const picks = value.card.filter((team) => team !== -1);
   if (new Set(picks).size !== picks.length) return false;
-  if (
-    !inRange(value.form, 0, 100) ||
-    !intArray(value.trust, 16, 0, 100) ||
-    !intArray(value.bonus, 16, -15, 15)
-  )
-    return false;
+  if (!validPersonal(value)) return false;
   if (
     value.description !== undefined &&
     (typeof value.description !== 'string' || value.description.length > 280)

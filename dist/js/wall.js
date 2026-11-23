@@ -1,4 +1,4 @@
-import { MODELS, modelName, makeMatrix } from './models.js';
+import { MODELS, modelName, makeMatrix, describeBase } from './models.js';
 import { progress, pickStatus, fixtureBrier } from './progress.js';
 import { shareButton } from './share.js';
 import { defaults } from './state.js';
@@ -133,9 +133,8 @@ function render(data) {
       details.append(
         node(
           'p',
-          'Peso da forma recente: ' +
-            c.settings.form +
-            '%.' +
+          describeBase(c.settings) +
+            '.' +
             (tweaks.length ? ' ' + tweaks.join(' · ') : ''),
           'hint'
         )
@@ -235,8 +234,16 @@ async function refreshModels() {
         const row = node('div', undefined, 'saved-model-row'),
           link = node('a', modelName('custom', m.nick));
         link.href = '/modelos?modelo=' + encodeURIComponent(m.id);
+        const info = node(
+          'span',
+          m.source === 'card' ? 'Salvo com o cartão' : 'Modelo publicado',
+          'hint'
+        );
+        info.append(' · ' + date(m.submitted * 1000) + ' (Cuiabá)');
+        const entry = node('div');
+        entry.append(link, info);
         row.append(
-          link,
+          entry,
           shareButton(link.href, 'Compartilhar modelo de ' + m.nick)
         );
         return row;
@@ -247,7 +254,7 @@ async function refreshModels() {
           : [
               node(
                 'p',
-                'Os modelos aparecem aqui quando alguém salva um cartão.',
+                'Os modelos aparecem aqui quando alguém salva um modelo ou um cartão.',
                 'hint'
               ),
             ])
