@@ -1,0 +1,253 @@
+{
+  "teams": [
+    "GamerLegion",
+    "B8",
+    "HEROIC",
+    "BetBoom",
+    "BIG",
+    "M80",
+    "MIBR",
+    "SINNERS",
+    "NRG",
+    "TYLOO",
+    "Sharks",
+    "Gaimin Gladiators",
+    "Liquid",
+    "Lynn Vision",
+    "THUNDER dOWNUNDER",
+    "FlyQuest"
+  ],
+  "games": [
+    {
+      "a": 5,
+      "b": 13,
+      "winner": 5,
+      "bo": 1,
+      "slug": "m80-cs-go-vs-lynn-vision-02-06-2026"
+    },
+    {
+      "a": 7,
+      "b": 15,
+      "winner": 15,
+      "bo": 1,
+      "slug": "sinners-vs-flyquest-02-06-2026"
+    },
+    {
+      "a": 6,
+      "b": 14,
+      "winner": 14,
+      "bo": 1,
+      "slug": "mibr-vs-thuneder-downunder-02-06-2026"
+    },
+    {
+      "a": 1,
+      "b": 9,
+      "winner": 1,
+      "bo": 1,
+      "slug": "b8-vs-tyloo-cs-go-02-06-2026"
+    },
+    {
+      "a": 2,
+      "b": 10,
+      "winner": 10,
+      "bo": 1,
+      "slug": "heroic-vs-sharks-02-06-2026"
+    },
+    {
+      "a": 0,
+      "b": 8,
+      "winner": 0,
+      "bo": 1,
+      "slug": "gamerlegion-vs-nrg-02-06-2026"
+    },
+    {
+      "a": 3,
+      "b": 11,
+      "winner": 3,
+      "bo": 1,
+      "slug": "betboom-team-vs-gaimingladiators-02-06-2026"
+    },
+    {
+      "a": 4,
+      "b": 12,
+      "winner": 12,
+      "bo": 1,
+      "slug": "big-vs-liquid-02-06-2026"
+    },
+    {
+      "a": 2,
+      "b": 13,
+      "winner": 13,
+      "bo": 1,
+      "slug": "heroic-vs-lynn-vision-02-06-2026"
+    },
+    {
+      "a": 1,
+      "b": 14,
+      "winner": 1,
+      "bo": 1,
+      "slug": "b8-vs-thuneder-downunder-02-06-2026"
+    },
+    {
+      "a": 7,
+      "b": 8,
+      "winner": 8,
+      "bo": 1,
+      "slug": "sinners-vs-nrg-02-06-2026"
+    },
+    {
+      "a": 6,
+      "b": 9,
+      "winner": 6,
+      "bo": 1,
+      "slug": "mibr-vs-tyloo-cs-go-02-06-2026"
+    },
+    {
+      "a": 5,
+      "b": 10,
+      "winner": 5,
+      "bo": 1,
+      "slug": "m80-cs-go-vs-sharks-02-06-2026"
+    },
+    {
+      "a": 0,
+      "b": 15,
+      "winner": 0,
+      "bo": 1,
+      "slug": "gamerlegion-vs-flyquest-02-06-2026"
+    },
+    {
+      "a": 4,
+      "b": 11,
+      "winner": 4,
+      "bo": 1,
+      "slug": "big-vs-gaimingladiators-02-06-2026"
+    },
+    {
+      "a": 3,
+      "b": 12,
+      "winner": 3,
+      "bo": 1,
+      "slug": "betboom-team-vs-liquid-02-06-2026"
+    },
+    {
+      "a": 10,
+      "b": 13,
+      "winner": 13,
+      "bo": 1,
+      "slug": "sharks-vs-lynn-vision-03-06-2026"
+    },
+    {
+      "a": 8,
+      "b": 15,
+      "winner": 8,
+      "bo": 1,
+      "slug": "nrg-vs-flyquest-03-06-2026"
+    },
+    {
+      "a": 14,
+      "b": 4,
+      "winner": 4,
+      "bo": 1,
+      "slug": "thuneder-downunder-vs-big-03-06-2026"
+    },
+    {
+      "a": 12,
+      "b": 6,
+      "winner": 6,
+      "bo": 1,
+      "slug": "liquid-vs-mibr-03-06-2026"
+    },
+    {
+      "a": 0,
+      "b": 3,
+      "winner": 3,
+      "bo": 3,
+      "slug": "gamerlegion-vs-betboom-team-03-06-2026"
+    },
+    {
+      "a": 9,
+      "b": 7,
+      "winner": 9,
+      "bo": 3,
+      "slug": "tyloo-cs-go-vs-sinners-03-06-2026"
+    },
+    {
+      "a": 11,
+      "b": 2,
+      "winner": 2,
+      "bo": 3,
+      "slug": "gaimingladiators-vs-heroic-03-06-2026"
+    },
+    {
+      "a": 5,
+      "b": 1,
+      "winner": 1,
+      "bo": 3,
+      "slug": "m80-cs-go-vs-b8-03-06-2026"
+    },
+    {
+      "a": 14,
+      "b": 15,
+      "winner": 15,
+      "bo": 3,
+      "slug": "thuneder-downunder-vs-flyquest-04-06-2026"
+    },
+    {
+      "a": 9,
+      "b": 10,
+      "winner": 9,
+      "bo": 3,
+      "slug": "tyloo-cs-go-vs-sharks-04-06-2026"
+    },
+    {
+      "a": 0,
+      "b": 4,
+      "winner": 0,
+      "bo": 3,
+      "slug": "gamerlegion-vs-big-04-06-2026"
+    },
+    {
+      "a": 6,
+      "b": 13,
+      "winner": 6,
+      "bo": 3,
+      "slug": "mibr-vs-lynn-vision-04-06-2026"
+    },
+    {
+      "a": 5,
+      "b": 8,
+      "winner": 5,
+      "bo": 3,
+      "slug": "m80-cs-go-vs-nrg-04-06-2026"
+    },
+    {
+      "a": 12,
+      "b": 2,
+      "winner": 12,
+      "bo": 3,
+      "slug": "liquid-vs-heroic-04-06-2026"
+    },
+    {
+      "a": 9,
+      "b": 13,
+      "winner": 9,
+      "bo": 3,
+      "slug": "tyloo-cs-go-vs-lynn-vision-05-06-2026"
+    },
+    {
+      "a": 12,
+      "b": 15,
+      "winner": 15,
+      "bo": 3,
+      "slug": "liquid-vs-flyquest-05-06-2026"
+    },
+    {
+      "a": 8,
+      "b": 4,
+      "winner": 4,
+      "bo": 3,
+      "slug": "nrg-vs-big-05-06-2026"
+    }
+  ]
+}

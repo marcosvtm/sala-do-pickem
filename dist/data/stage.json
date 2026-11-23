@@ -1,0 +1,146 @@
+{
+  "id": "sg26-s1-v1",
+  "cutoff": "2026-11-20T18:00:00Z",
+  "teams": [
+    {
+      "name": "Ninjas in Pyjamas",
+      "short": "NIP",
+      "logo": "ninjas_in_pyjamas.svg",
+      "vrs": 1564,
+      "elo": 99.87091559712886,
+      "series": 99
+    },
+    {
+      "name": "PVISION",
+      "short": "PVI",
+      "logo": "pvision.svg",
+      "vrs": 1560,
+      "elo": 38.22217593321265,
+      "series": 80
+    },
+    {
+      "name": "HEROIC",
+      "short": "HER",
+      "logo": "heroic.webp",
+      "vrs": 1548,
+      "elo": 128.48346413578642,
+      "series": 90
+    },
+    {
+      "name": "FaZe Clan",
+      "short": "FAZE",
+      "logo": "faze_clan.svg",
+      "vrs": 1539,
+      "elo": 52.9303731920372,
+      "series": 77
+    },
+    {
+      "name": "Team Liquid",
+      "short": "LIQ",
+      "logo": "liquid.svg",
+      "vrs": 1528,
+      "elo": 65.8638103826339,
+      "series": 82
+    },
+    {
+      "name": "Eternal Fire",
+      "short": "EF",
+      "logo": "eternal_fire.svg",
+      "vrs": 1513,
+      "elo": 185.1417829080618,
+      "series": 132
+    },
+    {
+      "name": "100 Thieves",
+      "short": "100T",
+      "logo": "100_thieves.svg",
+      "vrs": 1511,
+      "elo": 253.44036041802673,
+      "series": 99
+    },
+    {
+      "name": "9z Globant",
+      "short": "9Z",
+      "logo": "9z_globant.webp",
+      "vrs": 1490,
+      "elo": -22.431221154697543,
+      "series": 98
+    },
+    {
+      "name": "M80",
+      "short": "M80",
+      "logo": "m80.webp",
+      "vrs": 1489,
+      "elo": 71.07132394518341,
+      "series": 82
+    },
+    {
+      "name": "DENDELE",
+      "short": "DEN",
+      "logo": "dendele.webp",
+      "vrs": 1466,
+      "elo": 132.44704942123485,
+      "series": 31
+    },
+    {
+      "name": "Imperial Esports",
+      "short": "IMP",
+      "logo": "imperial_esports.svg",
+      "vrs": 1406,
+      "elo": 222.0408596365334,
+      "series": 112
+    },
+    {
+      "name": "Wildcard",
+      "short": "WC",
+      "logo": "wildcard.svg",
+      "vrs": 1391,
+      "elo": 135.40570766122107,
+      "series": 76
+    },
+    {
+      "name": "GOSH",
+      "short": "GOSH",
+      "logo": "gosh.svg",
+      "vrs": 1337,
+      "elo": 54.571726067444,
+      "series": 57
+    },
+    {
+      "name": "FlyQuest",
+      "short": "FLY",
+      "logo": "flyquest.svg",
+      "vrs": 1318,
+      "elo": 251.186620822403,
+      "series": 61
+    },
+    {
+      "name": "Chinggis Warriors",
+      "short": "CW",
+      "logo": "chinggis_warriors.svg",
+      "vrs": 1272,
+      "elo": 62.01128151556866,
+      "series": 70
+    },
+    {
+      "name": "Lynn Vision Gaming",
+      "short": "LVG",
+      "logo": "lynn_vision_gaming.svg",
+      "vrs": 1267,
+      "elo": 163.62890535503936,
+      "series": 62
+    }
+  ],
+  "card": [
+    4,
+    6,
+    0,
+    2,
+    5,
+    9,
+    10,
+    13,
+    12,
+    14
+  ]
+}

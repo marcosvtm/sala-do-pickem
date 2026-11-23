@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#101518" />
+    <title>Sala do Pick’Em · Singapura 2026</title>
+    <meta
+      name="description"
+      content="Compare seu cartão do Major de Singapura em quatro modelos e simule a chance de fazer cinco acertos."
+    />
+    <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="wrap top">
+        <a href="#" class="brand"
+          ><img src="assets/mark.svg" alt="" />Sala do Pick’Em</a
+        >
+        <nav>
+          <a href="#modelos">Modelos</a><a href="#jogos">Partidas</a
+          ><button id="share" class="outline">Compartilhar cartão</button>
+        </nav>
+      </div>
+    </header>
+    <main class="wrap">
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="kicker"><i></i> PGL MAJOR · SINGAPURA 2026</span>
+          <h1>Simulador de <em>Pick’Em</em></h1>
+          <p>Monte seu cartão e compare a chance de fazer cinco acertos.</p>
+          <div class="eventline">
+            <b>Stage 1</b><span>24–27 de novembro</span><span>16 equipes</span>
+          </div>
+        </div>
+      </section>
+      <div class="dashboard">
+        <section class="panel board">
+          <div class="panel-title">
+            <div>
+              <span class="eyebrow">SELEÇÃO</span>
+              <h2>Seu cartão</h2>
+            </div>
+            <button class="text-btn" id="restore">Restaurar inicial</button>
+          </div>
+          <p class="lead">Toque em uma equipe para trocar seu palpite.</p>
+          <div id="slots"></div>
+        </section>
+        <section class="panel evaluation" id="resultado">
+          <div class="panel-title">
+            <div>
+              <span class="eyebrow">SIMULAÇÃO</span>
+              <h2>Chance de passar</h2>
+            </div>
+            <span class="target">5+ / 10</span>
+          </div>
+          <label for="activeModel">Modelo em destaque</label
+          ><select id="activeModel"></select>
+          <div class="big" id="prob">—</div>
+          <div id="uncertainty" class="uncertainty">Calculando a prévia…</div>
+          <div
+            class="bench"
+            id="comparison"
+            aria-label="Comparação dos modelos"
+          ></div>
+          <div class="run-controls">
+            <label for="mode">Tempo de cálculo</label
+            ><select id="mode">
+              <option value="timed">Tempo definido</option>
+              <option value="continuous">Até eu parar</option>
+              <option value="exact">Até esgotar a chave</option>
+            </select>
+            <div id="secondsRow">
+              <label for="seconds">Segundos por rodada de cálculo</label
+              ><input
+                id="seconds"
+                type="number"
+                min="1"
+                max="86400"
+                value="5"
+                step="1"
+              />
+            </div>
+            <p class="hint" id="runHint"></p>
+            <button class="primary" id="run">Simular cartão</button
+            ><button class="outline" id="stop" hidden>Parar cálculo</button>
+            <div class="small" id="status" role="status"></div>
+          </div>
+        </section>
+      </div>
+      <section id="modelos" class="panel options">
+        <div class="panel-title">
+          <div>
+            <span class="eyebrow">HIPÓTESES</span>
+            <h2>Modelo do grupo</h2>
+          </div>
+        </div>
+        <p class="lead">
+          Decidam quanto vale a forma recente e onde o histórico deixa dúvidas.
+        </p>
+        <div class="settings-grid">
+          <div>
+            <label for="form"
+              >Peso da forma recente <output id="formVal"></output></label
+            ><input id="form" type="range" min="0" max="100" step="1" />
+            <div class="ends">
+              <span>Ranking Valve</span><span>Forma recente</span>
+            </div>
+            <div class="team-settings">
+              <label for="editTeam">Ajustar uma equipe</label
+              ><select id="editTeam"></select
+              ><label for="trust"
+                >Confiança na forma <output id="trustVal"></output></label
+              ><input id="trust" type="range" min="0" max="100" />
+              <p class="hint">
+                Reduza se os adversários recentes dizem pouco sobre a oposição
+                no Major. O peso restante volta ao ranking.
+              </p>
+              <label for="bonus"
+                >Ajuste de desempenho no Major
+                <output id="bonusVal"></output></label
+              ><input id="bonus" type="range" min="-15" max="15" />
+              <p class="hint">
+                Em um duelo equilibrado, +5 leva a chance de 50% a 55% contra
+                uma equipe sem ajuste.
+              </p>
+            </div>
+            <button class="text-btn" id="resetModel">
+              Zerar ajustes do grupo
+            </button>
+          </div>
+          <div class="match-preview">
+            <span class="eyebrow">CONFRONTO DO MODELO</span>
+            <h3>Se eles se encontrarem</h3>
+            <div class="versus">
+              <label>Equipe A<select id="left"></select></label><b>×</b
+              ><label>Equipe B<select id="right"></select></label>
+            </div>
+            <label for="bo">Formato</label
+            ><select id="bo">
+              <option value="1">Melhor de um · MD1</option>
+              <option value="3">Melhor de três · MD3</option>
+            </select>
+            <div id="duel"></div>
+          </div>
+        </div>
+      </section>
+      <section id="jogos" class="panel">
+        <details>
+          <summary>
+            Fixar resultados da fase <span id="locksCount"></span>
+          </summary>
+          <p class="lead">
+            Marque o vencedor para simular o restante da chave. Complete a
+            rodada para abrir a seguinte. Alterar um resultado limpa as rodadas
+            posteriores.
+          </p>
+          <div id="matches"></div>
+        </details>
+      </section>
+      <section class="panel">
+        <details>
+          <summary>Como ler as probabilidades</summary>
+          <div class="notes">
+            <p>
+              O cartão pontua dois 3–0, seis times em 3–1 ou 3–2 e dois 0–3. Um
+              time invicto só pontua na vaga de 3–0. Cada simulação joga a fase
+              inteira e conta os acertos juntos.
+            </p>
+            <p>
+              O modelo neutro usa 50/50. O ranking usa a diferença de pontos
+              Valve. A forma recente usa Elo ajustado ao adversário, com
+              meia-vida de 160 dias. MD1 e MD3 têm curvas próprias. No modelo do
+              grupo, a confiança individual e o ajuste de Major são hipóteses de
+              vocês.
+            </p>
+            <p>
+              A faixa de 95% mede a variação do sorteio para um modelo fixo.
+              Mais simulações reduzem essa variação. A diferença entre modelos
+              mostra quanto a conclusão depende das hipóteses.
+            </p>
+            <p>
+              Dados congelados em 20/11/2026 às 14h de Cuiabá. Resultados podem
+              ser fixados manualmente. O primeiro jogo está previsto para 24/11
+              à 0h de Cuiabá. Confira o fechamento do cartão no CS2.
+            </p>
+            <p>
+              <a href="https://www.pglesports.com/cs2/pgl-major-singapore-2026/"
+                >Calendário da PGL</a
+              >
+              ·
+              <a
+                href="https://github.com/ValveSoftware/counter-strike_regional_standings"
+                >Ranking Valve</a
+              >
+              ·
+              <a href="https://github.com/marcosvtm/sala-do-pickem"
+                >Código e método</a
+              >
+            </p>
+          </div>
+        </details>
+      </section>
+    </main>
+    <footer class="wrap">
+      <span>Sala do Pick’Em · Singapura 2026</span
+      ><a href="https://github.com/marcosvtm/sala-do-pickem"
+        >Contribuir no GitHub</a
+      >
+    </footer>
+    <dialog id="picker">
+      <div class="panel-title">
+        <div>
+          <span class="eyebrow" id="pickCategory"></span>
+          <h2>Escolher equipe</h2>
+        </div>
+        <button class="outline" id="close">Fechar</button>
+      </div>
+      <div id="choices"></div>
+    </dialog>
+    <dialog id="shareDialog">
+      <h2>Compartilhar cartão</h2>
+      <label for="shareLink"
+        >Link com palpites, modelo e resultados fixados</label
+      ><input id="shareLink" readonly /><button class="outline" id="closeShare">
+        Fechar
+      </button>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
