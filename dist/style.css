@@ -1195,6 +1195,14 @@ nav a {
 .model-guide code {
   overflow-wrap: anywhere;
 }
+.study-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--acid);
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+}
 .form-history {
   overflow-x: auto;
 }

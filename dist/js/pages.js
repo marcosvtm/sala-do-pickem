@@ -48,7 +48,7 @@ export function renderCatalog(
     catalog.dataset.selected = selected;
   }
 }
-export function bindPages(teams, apply, suggestStudy) {
+export function bindPages(teams, apply) {
   const $ = (id) => document.getElementById(id);
   for (const team of teams) {
     const e = team.formEvidence;
@@ -164,10 +164,6 @@ export function bindPages(teams, apply, suggestStudy) {
     render();
     window.scrollTo(0, 0);
   }
-  $('studySuggest').onclick = () => {
-    navigate('/');
-    suggestStudy();
-  };
   document.addEventListener('click', (e) => {
     const link = e.target.closest('a[href]');
     if (

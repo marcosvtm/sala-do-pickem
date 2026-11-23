@@ -120,27 +120,19 @@ async function init() {
       invalidate({ editing });
     }
   );
-  bindPages(
-    stage.teams,
-    (settings) => {
-      delete state.weights;
-      delete state.base;
-      delete state.weight;
-      delete state.description;
-      Object.assign(state, settings, {
-        model: 'custom',
-        formVersion: settings.formVersion ?? 1,
-      });
-      renderSettings();
-      refreshNames();
-      invalidate();
-    },
-    () => {
-      chooseModel('study');
-      $('suggest').focus();
-      $('suggest').click();
-    }
-  );
+  bindPages(stage.teams, (settings) => {
+    delete state.weights;
+    delete state.base;
+    delete state.weight;
+    delete state.description;
+    Object.assign(state, settings, {
+      model: 'custom',
+      formVersion: settings.formVersion ?? 1,
+    });
+    renderSettings();
+    refreshNames();
+    invalidate();
+  });
   refreshSaving = bindSaving(
     () => state,
     stage,
