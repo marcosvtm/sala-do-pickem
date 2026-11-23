@@ -14,14 +14,18 @@ export function defaults(card) {
     locks: zeros(33, -1),
   };
 }
+export function newDraft() {
+  return { ...defaults(zeros(10, -1)), model: 'custom' };
+}
 const inRange = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
 const intArray = (x, n, min, max) =>
   Array.isArray(x) && x.length === n && x.every((i) => inRange(i, min, max));
-export function validate(value) {
+export function validate(value, { draft = false } = {}) {
   if (!value || value.stage !== STAGE || !Object.hasOwn(MODELS, value.model))
     return false;
-  if (!intArray(value.card, 10, 0, 15) || new Set(value.card).size !== 10)
-    return false;
+  if (!intArray(value.card, 10, draft ? -1 : 0, 15)) return false;
+  const picks = value.card.filter((team) => team !== -1);
+  if (new Set(picks).size !== picks.length) return false;
   if (
     !inRange(value.form, 0, 100) ||
     !intArray(value.trust, 16, 0, 100) ||

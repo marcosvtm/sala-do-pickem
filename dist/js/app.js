@@ -2,9 +2,9 @@ import { MODELS, makeMatrix, modelName } from './models.js';
 import { bindBracket } from './bracket.js';
 import { bindPages, renderCatalog } from './pages.js';
 import { bindFeed } from './schedule.js';
-import { defaults, validate, swap, STAGE } from './state.js';
+import { newDraft, validate, swap, STAGE } from './state.js';
 import { wilson } from './simulation.js';
-import { bindSaving } from './save-card.js';
+import { bindSaving, readReceipt } from './save-card.js';
 
 const $ = (id) => document.getElementById(id);
 const percent = (p) =>
@@ -16,23 +16,47 @@ const number = (x) => x.toLocaleString('pt-BR');
 const option = (text, value) => new Option(text, value);
 const categories = ['3–0', '3–1 / 3–2', '0–3'];
 const category = (slot) => (slot < 2 ? 0 : slot < 8 ? 1 : 2);
-let owner, stage, state, worker, last, delay, toastTimer, activeRun;
+let owner,
+  stage,
+  state,
+  worker,
+  last,
+  delay,
+  toastTimer,
+  activeRun,
+  refreshSaving;
 
 async function init() {
   const response = await fetch('data/stage.json');
   if (!response.ok) throw new Error('Dados da fase indisponíveis');
   stage = await response.json();
-  state = defaults(stage.card);
+  state = newDraft();
+  const receipt = readReceipt(stage);
   let saved;
   try {
     saved = location.hash.startsWith('#c=')
       ? JSON.parse(atob(location.hash.slice(3)))
       : JSON.parse(localStorage.getItem(STAGE));
-    if (saved && validate(saved)) state = saved;
-    else if (saved) toast('Cartão incompatível. Carregamos o cartão inicial.');
+    // Early versions could register a card before writing a local draft.
+    if (
+      !saved &&
+      receipt?.saved &&
+      receipt.token &&
+      !location.hash.startsWith('#c=')
+    ) {
+      const res = await fetch(
+        '/api/cards?focus=' + encodeURIComponent(receipt.token)
+      );
+      if (res.ok) {
+        const wall = await res.json();
+        saved = wall.cards.find((card) => card.id === receipt.token)?.settings;
+      }
+    }
+    if (saved && validate(saved, { draft: true })) state = saved;
+    else if (saved) toast('Cartão incompatível. Abrimos um cartão vazio.');
   } catch {
     if (location.hash.startsWith('#c='))
-      toast('Link inválido. Carregamos o cartão inicial.');
+      toast('Link inválido. Abrimos um cartão vazio.');
   }
   for (const [id, name] of Object.entries(MODELS))
     $('activeModel').add(option(name, id));
@@ -56,11 +80,19 @@ async function init() {
     refreshNames();
     invalidate();
   });
-  bindSaving(
+  refreshSaving = bindSaving(
     () => state,
     stage,
+    receipt,
     (nick) => {
+      const switchingPerson = Boolean(owner && !nick);
       owner = nick;
+      if (switchingPerson) {
+        state = { ...newDraft(), locks: state.locks };
+        renderCard();
+        renderSettings();
+        invalidate();
+      }
       refreshNames();
     }
   );
@@ -112,6 +144,10 @@ function makeTile(teamId, cls, caption = '') {
 }
 function renderCard() {
   $('slots').replaceChildren();
+  const count = state.card.filter((team) => team >= 0).length;
+  $('pickCount').textContent = count + ' de 10 picks.';
+  $('restore').disabled = count === 0;
+  refreshSaving?.();
   const labels = [
     'Invictos',
     'Classificados com derrota',
@@ -129,11 +165,22 @@ function renderCard() {
     tiles.className = 'tiles';
     state.card.forEach((team, slot) => {
       if (category(slot) !== c) return;
-      const b = makeTile(team, 'tile');
+      const empty = team === -1;
+      const b = empty
+        ? document.createElement('button')
+        : makeTile(team, 'tile');
+      if (empty) {
+        b.className = 'tile empty-pick';
+        b.textContent = 'Escolher equipe';
+      }
       b.dataset.slot = slot;
       b.setAttribute(
         'aria-label',
-        'Trocar ' + stage.teams[team].name + ' na vaga ' + categories[c]
+        (empty ? 'Escolher equipe' : 'Trocar ' + stage.teams[team].name) +
+          ' na vaga ' +
+          categories[c] +
+          ', posição ' +
+          (slot - [0, 2, 8][c] + 1)
       );
       b.onclick = () => pick(slot);
       tiles.append(b);
@@ -222,6 +269,8 @@ function runHint() {
         : 'A mesma sequência de sorteios permite comparar os quatro modelos.';
 }
 function renderEstimate() {
+  const incomplete = state.card.includes(-1);
+  $('run').disabled = incomplete;
   $('saveModel').textContent =
     'Modelo em uso: ' + modelName(state.model, owner);
   const model = state.model;
@@ -242,7 +291,9 @@ function renderEstimate() {
           wilson(p, last.count).map(percent).join(' a ');
   } else {
     $('prob').textContent = '—';
-    $('uncertainty').textContent = 'Calculando a prévia…';
+    $('uncertainty').textContent = incomplete
+      ? 'Complete os dez picks para simular.'
+      : 'Calculando a prévia…';
   }
   $('bracketProb').textContent = $('prob').textContent;
   for (const [key, name] of Object.entries(MODELS)) {
@@ -281,16 +332,18 @@ function cancelWorker() {
 }
 function queuePreview() {
   clearTimeout(delay);
-  delay = setTimeout(() => start('preview'), 180);
+  if (!state.card.includes(-1)) delay = setTimeout(() => start('preview'), 180);
 }
 function invalidate({ editing = false } = {}) {
   clearTimeout(delay);
   cancelWorker();
   last = null;
   renderEstimate();
-  $('status').textContent = editing
-    ? 'Ajustando hipóteses…'
-    : 'Preparando a prévia…';
+  $('status').textContent = state.card.includes(-1)
+    ? ''
+    : editing
+      ? 'Ajustando hipóteses…'
+      : 'Preparando a prévia…';
   if (!editing) {
     persist();
     queuePreview();
@@ -298,6 +351,10 @@ function invalidate({ editing = false } = {}) {
 }
 function start(mode) {
   clearTimeout(delay);
+  if (state.card.includes(-1)) {
+    renderEstimate();
+    return;
+  }
   if (mode === 'timed' && !$('seconds').reportValidity()) return;
   cancelWorker();
   last = null;
@@ -375,7 +432,7 @@ function bind() {
     $(id).onblur = finishEdit;
   }
   $('resetModel').onclick = () => {
-    const base = defaults(stage.card);
+    const base = newDraft();
     Object.assign(state, {
       description: '',
       form: base.form,
@@ -388,10 +445,10 @@ function bind() {
     invalidate();
   };
   $('restore').onclick = () => {
-    state.card = [...stage.card];
+    state.card = newDraft().card;
     renderCard();
     invalidate();
-    toast('Cartão inicial restaurado.');
+    toast('Picks removidos.');
   };
   $('mode').onchange = runHint;
   $('run').onclick = () => start($('mode').value);

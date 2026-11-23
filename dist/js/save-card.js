@@ -1,6 +1,14 @@
 import { shareButton } from './share.js';
 
-export function bindSaving(current, stage, onOwner) {
+export function readReceipt(stage) {
+  try {
+    return JSON.parse(localStorage.getItem('public-card:' + stage.id));
+  } catch {
+    return null;
+  }
+}
+
+export function bindSaving(current, stage, receipt, onOwner) {
   const form = document.querySelector('#saveCard'),
     input = form.elements.nick;
   const submit = document.querySelector('#saveButton'),
@@ -13,14 +21,11 @@ export function bindSaving(current, stage, onOwner) {
   // Also close an already-open tab. The authoritative check is inside the database insert.
   let offset = 0,
     timer;
-  try {
-    const draft = JSON.parse(localStorage.getItem(key) || 'null');
-    if (draft) {
-      token = draft.token;
-      input.value = draft.nick || '';
-      saved = draft.saved;
-    }
-  } catch {}
+  if (receipt?.token) {
+    token = receipt.token;
+    input.value = receipt.nick || '';
+    saved = receipt.saved;
+  }
   const share = document.querySelector('#savedShare');
   function ownerChanged() {
     share.hidden = !saved;
@@ -81,7 +86,11 @@ export function bindSaving(current, stage, onOwner) {
     clearTimeout(timer);
     const remaining = closeAt - (Date.now() + offset);
     submit.disabled =
-      Boolean(saved) || pending || remaining <= 0 || !input.value.trim();
+      Boolean(saved) ||
+      pending ||
+      remaining <= 0 ||
+      !input.value.trim() ||
+      current().card.includes(-1);
     submit.textContent = saved ? 'Cartão salvo' : 'Salvar cartão';
     input.disabled = Boolean(saved) || pending || remaining <= 0;
     document.querySelector('#anotherNick').hidden = !saved || remaining <= 0;
@@ -152,4 +161,5 @@ export function bindSaving(current, stage, onOwner) {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refresh();
   });
+  return refresh;
 }

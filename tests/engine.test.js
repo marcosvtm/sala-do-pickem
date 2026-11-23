@@ -2,8 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { tournament, score, availableGames } from '../dist/js/swiss.js';
-import { defaults, validate, updateLock, swap } from '../dist/js/state.js';
-import { makeMatrix } from '../dist/js/models.js';
+import {
+  defaults,
+  newDraft,
+  validate,
+  updateLock,
+  swap,
+} from '../dist/js/state.js';
+import { makeMatrix, modelName } from '../dist/js/models.js';
 import { exactRun, sampleRun } from '../dist/js/simulation.js';
 
 const read = (relative) =>
@@ -30,6 +36,21 @@ test('replays all 33 Cologne fixtures, formats and winners with no rematches', (
     [0, 1, 2, 3].map((k) => result.filter((x) => x === k).length),
     [2, 6, 2, 6]
   );
+});
+test('first visit and partial drafts have no saved owner and require ten unique teams to submit', () => {
+  const s = newDraft();
+  assert.deepEqual(s.card, Array(10).fill(-1));
+  assert.equal(modelName(s.model), 'Modelo personalizado');
+  assert.equal(modelName(s.model, 'mrk'), 'Modelo mrk');
+  swap(s.card, 3, 0);
+  swap(s.card, 4, 0);
+  assert.equal(s.card[3], -1);
+  assert.ok(validate(JSON.parse(JSON.stringify(s)), { draft: true }));
+  assert.equal(validate(s), false);
+  s.card[3] = 0;
+  assert.equal(validate(s, { draft: true }), false);
+  s.card = [...card];
+  assert.ok(validate(s));
 });
 test('card buckets are exclusive and swapping between buckets keeps ten distinct picks', () => {
   const state = initial();

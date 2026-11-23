@@ -300,6 +300,19 @@ h3 {
   object-fit: contain;
   flex: none;
 }
+.empty-pick {
+  border-style: dashed;
+  color: var(--muted);
+}
+.empty-pick::before {
+  content: '+';
+  color: var(--acid);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.empty-pick::after {
+  display: none;
+}
 .tile span,
 .choice span {
   min-width: 0;

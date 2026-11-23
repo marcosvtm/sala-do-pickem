@@ -2,7 +2,7 @@ export const MODELS = {
   neutral: 'Neutro 50/50',
   vrs: 'Ranking Valve',
   elo: 'Forma recente',
-  custom: 'Modelo pessoal',
+  custom: 'Modelo personalizado',
 };
 export const modelName = (id, nick) =>
   id === 'custom' && nick ? 'Modelo ' + nick : MODELS[id];

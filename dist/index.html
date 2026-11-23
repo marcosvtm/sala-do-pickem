@@ -48,9 +48,12 @@
               <span class="eyebrow">SELEÇÃO</span>
               <h2>Seu cartão</h2>
             </div>
-            <button class="text-btn" id="restore">Restaurar inicial</button>
+            <button class="text-btn" id="restore" disabled>Limpar picks</button>
           </div>
-          <p class="lead">Toque em uma equipe para trocar seu palpite.</p>
+          <p class="lead">
+            Toque em uma vaga para escolher a equipe.
+            <span id="pickCount"></span>
+          </p>
           <div id="slots"></div>
           <form id="saveCard" class="save-card">
             <h3>Fechar meu cartão</h3>
@@ -96,7 +99,9 @@
           <label for="activeModel">Modelo em destaque</label
           ><select id="activeModel"></select>
           <div class="big" id="prob">—</div>
-          <div id="uncertainty" class="uncertainty">Calculando a prévia…</div>
+          <div id="uncertainty" class="uncertainty">
+            Complete os dez picks para simular.
+          </div>
           <div
             class="bench"
             id="comparison"
@@ -121,7 +126,7 @@
               />
             </div>
             <p class="hint" id="runHint"></p>
-            <button class="primary" id="run">Simular cartão</button
+            <button class="primary" id="run" disabled>Simular cartão</button
             ><button class="outline" id="stop" hidden>Parar cálculo</button>
             <div class="small" id="status" role="status"></div>
           </div>
@@ -160,7 +165,7 @@
         <div class="panel-title">
           <div>
             <span class="eyebrow">HIPÓTESES</span>
-            <h2 id="personalName">Modelo pessoal</h2>
+            <h2 id="personalName">Modelo personalizado</h2>
           </div>
         </div>
         <p class="lead">Descreva e edite seu próprio modelo.</p>

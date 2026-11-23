@@ -23,7 +23,7 @@ Faça um fork, crie uma branch e envie o pull request contra `main`. Conte o que
 
 - `dist/` contém o frontend editável. `npm run build` empacota os recursos e a API em um Worker do Sites em `dist/server/`.
 - `server/` valida e salva os cartões e consulta a chave da PGL. O banco público usa o binding D1 `DB`. O ambiente de desenvolvimento aplica as mesmas migrações a `.local/cards.sqlite`. Para alterar o esquema, edite `db/schema.js`, rode `npm run db:generate` e versione a migração.
-- `dist/data/stage.json` guarda os 16 seeds, os ratings e o cartão inicial. Os índices das equipes seguem a ordem dos seeds e fazem parte do formato dos links.
+- `dist/data/stage.json` guarda os 16 seeds, os ratings e o cartão de referência dos testes. Na primeira visita, as dez vagas começam vazias. O navegador guarda os picks conforme o visitante os escolhe. Os índices das equipes seguem a ordem dos seeds e fazem parte do formato dos links.
 - `dist/js/swiss.js` monta cada rodada a partir dos resultados anteriores. O pareamento segue recorde, Buchholz, seed e as prioridades de revanche da Valve.
 - `dist/js/models.js` calcula a probabilidade por confronto e formato. `simulation.js` pontua torneios completos, por amostragem ou enumeração. `worker.js` agenda o cálculo, `state.js` valida cartões e cenários e `app.js` cuida da interface.
 - `tests/` contém o replay das 33 partidas de Cologne, verificações de probabilidades, pontuação, caminhos ponderados e consistência da amostragem.
