@@ -105,9 +105,10 @@ async function init() {
     stage.teams,
     () => state,
     (editing) => {
+      const changed = state.model !== 'custom';
       state.model = 'custom';
       $('activeModel').value = 'custom';
-      if (!editing)
+      if (changed || !editing)
         renderCatalog(
           'custom',
           publishedName || owner,
@@ -119,19 +120,27 @@ async function init() {
       invalidate({ editing });
     }
   );
-  bindPages(stage.teams, (settings) => {
-    delete state.weights;
-    delete state.base;
-    delete state.weight;
-    delete state.description;
-    Object.assign(state, settings, {
-      model: 'custom',
-      formVersion: settings.formVersion ?? 1,
-    });
-    renderSettings();
-    refreshNames();
-    invalidate();
-  });
+  bindPages(
+    stage.teams,
+    (settings) => {
+      delete state.weights;
+      delete state.base;
+      delete state.weight;
+      delete state.description;
+      Object.assign(state, settings, {
+        model: 'custom',
+        formVersion: settings.formVersion ?? 1,
+      });
+      renderSettings();
+      refreshNames();
+      invalidate();
+    },
+    () => {
+      chooseModel('study');
+      $('suggest').focus();
+      $('suggest').click();
+    }
+  );
   refreshSaving = bindSaving(
     () => state,
     stage,
@@ -395,7 +404,13 @@ function chooseModel(key) {
   if (changed) refreshSuggestion?.();
   $('activeModel').value = key;
   persist();
-  renderCatalog(key, publishedName || owner, chooseModel, state.formVersion);
+  renderCatalog(
+    key,
+    publishedName || owner,
+    chooseModel,
+    state.formVersion,
+    true
+  );
   if (changed && (activeRun === 'exact' || last?.kind === 'exact'))
     invalidate();
   else renderEstimate();

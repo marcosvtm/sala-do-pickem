@@ -163,58 +163,6 @@
             Usar forma revisada neste rascunho
           </button>
         </p>
-        <details class="hltv-reference">
-          <summary>Forma recente e oposição inter-regional</summary>
-          <p>
-            O Elo leva em conta a força do adversário. Cada reencontro recente
-            vale menos. Uma partida também pesa menos quando nenhuma das equipes
-            tem contato recente com rivais de outras regiões. Vitórias e
-            derrotas seguem a mesma regra.
-          </p>
-          <p>
-            O histórico abaixo cobre os 120 dias anteriores a 20/11/2026, às 14h
-            de Cuiabá. As regiões são as da Valve na data da série: Europa,
-            Américas e Ásia (incluindo a Oceania). Uma série só conta como
-            inter-regional se ambas as regiões eram conhecidas e diferentes.
-          </p>
-          <div class="form-history">
-            <table>
-              <caption>
-                Oposição de cada equipe nos últimos 120 dias
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Equipe</th>
-                  <th scope="col">Séries</th>
-                  <th scope="col">Rivais distintos</th>
-                  <th scope="col">Rivais de outra região</th>
-                  <th scope="col">Séries com região desconhecida</th>
-                </tr>
-              </thead>
-              <tbody id="formEvidence"></tbody>
-            </table>
-          </div>
-          <p>
-            Em 324 séries de torneios posteriores ao ajuste, o Brier passou de
-            0,249 para 0,243 (menor é melhor). Houve apenas 20 confrontos
-            inter-regionais em que ao menos um time havia enfrentado menos de
-            dois rivais de fora.
-          </p>
-        </details>
-        <details class="hltv-reference">
-          <summary>Posições usadas pelo Ranking HLTV</summary>
-          <p>
-            Posições congeladas para o Stage 1.
-            <a href="https://www.hltv.org/ranking/teams/2026/november/16"
-              >Ranking mundial de 16/11/2026</a
-            >
-          </p>
-          <ul id="hltvPositions"></ul>
-          <p>
-            A curva foi ajustada com 318 séries anteriores. Em outras 174, o
-            índice de Brier foi 0,249, próximo do 0,250 do modelo 50/50.
-          </p>
-        </details>
       </section>
       <section
         id="importPanel"
@@ -229,109 +177,253 @@
           Usar e editar uma cópia
         </button>
       </section>
-      <section id="modelos" data-page="/modelos" hidden class="panel options">
-        <div class="panel-title">
-          <div>
-            <span class="eyebrow">HIPÓTESES</span>
-            <h2 id="personalName">Modelo personalizado</h2>
-          </div>
-        </div>
-        <p class="lead">Edite seu próprio modelo.</p>
-        <section class="base-settings" aria-labelledby="mixTitle">
-          <div class="mix-heading">
-            <h3 id="mixTitle">Misture os modelos</h3>
-            <button type="button" id="equalMix" class="outline">
-              Igualar pesos
-            </button>
-          </div>
-          <div id="legacyMix" hidden>
-            <p class="hint">
-              Este modelo usa a fórmula antiga. Ao iniciar uma mistura, cada
-              modelo recebe 25% e a confiança das equipes volta a 100%. Os
-              ajustes de Major são preservados.
+      <section
+        id="modelGuides"
+        aria-label="Detalhes dos modelos"
+        data-page="/modelos"
+        hidden
+      >
+        <details id="guide-neutral" name="model-guide" class="model-guide">
+          <summary>Como funciona o Neutro 50/50</summary>
+          <p>
+            Cada equipe tem 50% de chance de vencer a série, em MD1 ou MD3.
+            Mesmo assim, a chance do cartão depende dos dez picks. Em cada
+            simulação, quem vence muda os próximos confrontos da chave suíça.
+          </p>
+        </details>
+        <details id="guide-vrs" name="model-guide" class="model-guide">
+          <summary>Como os pontos da Valve viram chances de vitória</summary>
+          <p>
+            O modelo compara os pontos das duas equipes no ranking global de 2
+            de novembro de 2026. Equipes empatadas em pontos têm 50% cada.
+            Quanto maior a diferença, maior a chance da equipe à frente.
+          </p>
+          <p>
+            Uma vantagem de 100 pontos vale <strong>57,3% em MD1</strong> e
+            <strong>59,7% em MD3</strong>. A curva logística usa a diferença de
+            pontos dividida por 340 na MD1 e por 255 na MD3.
+          </p>
+        </details>
+        <details id="guide-elo" name="model-guide" class="model-guide">
+          <summary>Forma recente e oposição inter-regional</summary>
+          <p id="legacyFormGuide" hidden>
+            Esta cópia histórica usa o Elo original. Equipes ganham mais
+            pontos quando vencem um favorito, e resultados antigos perdem
+            influência com meia-vida de 160 dias. A revisão também pondera
+            reencontros e exposição regional. Você pode adotá-la neste
+            rascunho pelo botão acima.
+          </p>
+          <div id="revisedFormGuide">
+            <p>
+              Uma vitória sobre um favorito aumenta mais o Elo do que uma
+              vitória esperada. Uma derrota inesperada também pesa mais. A força
+              acumulada cai pela metade a cada 160 dias sem jogar. Mudanças de
+              elenco reduzem a parte da força herdada dos jogadores anteriores.
             </p>
-            <button type="button" class="outline" id="startMix">
-              Iniciar mistura
-            </button>
-          </div>
-          <div id="mixEditor">
-            <p class="hint" id="mixHint">
-              Arraste ou digite os pontos de cada modelo. Com o dobro de pontos,
-              um modelo pesa o dobro na previsão de cada jogo.
+            <p>
+              Enfrentar repetidamente o mesmo rival reduz o peso de cada novo
+              resultado. Um duelo entre regiões confirmadas recebe peso regional
+              integral. Nos demais, o peso aumenta se pelo menos uma das equipes
+              enfrentou vários adversários de fora nos últimos 120 dias. Isso
+              limita quanto uma sequência de vitórias locais pode elevar o Elo.
             </p>
-            <div id="mixBar" class="mix-bar" aria-hidden="true"></div>
-            <div class="mix-captions" aria-hidden="true">
-              <span>Modelo</span><span>Pontos</span><span>Participação</span>
+            <p>
+              No confronto, equipes com o mesmo Elo têm 50% cada. Uma vantagem
+              de 100 pontos de Elo dá cerca de 61% em MD1 e 64% em MD3.
+            </p>
+            <p>
+              O histórico abaixo cobre os 120 dias anteriores a 20/11/2026, às
+              14h de Cuiabá. A Valve agrupa as equipes em Europa, Américas e
+              Ásia (incluindo a Oceania). Usamos a região na data da série.
+              Uma série só conta
+              como inter-regional se ambas as regiões eram conhecidas e
+              diferentes.
+            </p>
+            <div class="form-history">
+              <table>
+                <caption>
+                  Oposição de cada equipe nos últimos 120 dias
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Equipe</th>
+                    <th scope="col">Séries</th>
+                    <th scope="col">Rivais distintos</th>
+                    <th scope="col">Rivais de outra região</th>
+                    <th scope="col">Séries com região desconhecida</th>
+                  </tr>
+                </thead>
+                <tbody id="formEvidence"></tbody>
+              </table>
             </div>
-            <div id="mixControls"></div>
-            <p class="hint" id="emptyMix" hidden>
-              Todos os pesos estão zerados. Cada equipe tem 50% de chance em
-              qualquer confronto.
+            <p>
+              Em 324 séries de torneios posteriores ao ajuste, o Brier passou de
+              0,249 para 0,243 (menor é melhor). Houve apenas 20 confrontos
+              inter-regionais em que ao menos um time havia enfrentado menos de
+              dois rivais de fora.
             </p>
           </div>
-        </section>
-        <section class="strengths" aria-labelledby="strengthTitle">
-          <div class="panel-title">
-            <h3 id="strengthTitle">Força das equipes</h3>
-            <button type="button" id="sortStrength" class="outline">
-              Ordenar por força
-            </button>
-          </div>
-          <p class="hint">
-            Chance média de vencer os outros 15 times, com o mesmo peso para
-            cada adversário. Abra uma equipe para ajustar sua força.
+        </details>
+        <details id="guide-hltv" name="model-guide" class="model-guide">
+          <summary>Posições usadas pelo Ranking HLTV</summary>
+          <p>
+            O modelo usa a razão entre as posições das equipes. Por exemplo, o
+            nº 22 contra o nº 58 tem <strong>57,4% em MD1</strong>. Numa MD3, o
+            modelo dá a ele a mesma chance em cada mapa e calcula a
+            probabilidade de ganhar dois primeiro, chegando a
+            <strong>61,0%</strong>.
           </p>
-          <div class="strength-tools">
-            <label for="strengthBo">Formato</label
-            ><select id="strengthBo">
-              <option value="1">MD1</option>
-              <option value="3">MD3</option></select
-            ><small id="strengthOrder">Ordem alfabética</small>
-          </div>
-          <div class="strength-row strength-head" aria-hidden="true">
-            <span>Equipe</span><span>Neutro</span><span>Valve</span
-            ><span>HLTV</span><span>Forma</span><strong>Seu modelo</strong>
-          </div>
-          <div id="strengthList"></div>
-          <button type="button" id="resetModel" class="text-btn">
-            Restaurar ajustes iniciais
+          <p>
+            Para a equipe A, a chance por mapa é
+            <code>1 / (1 + (posição A / posição B)<sup>0,306262</sup>)</code>. A
+            curva foi ajustada com 318 séries. Nas 174 reservadas para
+            avaliação, o índice de Brier foi 0,2495, perto do 0,2500 do neutro.
+            Apenas três dessas séries eram MD1.
+          </p>
+          <p>
+            Posições congeladas para o Stage 1.
+            <a href="https://www.hltv.org/ranking/teams/2026/november/16"
+              >Ranking mundial de 16/11/2026</a
+            >
+          </p>
+          <ul id="hltvPositions"></ul>
+        </details>
+        <details id="guide-study" name="model-guide" class="model-guide">
+          <summary>Como o estudo de Singapura calcula cada confronto</summary>
+          <p>
+            O Modelo IA usa as previsões do estudo original para os 120 pares de
+            equipes do Stage 1, com um valor por formato. Os dados foram
+            congelados em 20/11/2026, às 14h de Cuiabá.
+          </p>
+          <p>
+            <strong>Na MD1</strong>, o estudo parte de uma força por mapa que
+            combina 55% de ranking Valve e 45% do Elo original na escala de
+            log-odds. A previsão final é a média entre a chance nessa base e a
+            chance no mapa projetado pelo veto. O estudo considera as duas
+            ordens de veto com o mesmo peso.
+          </p>
+          <p>
+            <strong>Na MD3</strong>, o estudo usa a chance da base em cada mapa
+            e calcula a probabilidade de vencer pelo menos dois de três. Para a
+            Lynn Vision contra a 9z, por exemplo, as previsões são
+            <strong>52,48% em MD1</strong> e <strong>49,95% em MD3</strong>.
+          </p>
+          <p>
+            Na Sala, <strong>Sugerir cartão</strong> usa os valores originais
+            com precisão integral e respeita os resultados fixados na chave. A
+            chance de fazer pelo menos cinco acertos é estimada em novas simulações.
+            <a
+              href="https://singapore-major-pickem-2026-br.marcosvtm.chatgpt.site/"
+              >Ler o estudo original de Singapura</a
+            >.
+          </p>
+          <button type="button" id="studySuggest" class="primary">
+            Sugerir cartão com o Modelo IA
           </button>
-        </section>
-        <div class="match-preview">
-          <span class="eyebrow">CONFRONTO DO MODELO</span>
-          <h3>Se eles se encontrarem</h3>
-          <div class="versus">
-            <label>Equipe A<select id="left"></select></label><b>×</b
-            ><label>Equipe B<select id="right"></select></label>
-          </div>
-          <label for="bo">Formato</label
-          ><select id="bo">
-            <option value="1">Melhor de um · MD1</option>
-            <option value="3">Melhor de três · MD3</option>
-          </select>
-          <div id="duel"></div>
-        </div>
+        </details>
+        <details id="guide-custom" name="model-guide" class="model-guide">
+          <summary id="personalName">Modelo personalizado</summary>
+          <div id="modelos" class="options">
+            <p class="lead">Edite seu próprio modelo.</p>
+            <section class="base-settings" aria-labelledby="mixTitle">
+              <div class="mix-heading">
+                <h3 id="mixTitle">Misture os modelos</h3>
+                <button type="button" id="equalMix" class="outline">
+                  Igualar pesos
+                </button>
+              </div>
+              <div id="legacyMix" hidden>
+                <p class="hint">
+                  Este modelo usa a fórmula antiga. Ao iniciar uma mistura, cada
+                  modelo recebe 25% e a confiança das equipes volta a 100%. Os
+                  ajustes de Major são preservados.
+                </p>
+                <button type="button" class="outline" id="startMix">
+                  Iniciar mistura
+                </button>
+              </div>
+              <div id="mixEditor">
+                <p class="hint" id="mixHint">
+                  Arraste ou digite os pontos de cada modelo. Com o dobro de
+                  pontos, um modelo pesa o dobro na previsão de cada jogo.
+                </p>
+                <div id="mixBar" class="mix-bar" aria-hidden="true"></div>
+                <div class="mix-captions" aria-hidden="true">
+                  <span>Modelo</span><span>Pontos</span
+                  ><span>Participação</span>
+                </div>
+                <div id="mixControls"></div>
+                <p class="hint" id="emptyMix" hidden>
+                  Todos os pesos estão zerados. Cada equipe tem 50% de chance em
+                  qualquer confronto.
+                </p>
+              </div>
+            </section>
+            <section class="strengths" aria-labelledby="strengthTitle">
+              <div class="panel-title">
+                <h3 id="strengthTitle">Força das equipes</h3>
+                <button type="button" id="sortStrength" class="outline">
+                  Ordenar por força
+                </button>
+              </div>
+              <p class="hint">
+                Chance média de vencer os outros 15 times, com o mesmo peso para
+                cada adversário. Abra uma equipe para ajustar sua força.
+              </p>
+              <div class="strength-tools">
+                <label for="strengthBo">Formato</label
+                ><select id="strengthBo">
+                  <option value="1">MD1</option>
+                  <option value="3">MD3</option></select
+                ><small id="strengthOrder">Ordem alfabética</small>
+              </div>
+              <div class="strength-row strength-head" aria-hidden="true">
+                <span>Equipe</span><span>Neutro</span><span>Valve</span
+                ><span>HLTV</span><span>Forma</span><span>IA</span
+                ><strong>Seu modelo</strong>
+              </div>
+              <div id="strengthList"></div>
+              <button type="button" id="resetModel" class="text-btn">
+                Restaurar ajustes iniciais
+              </button>
+            </section>
+            <div class="match-preview">
+              <span class="eyebrow">CONFRONTO DO MODELO</span>
+              <h3>Se eles se encontrarem</h3>
+              <div class="versus">
+                <label>Equipe A<select id="left"></select></label><b>×</b
+                ><label>Equipe B<select id="right"></select></label>
+              </div>
+              <label for="bo">Formato</label
+              ><select id="bo">
+                <option value="1">Melhor de um · MD1</option>
+                <option value="3">Melhor de três · MD3</option>
+              </select>
+              <div id="duel"></div>
+            </div>
 
-        <form id="publishModel" class="publish-model">
-          <h3>Salvar modelo</h3>
-          <p class="hint">
-            Publique uma cópia dos ajustes em Cartões da galera. Você pode
-            salvar o modelo antes de montar seu cartão.
-          </p>
-          <label for="modelNick">Seu nick</label
-          ><input
-            id="modelNick"
-            maxlength="32"
-            required
-            autocomplete="nickname"
-          />
-          <div class="save-actions">
-            <button type="submit" class="primary" id="publishButton">
-              Salvar modelo</button
-            ><span id="modelShare"></span>
+            <form id="publishModel" class="publish-model">
+              <h3>Salvar modelo</h3>
+              <p class="hint">
+                Publique uma cópia dos ajustes em Cartões da galera. Você pode
+                salvar o modelo antes de montar seu cartão.
+              </p>
+              <label for="modelNick">Seu nick</label
+              ><input
+                id="modelNick"
+                maxlength="32"
+                required
+                autocomplete="nickname"
+              />
+              <div class="save-actions">
+                <button type="submit" class="primary" id="publishButton">
+                  Salvar modelo</button
+                ><span id="modelShare"></span>
+              </div>
+              <p id="publishedModel" role="status"></p>
+            </form>
           </div>
-          <p id="publishedModel" role="status"></p>
-        </form>
+        </details>
       </section>
       <section id="jogos" data-page="/partidas" hidden>
         <div class="page-intro">

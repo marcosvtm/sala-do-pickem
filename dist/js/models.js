@@ -1,8 +1,11 @@
+import { studyTeams, studyProbabilities } from '../data/study-v1.js';
+
 export const MODELS = {
   neutral: 'Neutro 50/50',
   vrs: 'Ranking Valve',
   hltv: 'Ranking HLTV',
   elo: 'Forma recente',
+  study: 'Modelo IA',
   custom: 'Modelo personalizado',
 };
 export const FORM_VERSION = 2;
@@ -58,6 +61,8 @@ export const explanations = {
   vrs: 'Usa a diferença de pontos no ranking da Valve. Uma vantagem pesa mais em MD3 do que em MD1.',
   hltv: 'Compara as posições no ranking mundial da HLTV. Posições próximas dão chances próximas de 50%. A vantagem do favorito cresce em MD3.',
   elo: 'O Elo dá menos peso a reencontros e a partidas de circuitos com pouca oposição inter-regional confirmada.',
+  study:
+    'Usa as probabilidades do estudo de Singapura. Combina ranking Valve e Elo e considera o veto de mapas nas MD1.',
   custom:
     'Combine as previsões dos quatro modelos e ajuste a força de cada equipe.',
 };
@@ -117,7 +122,22 @@ function mixedMatrix(teams, weights, config) {
   return result;
 }
 
-export function makeMatrix(teams, model, config = { formVersion: FORM_VERSION }) {
+export function makeMatrix(
+  teams,
+  model,
+  config = { formVersion: FORM_VERSION }
+) {
+  if (model === 'study') {
+    const indices = teams.map((team) => studyTeams.indexOf(team.name));
+    if (indices.includes(-1))
+      throw new Error('Equipe fora do estudo de Singapura');
+    return Object.fromEntries(
+      [1, 3].map((bo) => [
+        bo,
+        indices.map((a) => indices.map((b) => studyProbabilities[bo][a][b])),
+      ])
+    );
+  }
   if (model === 'custom') {
     const weights = mixWeights(config);
     if (weights) return mixedMatrix(teams, weights, config);

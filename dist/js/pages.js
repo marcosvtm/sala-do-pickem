@@ -1,29 +1,54 @@
 import { MODELS, explanations, modelName, describeBase } from './models.js';
 import { personalSettings } from './state.js';
 
-export function renderCatalog(selected, nick, choose, formVersion) {
-  const tiles = Object.keys(MODELS).map((id) => {
-    const button = document.createElement('button'),
-      name = document.createElement('strong'),
-      desc = document.createElement('span'),
-      status = document.createElement('small');
-    button.type = 'button';
-    button.className = 'model-tile';
+export function renderCatalog(
+  selected,
+  nick,
+  choose,
+  formVersion,
+  reopen = false
+) {
+  const catalog = document.getElementById('catalog');
+  for (const id of Object.keys(MODELS)) {
+    let button = document.getElementById('tile-' + id);
+    if (!button) {
+      button = document.createElement('button');
+      button.id = 'tile-' + id;
+      button.type = 'button';
+      button.className = 'model-tile';
+      button.setAttribute('aria-controls', 'guide-' + id);
+      button.append(
+        ...['strong', 'span', 'small'].map((tag) => document.createElement(tag))
+      );
+      button.onclick = () => choose(id);
+      catalog.append(button);
+    }
+    const [name, description, status] = button.children;
     name.textContent = modelName(id, nick, formVersion);
-    desc.textContent =
+    description.textContent =
       id === 'elo' && formVersion === 1
         ? 'Esta cópia usa o Elo anterior à revisão regional.'
         : explanations[id];
     button.setAttribute('aria-pressed', String(id === selected));
     status.textContent =
       id === selected ? 'Em uso no cartão' : 'Usar no cartão';
-    button.append(name, desc, status);
-    button.onclick = () => choose(id);
-    return button;
-  });
-  document.getElementById('catalog').replaceChildren(...tiles);
+  }
+  document.getElementById('legacyFormGuide').hidden = formVersion !== 1;
+  document.getElementById('revisedFormGuide').hidden = formVersion === 1;
+  if (reopen || catalog.dataset.selected !== selected) {
+    const guide = document.getElementById('guide-' + selected);
+    for (const other of guide.parentElement.querySelectorAll('details[open]'))
+      if (other !== guide) other.open = false;
+    if (
+      guide !== guide.parentElement.firstElementChild &&
+      !guide.contains(document.activeElement)
+    )
+      guide.parentElement.prepend(guide);
+    guide.open = true;
+    catalog.dataset.selected = selected;
+  }
 }
-export function bindPages(teams, apply) {
+export function bindPages(teams, apply, suggestStudy) {
   const $ = (id) => document.getElementById(id);
   for (const team of teams) {
     const e = team.formEvidence;
@@ -97,6 +122,7 @@ export function bindPages(teams, apply) {
         apply(personalSettings(model));
         history.replaceState(null, '', '/modelos');
         render();
+        $('guide-custom').open = true;
         $('modelos').scrollIntoView({ block: 'start' });
         $(model.weights || model.base ? 'mix-neutral' : 'startMix').focus({
           preventScroll: true,
@@ -132,6 +158,16 @@ export function bindPages(teams, apply) {
       $('importPanel').scrollIntoView({ block: 'start' });
     } else if (!id) requested = null;
   }
+  function navigate(path) {
+    if (location.pathname + location.search + location.hash !== path)
+      history.pushState(null, '', path);
+    render();
+    window.scrollTo(0, 0);
+  }
+  $('studySuggest').onclick = () => {
+    navigate('/');
+    suggestStudy();
+  };
   document.addEventListener('click', (e) => {
     const link = e.target.closest('a[href]');
     if (
@@ -149,9 +185,7 @@ export function bindPages(teams, apply) {
     )
       return;
     e.preventDefault();
-    if (location.href !== link.href) history.pushState(null, '', link.href);
-    render();
-    window.scrollTo(0, 0);
+    navigate(link.pathname);
   });
   window.addEventListener('popstate', render);
   render();

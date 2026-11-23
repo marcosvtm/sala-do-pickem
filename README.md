@@ -58,6 +58,12 @@ Execute `python scripts/calibrate-form.py` para reproduzir a seleção, os indic
 
 Novos rascunhos e registros incluem `formVersion: 2`. Registros publicados antes da revisão continuam com o Elo arquivado, inclusive nas misturas, nos links e no mural. Um rascunho de uma cópia histórica pode adotar a nova edição pela aba Modelos.
 
+### Modelo IA do estudo de Singapura
+
+O preset `study` usa a matriz `central` da edição T1-v1 do [estudo original](https://singapore-major-pickem-2026-br.marcosvtm.chatgpt.site/). O arquivo `dist/data/study-v1.js` contém os nomes de `forecast/v1/teams.json` e as duas matrizes de `forecast/v1/matrices.json` com a precisão original. A consulta associa as equipes pelo nome e escolhe a matriz conforme o formato da série. Essa mesma consulta alimenta as simulações, a sugestão, os confrontos e o mural.
+
+Na MD1, o estudo calcula a média entre a previsão de força por mapa (55% Valve e 45% Elo original em log-odds) e a previsão com veto. Na MD3, aplica a força por mapa à série de três mapas independentes. Os pesos pessoais continuam descrevendo os quatro componentes editáveis. O teste do Modelo IA confere a assinatura SHA-256 da matriz central serializada em ordem de seed com `JSON.stringify`.
+
 ### Ranking HLTV
 
 O modelo usa a posição mundial das 16 equipes na [edição de 16/11/2026 da HLTV](https://www.hltv.org/ranking/teams/2026/november/16), a última disponível no corte de 20/11. Para a equipe A, a chance de vencer um mapa é `p = 1 / (1 + (posiçãoA / posiçãoB) ** 0.306262)`. Em MD3, a chance de ganhar dois mapas primeiro é `p² (3 − 2p)`, assumindo mapas independentes com a mesma chance. Os pontos do VRS e os ajustes pessoais pertencem aos outros modelos.

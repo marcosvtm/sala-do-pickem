@@ -22,6 +22,7 @@ const columns = {
   vrs: 'Valve',
   hltv: 'HLTV',
   elo: 'Forma',
+  study: 'IA',
   custom: 'Seu modelo',
 };
 
@@ -36,7 +37,7 @@ export function bindEditor(teams, current, onEdit) {
   const list = $('strengthList'),
     rows = [],
     fixed = {};
-  for (const key of ['neutral', 'vrs', 'hltv'])
+  for (const key of ['neutral', 'vrs', 'hltv', 'study'])
     fixed[key] = makeMatrix(teams, key, current());
   let fixedVersion;
   let personal,

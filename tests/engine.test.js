@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tournament, score, availableGames } from '../dist/js/swiss.js';
 import {
   defaults,
@@ -86,6 +87,20 @@ test('recent form and VRS reproduce the archived BO1 and are reciprocal in both 
   state.bonus[1] = 5;
   const equalOpponents = teams.map((t) => ({ ...t, vrs: 1400, elo: 0 }));
   close(makeMatrix(equalOpponents, 'custom', state)[3][1][9], 0.55);
+});
+test('study cards use the full original central matrix in both formats, keyed by team', () => {
+  const state = { ...newDraft(), model: 'study', card };
+  state.bonus[15] = -15;
+  assert.ok(validate(state));
+  const matrix = makeMatrix(teams, 'study', state);
+  // SHA-256 of JSON.stringify(central) from the frozen T1-v1 study.
+  assert.equal(
+    createHash('sha256').update(JSON.stringify(matrix)).digest('hex'),
+    '8f55a9529c3233f05168e256ba6d6756814d84c3d15d0402b48bbd54e1c5f4a9'
+  );
+  const duel = makeMatrix([teams[15], teams[7]], 'study', state);
+  assert.equal(duel[1][0][1], 0.5247876224374732);
+  assert.equal(duel[3][0][1], 0.4995494520755609);
 });
 test('HLTV uses the two world positions and amplifies the map advantage in a best of three', () => {
   assert.ok(teams.every((t) => Number.isInteger(t.hltvRank) && t.hltvRank > 0));

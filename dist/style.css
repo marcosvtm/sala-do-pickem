@@ -597,7 +597,7 @@ select {
 }
 .strength-row {
   display: grid;
-  grid-template-columns: minmax(155px, 2.4fr) repeat(5, minmax(60px, 1fr));
+  grid-template-columns: minmax(155px, 2.4fr) repeat(6, minmax(60px, 1fr));
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -716,7 +716,7 @@ button.strength-row[aria-expanded='true'] {
     display: none;
   }
   button.strength-row {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
     padding: 10px 3px;
     text-align: center;
@@ -1154,7 +1154,7 @@ nav a {
 }
 .catalog {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
 }
 .model-tile {
@@ -1169,13 +1169,31 @@ nav a {
   border-radius: 9px;
   text-align: left;
 }
-.hltv-reference {
-  margin-top: 16px;
+.model-guide {
+  border-bottom: 1px solid var(--line);
 }
-.hltv-reference p,
-.hltv-reference li {
+.model-guide > summary {
+  padding: 12px 0;
+}
+.model-guide[open] {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 6px clamp(14px, 2vw, 24px) 18px;
+  margin-bottom: 6px;
+}
+.model-guide > p,
+#revisedFormGuide > p,
+.model-guide li {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 1rem;
+  max-width: 84ch;
+}
+.model-guide p strong {
+  color: var(--text);
+}
+.model-guide code {
+  overflow-wrap: anywhere;
 }
 .form-history {
   overflow-x: auto;
@@ -1505,6 +1523,11 @@ nav a {
   height: 21px;
   object-fit: contain;
 }
+@media (max-width: 1120px) {
+  .catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 @media (max-width: 850px) {
   .catalog {
     grid-template-columns: repeat(2, 1fr);
@@ -1575,6 +1598,14 @@ nav a {
     flex: none;
   }
   .catalog {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 660px) {
+  .model-tile span {
+    display: none;
+  }
+  .model-tile small {
+    padding-top: 0;
   }
 }
