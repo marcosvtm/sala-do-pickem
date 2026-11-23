@@ -87,6 +87,26 @@ test('recent form and VRS reproduce the archived BO1 and are reciprocal in both 
   const equalOpponents = teams.map((t) => ({ ...t, vrs: 1400, elo: 0 }));
   close(makeMatrix(equalOpponents, 'custom', state)[3][1][9], 0.55);
 });
+test('HLTV uses the two world positions and amplifies the map advantage in a best of three', () => {
+  assert.ok(teams.every((t) => Number.isInteger(t.hltvRank) && t.hltvRank > 0));
+  const state = initial();
+  state.model = 'hltv';
+  assert.ok(validate(state));
+  const ranked = [22, 58, 22, 60].map((hltvRank, i) => ({
+    ...teams[i],
+    hltvRank,
+  }));
+  const matrix = makeMatrix(ranked, 'hltv', state);
+  const map = matrix[1][0][1];
+  close(map, 1 / (1 + (22 / 58) ** 0.306262));
+  close(matrix[3][0][1], map * map * (3 - 2 * map));
+  assert.ok(matrix[3][0][1] > map);
+  for (const bo of [1, 3]) {
+    close(matrix[bo][0][1] + matrix[bo][1][0], 1);
+    close(matrix[bo][0][2], 0.5);
+    assert.ok(matrix[bo][0][3] > matrix[bo][0][1]);
+  }
+});
 test('known results unlock the next round and editing a round clears dependent picks', () => {
   const s = initial();
   assert.equal(availableGames(s.locks).length, 1);

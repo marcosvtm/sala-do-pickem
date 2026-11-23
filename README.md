@@ -42,9 +42,17 @@ A fase usa o quadro de participantes e seeds da PGL. Os dados de força têm cor
 
 O neutro atribui 50% a ambos os lados. No modelo VRS, a diferença dos pontos é dividida por 340 em MD1 ou 255 em MD3 e convertida pela função logística. No Elo, a diferença é dividida por 170 e multiplicada por 0,73 nas MD1. No modelo pessoal, os componentes de cada equipe são centralizados pela média das 16 equipes e misturados na escala de log-odds. O peso efetivo do Elo é o peso global vezes a confiança individual. Um bônus hipotético de +5 p.p. soma logit(0,55) à força do time. Esse ajuste vale a fase inteira e sua magnitude em pontos percentuais varia com o adversário. O grupo pode experimentar um histórico regional pouco comparável ou um desempenho excepcional de Major. Os ajustes manuais começam neutros e não foram calibrados como efeitos históricos.
 
+### Ranking HLTV
+
+O modelo usa a posição mundial das 16 equipes na [edição de 16/11/2026 da HLTV](https://www.hltv.org/ranking/teams/2026/november/16), a última disponível no corte de 20/11. Para a equipe A, a chance de vencer um mapa é `p = 1 / (1 + (posiçãoA / posiçãoB) ** 0.306262)`. Em MD3, a chance de ganhar dois mapas primeiro é `p² (3 − 2p)`, assumindo mapas independentes com a mesma chance. Os pontos do VRS e os ajustes pessoais pertencem aos outros modelos.
+
+Para reproduzir o ajuste, execute `node scripts/calibrate-hltv.js`. O arquivo `research/hltv-series.csv` registra a edição semanal, a data da partida, o identificador textual no [histórico de resultados da BO3](https://bo3.gg/matches/finished), o formato, as posições e o vencedor. Em 14 edições entre março e novembro de 2026, cruzamos as equipes do top 64 com as séries do acervo disputadas da terça ao domingo seguintes. Entraram as MD1 e MD3 com vencedor confirmado pelos mapas e ambas as equipes identificadas.
+
+O coeficiente minimiza a perda logarítmica nas 318 séries anteriores a outubro. Nas 174 séries reservadas de outubro e novembro, o Brier foi 0,2495 (50/50: 0,2500) e a perda logarítmica foi 0,6938 (50/50: 0,6931). Só três séries dessa avaliação eram MD1. Os resultados sustentam uma leitura cautelosa, especialmente para esse formato.
+
 ## Interpretação
 
-A prévia usa 12 mil fases por modelo e uma semente fixa. Os quatro modelos recebem a mesma sequência de sorteios por posição na chave, mesmo após divergirem nos adversários. Para um cartão completo, conta-se a proporção com cinco ou mais acertos. A faixa de Wilson é nominal de 95% para uma amostra fixa. Parar seletivamente ao observar os resultados pode afetar a cobertura. A simulação contínua dura enquanto a aba puder executar. O navegador pode suspender abas em segundo plano.
+A prévia usa 12 mil fases por modelo e uma semente fixa. Todos os modelos recebem a mesma sequência de sorteios por posição na chave, mesmo após divergirem nos adversários. Para um cartão completo, conta-se a proporção com cinco ou mais acertos. A faixa de Wilson é nominal de 95% para uma amostra fixa. Parar seletivamente ao observar os resultados pode afetar a cobertura. A simulação contínua dura enquanto a aba puder executar. O navegador pode suspender abas em segundo plano.
 
 A enumeração visita cada sequência possível de vencedores uma vez e soma sua massa segundo o modelo em destaque. No início são 2³³ caminhos. Fixar resultados reduz a dimensão e permite fechar casos tardios rapidamente. Até terminar, o site exibe limites válidos a partir da massa conhecida de sucesso e de fracasso. A chave começa com todos os confrontos em aberto. Os resultados são inseridos pelo usuário e tratados como dados. Trocar o vencedor de uma rodada invalida as rodadas seguintes.
 

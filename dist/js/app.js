@@ -242,7 +242,16 @@ function renderDuel() {
     line.className = 'duel-row';
     const strong = document.createElement('b');
     strong.textContent = stage.teams[a].short + ' ' + percent(p);
-    line.append(modelName(key, owner), strong);
+    const label =
+      key === 'hltv'
+        ? modelName(key, owner) +
+          ' (#' +
+          stage.teams[a].hltvRank +
+          ' × #' +
+          stage.teams[b].hltvRank +
+          ')'
+        : modelName(key, owner);
+    line.append(label, strong);
     $('duel').append(line);
   }
 }
@@ -265,8 +274,8 @@ function runHint() {
         number(paths) +
         ' caminhos do modelo em destaque. A faixa mostra os limites até terminar.'
       : mode === 'continuous'
-        ? 'Amostra os quatro modelos enquanto a página estiver aberta. Pare quando quiser.'
-        : 'A mesma sequência de sorteios permite comparar os quatro modelos.';
+        ? 'Simula todos os modelos enquanto a página estiver aberta. Pare quando quiser.'
+        : 'A mesma sequência de sorteios permite comparar os modelos.';
 }
 function renderEstimate() {
   const incomplete = state.card.includes(-1);

@@ -199,7 +199,7 @@ function render(data) {
   $('prev').hidden = page === 0;
   $('next').hidden = !data.hasMore;
   $('modelScores').replaceChildren();
-  for (const model of ['neutral', 'vrs', 'elo']) {
+  for (const model of Object.keys(MODELS).filter((id) => id !== 'custom')) {
     const row = node('div', undefined, 'duel-row');
     row.append(
       MODELS[model],

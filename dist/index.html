@@ -8,7 +8,7 @@
     <title>Sala do Pick’Em · Singapura 2026</title>
     <meta
       name="description"
-      content="Compare seu cartão do Major de Singapura em quatro modelos e simule a chance de fazer cinco acertos."
+      content="Compare seu cartão do Major de Singapura com diferentes modelos e simule a chance de fazer cinco acertos."
     />
     <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
@@ -147,6 +147,20 @@
         <h1>Modelos</h1>
         <p>Escolha como estimar a chance de cada equipe vencer um confronto.</p>
         <div id="catalog" class="catalog"></div>
+        <details class="hltv-reference">
+          <summary>Posições usadas pelo Ranking HLTV</summary>
+          <p>
+            Posições congeladas para o Stage 1.
+            <a href="https://www.hltv.org/ranking/teams/2026/november/16"
+              >Ranking mundial de 16/11/2026</a
+            >
+          </p>
+          <ul id="hltvPositions"></ul>
+          <p>
+            A curva foi ajustada com 318 séries anteriores. Em outras 174, o
+            índice de Brier foi 0,249, próximo do 0,250 do modelo 50/50.
+          </p>
+        </details>
       </section>
       <section
         id="importPanel"
@@ -229,7 +243,7 @@
           <h1>Partidas</h1>
           <p>
             Um clique escolhe o vencedor para explorar as próximas rodadas. Dois
-            cliques no mesmo time fixam o resultado nos quatro modelos e
+            cliques no mesmo time fixam o resultado em todos os modelos e
             recalculam sua chance de passar.
           </p>
         </div>
@@ -275,11 +289,11 @@
               inteira e conta os acertos juntos.
             </p>
             <p>
-              O modelo neutro usa 50/50. O ranking usa a diferença de pontos
-              Valve. A forma recente usa Elo ajustado ao adversário, com
-              meia-vida de 160 dias. MD1 e MD3 têm curvas próprias. No modelo
-              pessoal, a confiança individual e o ajuste de Major são hipóteses
-              suas.
+              O modelo neutro usa 50/50. O Ranking Valve usa a diferença de
+              pontos. O Ranking HLTV compara as posições mundiais de 16/11. A
+              forma recente usa Elo ajustado ao adversário, com meia-vida de 160
+              dias. MD1 e MD3 têm curvas próprias. No modelo pessoal, a
+              confiança individual e o ajuste de Major são hipóteses suas.
             </p>
             <p>
               A faixa de 95% mede a variação do sorteio para um modelo fixo.
@@ -299,6 +313,10 @@
               <a
                 href="https://github.com/ValveSoftware/counter-strike_regional_standings"
                 >Ranking Valve</a
+              >
+              ·
+              <a href="https://www.hltv.org/ranking/teams/2026/november/16"
+                >Ranking HLTV do Stage 1</a
               >
               ·
               <a href="https://github.com/marcosvtm/sala-do-pickem"

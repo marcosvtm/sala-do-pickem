@@ -21,6 +21,14 @@ export function renderCatalog(selected, nick, choose) {
 }
 export function bindPages(teams, apply) {
   const $ = (id) => document.getElementById(id);
+  const rankedTeams = [...teams].sort((a, b) => a.hltvRank - b.hltvRank);
+  for (const team of rankedTeams) {
+    const item = document.createElement('li');
+    const rank = document.createElement('strong');
+    rank.textContent = '#' + team.hltvRank;
+    item.append(rank, ' ' + team.name);
+    $('hltvPositions').append(item);
+  }
   let requested;
   async function showPublic(id) {
     requested = id;
