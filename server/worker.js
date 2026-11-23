@@ -13,12 +13,17 @@ export default {
         );
       }
     }
-    const path =
-      url.pathname === '/'
-        ? '/index.html'
-        : url.pathname === '/cartoes' || url.pathname === '/cartoes/'
-          ? '/cartoes.html'
-          : url.pathname;
+    const path = [
+      '/',
+      '/partidas',
+      '/partidas/',
+      '/modelos',
+      '/modelos/',
+    ].includes(url.pathname)
+      ? '/index.html'
+      : url.pathname === '/cartoes' || url.pathname === '/cartoes/'
+        ? '/cartoes.html'
+        : url.pathname;
     const file = PUBLIC_FILES[path];
     if (!file || !['GET', 'HEAD'].includes(request.method))
       return new Response(null, { status: 404 });

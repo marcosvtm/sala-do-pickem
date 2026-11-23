@@ -1,4 +1,6 @@
 import { availableGames, ROUND_SIZES } from '../dist/js/swiss.js';
+import { stageRows, parseSchedule } from './agenda.js';
+import baseSchedule from '../dist/data/schedule.json' with { type: 'json' };
 import stage from '../dist/data/stage.json' with { type: 'json' };
 
 export const SOURCE =
@@ -15,18 +17,8 @@ export const CLOSE = START - 60 * 60 * 1000;
 export function parsePgl(source) {
   const rounds = [[], [], [], [], []],
     sizes = [0, 0, 0, 0, 0];
-  for (const [row] of source.matchAll(/\{leftTeam:"[^{}]{0,3000}?,maps:\[/g)) {
-    const fields = Object.fromEntries(
-      [...row.matchAll(/(?:^\{|,)(\w+):(?:"([^"]*)"|(\d+))/g)].map((m) => [
-        m[1],
-        m[2] ?? m[3],
-      ])
-    );
-    if (!/^(24|25|26|27)\.11\.2026$/.test(fields.date)) continue;
-    const r = fields.round.startsWith('opening round')
-      ? 0
-      : Number(/^round ([2-5])\b/.exec(fields.round)?.[1]) - 1;
-    if (!Number.isInteger(r)) throw new Error('Rodada desconhecida');
+  for (const { row: fields, round } of stageRows(source)) {
+    const r = round - 1;
     sizes[r]++;
     if (fields.status !== 'end') continue;
     const a = byKey.get(fields.leftTeamKey),
@@ -79,10 +71,16 @@ export async function retrieve(fetcher = fetch) {
     throw new Error('Origem inesperada');
   const asset = await fetcher(url, { signal: AbortSignal.timeout(7000) });
   if (!asset.ok) throw new Error('Agenda indisponível');
-  return parsePgl(await asset.text());
+  return asset.text();
 }
-export async function liveResults(db, now = Date.now(), fetcher = fetch) {
-  if (now < START) return { locks: emptyLocks(), checked: null, stale: false };
+export async function liveResults(
+  db,
+  now = Date.now(),
+  fetcher = fetch,
+  includeSchedule = false
+) {
+  if (now < START && !includeSchedule)
+    return { locks: emptyLocks(), checked: null, stale: false };
   const read = () =>
     db
       .prepare('SELECT * FROM stage_results WHERE stage=?')
@@ -92,6 +90,14 @@ export async function liveResults(db, now = Date.now(), fetcher = fetch) {
   const output = (r) => ({
     locks: r ? JSON.parse(r.locks) : emptyLocks(),
     checked: r?.checked || null,
+    ...(includeSchedule
+      ? {
+          schedule: r?.schedule
+            ? JSON.parse(r.schedule).games
+            : baseSchedule.games,
+          scheduleChecked: r?.schedule ? JSON.parse(r.schedule).checked : null,
+        }
+      : {}),
     stale:
       !r?.checked ||
       r.attempted - r.checked > 15000 ||
@@ -107,18 +113,40 @@ export async function liveResults(db, now = Date.now(), fetcher = fetch) {
     .run();
   if (claim.meta.changes) {
     try {
-      const locks = await retrieve(fetcher);
-      const old = row ? JSON.parse(row.locks) : emptyLocks();
-      if (
-        locks.filter((x) => x !== -1).length <
-        old.filter((x) => x !== -1).length
-      )
-        throw new Error('Fonte parcial');
+      const source = await retrieve(fetcher);
+      let verified, schedule;
+      try {
+        const locks = parsePgl(source);
+        const old = row ? JSON.parse(row.locks) : emptyLocks();
+        if (
+          locks.filter((x) => x >= 0).length >= old.filter((x) => x >= 0).length
+        )
+          verified = JSON.stringify(locks);
+      } catch {
+        /* The on-screen agenda can still be updated if pairing verification fails. */
+      }
+      try {
+        const games = parseSchedule(source);
+        const old = row?.schedule ? JSON.parse(row.schedule).games : [];
+        if (
+          games.filter((g) => g.status === 'end').length >=
+          old.filter((g) => g.status === 'end').length
+        )
+          schedule = JSON.stringify({ games, checked: now });
+      } catch {
+        /* Keep the previous schedule if a date or round is missing. */
+      }
       await db
         .prepare(
-          'UPDATE stage_results SET locks=?, checked=? WHERE stage=? AND attempted=?'
+          'UPDATE stage_results SET locks=coalesce(?,locks), schedule=coalesce(?,schedule), checked=coalesce(?,checked) WHERE stage=? AND attempted=?'
         )
-        .bind(JSON.stringify(locks), now, stage.id, now)
+        .bind(
+          verified ?? null,
+          schedule ?? null,
+          verified ? now : null,
+          stage.id,
+          now
+        )
         .run();
     } catch {
       /* Keep the previous verified board and mark it stale. */

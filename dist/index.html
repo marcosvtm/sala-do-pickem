@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
   <head>
+    <base href="/" />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#101518" />
@@ -15,18 +16,17 @@
   <body>
     <header>
       <div class="wrap top">
-        <a href="#" class="brand"
+        <a href="/" class="brand"
           ><img src="assets/mark.svg" alt="" />Sala do Pick’Em</a
         >
-        <nav>
-          <a href="/cartoes" class="wall-nav">Cartões da galera</a>
-          <a href="#modelos">Modelos</a><a href="#jogos">Partidas</a
-          ><button id="share" class="outline">Compartilhar cartão</button>
+        <nav aria-label="Navegação principal">
+          <a href="/modelos">Modelos</a><a href="/partidas">Partidas</a
+          ><a href="/cartoes">Cartões da galera</a>
         </nav>
       </div>
     </header>
     <main class="wrap">
-      <section class="hero">
+      <section class="hero" data-page="/">
         <div class="hero-copy">
           <span class="kicker"><i></i> PGL MAJOR · SINGAPURA 2026</span>
           <h1>Simulador de <em>Pick’Em</em></h1>
@@ -35,8 +35,13 @@
             <b>Stage 1</b><span>24–27 de novembro</span><span>16 equipes</span>
           </div>
         </div>
+        <div class="deadline">
+          <span>Prazo para salvar os picks</span
+          ><strong id="countdown" role="timer">—</strong
+          ><small id="closingTime"></small>
+        </div>
       </section>
-      <div class="dashboard">
+      <div class="dashboard" data-page="/">
         <section class="panel board">
           <div class="panel-title">
             <div>
@@ -64,9 +69,11 @@
               placeholder="Seu nome no jogo"
             />
             <p id="saveModel" class="hint"></p>
-            <button id="saveButton" class="primary" disabled>
-              Salvar cartão
-            </button>
+            <div class="save-actions">
+              <button id="saveButton" class="primary" disabled>
+                Salvar cartão</button
+              ><span id="savedShare" hidden></span>
+            </div>
             <p id="saveDeadline" class="hint"></p>
             <div role="status" id="saveMessage"></div>
             <button type="button" id="anotherNick" class="text-btn" hidden>
@@ -82,6 +89,10 @@
             </div>
             <span class="target">5+ / 10</span>
           </div>
+          <p class="hint">
+            <span id="homeLocks"></span> ·
+            <a href="/partidas">Ver chaveamento</a>
+          </p>
           <label for="activeModel">Modelo em destaque</label
           ><select id="activeModel"></select>
           <div class="big" id="prob">—</div>
@@ -116,16 +127,50 @@
           </div>
         </section>
       </div>
-      <section id="modelos" class="panel options">
+      <section class="panel agenda" data-page="/">
+        <div class="panel-title">
+          <h2>Agenda do Stage 1</h2>
+          <a href="https://www.hltv.org/events/9303/matches">Ver na HLTV</a>
+        </div>
+        <p id="agendaStatus" class="hint" role="status">
+          Consultando a agenda da PGL…
+        </p>
+        <div id="agendaGames"></div>
+      </section>
+      <section data-page="/modelos" hidden class="page-intro">
+        <span class="kicker"><i></i> STAGE 1 · SINGAPURA</span>
+        <h1>Modelos</h1>
+        <p>Escolha como estimar a chance de cada equipe vencer um confronto.</p>
+        <div id="catalog" class="catalog"></div>
+      </section>
+      <section
+        id="importPanel"
+        class="panel import-panel"
+        data-page="/modelos"
+        hidden
+      >
+        <h2 id="importName">Modelo compartilhado</h2>
+        <p id="importInfo" class="lead"></p>
+        <div id="importSettings"></div>
+        <button id="importCopy" class="primary" hidden>
+          Usar e editar uma cópia
+        </button>
+      </section>
+      <section id="modelos" data-page="/modelos" hidden class="panel options">
         <div class="panel-title">
           <div>
             <span class="eyebrow">HIPÓTESES</span>
-            <h2>Modelo do grupo</h2>
+            <h2 id="personalName">Modelo pessoal</h2>
           </div>
         </div>
-        <p class="lead">
-          Decidam quanto vale a forma recente e onde o histórico deixa dúvidas.
-        </p>
+        <p class="lead">Descreva e edite seu próprio modelo.</p>
+        <label for="hypothesis">Sua hipótese</label
+        ><textarea
+          id="hypothesis"
+          maxlength="280"
+          rows="2"
+          placeholder="Ex.: tenho menos confiança na forma recente da FlyQuest."
+        ></textarea>
         <div class="settings-grid">
           <div>
             <label for="form"
@@ -154,7 +199,7 @@
               </p>
             </div>
             <button class="text-btn" id="resetModel">
-              Zerar ajustes do grupo
+              Restaurar ajustes iniciais
             </button>
           </div>
           <div class="match-preview">
@@ -173,20 +218,49 @@
           </div>
         </div>
       </section>
-      <section id="jogos" class="panel">
-        <details>
-          <summary>
-            Fixar resultados da fase <span id="locksCount"></span>
-          </summary>
-          <p class="lead">
-            Marque o vencedor para simular o restante da chave. Complete a
-            rodada para abrir a seguinte. Alterar um resultado limpa as rodadas
-            posteriores.
+      <section id="jogos" data-page="/partidas" hidden>
+        <div class="page-intro">
+          <span class="kicker"><i></i> STAGE 1 · SISTEMA SUÍÇO</span>
+          <h1>Partidas</h1>
+          <p>
+            Um clique escolhe o vencedor para explorar as próximas rodadas. Dois
+            cliques no mesmo time fixam o resultado nos quatro modelos e
+            recalculam sua chance de passar.
           </p>
-          <div id="matches"></div>
-        </details>
+        </div>
+        <div class="panel bracket-panel">
+          <div class="panel-title">
+            <h2>Chaveamento</h2>
+            <button class="text-btn" id="clearLocks">Limpar cenário</button>
+          </div>
+          <p class="hint">
+            Os jogos em aberto projetam o melhor seed. Os classificados e
+            eliminados refletem a chave exibida. Fixar um jogo de uma rodada
+            futura também fixa o caminho das rodadas anteriores exibidas. Para
+            soltar, dê dois cliques no vencedor fixado. Pelo teclado, use Enter
+            para explorar e Shift + Enter para fixar.
+          </p>
+          <div class="legend">
+            <span>Projeção por seed</span><span>Escolha provisória</span
+            ><span>Fixado</span><span>Oficial</span>
+          </div>
+          <div
+            class="bracket-scroll"
+            tabindex="0"
+            aria-label="Chaveamento das cinco rodadas"
+          >
+            <div id="matches" class="bracket"></div>
+          </div>
+          <div class="bracket-foot">
+            <span id="locksCount"></span
+            ><a href="/"
+              >Chance de 5+ no cartão <strong id="bracketProb">—</strong></a
+            >
+          </div>
+          <p id="feedStatus" class="hint" role="status"></p>
+        </div>
       </section>
-      <section class="panel">
+      <section data-page="/" class="panel reading">
         <details>
           <summary>Como ler as probabilidades</summary>
           <div class="notes">
@@ -198,9 +272,9 @@
             <p>
               O modelo neutro usa 50/50. O ranking usa a diferença de pontos
               Valve. A forma recente usa Elo ajustado ao adversário, com
-              meia-vida de 160 dias. MD1 e MD3 têm curvas próprias. No modelo do
-              grupo, a confiança individual e o ajuste de Major são hipóteses de
-              vocês.
+              meia-vida de 160 dias. MD1 e MD3 têm curvas próprias. No modelo
+              pessoal, a confiança individual e o ajuste de Major são hipóteses
+              suas.
             </p>
             <p>
               A faixa de 95% mede a variação do sorteio para um modelo fixo.
@@ -245,14 +319,6 @@
         <button class="outline" id="close">Fechar</button>
       </div>
       <div id="choices"></div>
-    </dialog>
-    <dialog id="shareDialog">
-      <h2>Compartilhar cartão</h2>
-      <label for="shareLink"
-        >Link com palpites, modelo e resultados fixados</label
-      ><input id="shareLink" readonly /><button class="outline" id="closeShare">
-        Fechar
-      </button>
     </dialog>
     <div id="toast" role="status"></div>
     <script type="module" src="js/app.js"></script>

@@ -2,7 +2,16 @@ export const MODELS = {
   neutral: 'Neutro 50/50',
   vrs: 'Ranking Valve',
   elo: 'Forma recente',
-  custom: 'Modelo do grupo',
+  custom: 'Modelo pessoal',
+};
+export const modelName = (id, nick) =>
+  id === 'custom' && nick ? 'Modelo ' + nick : MODELS[id];
+export const explanations = {
+  neutral: 'Cada equipe tem 50% de chance em qualquer confronto.',
+  vrs: 'Usa a diferença de pontos no ranking da Valve. Uma vantagem pesa mais em MD3 do que em MD1.',
+  elo: 'Usa o Elo calculado antes do Major. Considera os adversários, com meia-vida de 160 dias.',
+  custom:
+    'Combine ranking e forma recente. Ajuste a confiança no histórico e o desempenho esperado de cada equipe.',
 };
 const logistic = (x) => 1 / (1 + Math.exp(-x));
 const logit = (p) => Math.log(p / (1 - p));

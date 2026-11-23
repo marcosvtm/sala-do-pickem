@@ -1,6 +1,6 @@
-import { MODELS } from './models.js';
+import { shareButton } from './share.js';
 
-export function bindSaving(current, stage) {
+export function bindSaving(current, stage, onOwner) {
   const form = document.querySelector('#saveCard'),
     input = form.elements.nick;
   const submit = document.querySelector('#saveButton'),
@@ -21,6 +21,45 @@ export function bindSaving(current, stage) {
       saved = draft.saved;
     }
   } catch {}
+  const share = document.querySelector('#savedShare');
+  function ownerChanged() {
+    share.hidden = !saved;
+    share.replaceChildren();
+    if (saved)
+      share.append(
+        shareButton('/cartoes#' + token, 'Compartilhar cartão de ' + saved)
+      );
+    onOwner(saved);
+  }
+  function countdown() {
+    const seconds = Math.max(
+      0,
+      Math.ceil((closeAt - Date.now() - offset) / 1000)
+    );
+    const parts = [
+      Math.floor(seconds / 3600),
+      Math.floor(seconds / 60) % 60,
+      seconds % 60,
+    ];
+    document.querySelector('#countdown').textContent = seconds
+      ? parts.map((n) => String(n).padStart(2, '0')).join(':')
+      : 'Prazo encerrado';
+    document.querySelector('#closingTime').textContent =
+      'Fechamento em ' +
+      new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Cuiaba',
+      }).format(closeAt) +
+      ' (Cuiabá)';
+  }
+  ownerChanged();
+  countdown();
+  setInterval(() => {
+    if (!document.hidden) countdown();
+  }, 1000);
   function remember() {
     try {
       localStorage.setItem(
@@ -43,6 +82,7 @@ export function bindSaving(current, stage) {
     const remaining = closeAt - (Date.now() + offset);
     submit.disabled =
       Boolean(saved) || pending || remaining <= 0 || !input.value.trim();
+    submit.textContent = saved ? 'Cartão salvo' : 'Salvar cartão';
     input.disabled = Boolean(saved) || pending || remaining <= 0;
     document.querySelector('#anotherNick').hidden = !saved || remaining <= 0;
     document.querySelector('#saveDeadline').textContent =
@@ -66,6 +106,7 @@ export function bindSaving(current, stage) {
     token = crypto.randomUUID();
     input.value = '';
     remember();
+    ownerChanged();
     feedback('');
     refresh();
     input.focus();
@@ -86,9 +127,9 @@ export function bindSaving(current, stage) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
-      saved = nick;
+      saved = nick.normalize('NFKC').replace(/\s+/g, ' ');
       remember();
-      feedback('Cartão salvo com o modelo ' + MODELS[state.model] + '.', true);
+      ownerChanged();
     } catch (err) {
       feedback(err.message || 'Tente salvar novamente.');
     } finally {
@@ -104,6 +145,7 @@ export function bindSaving(current, stage) {
         closeAt = info.closesAt;
         offset = info.serverTime - Date.now();
         refresh();
+        countdown();
       }
     })
     .catch(() => {});

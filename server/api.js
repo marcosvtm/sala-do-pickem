@@ -13,6 +13,42 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   const url = new URL(req.url);
   if (url.pathname === '/api/stage' && req.method === 'GET')
     return json({ serverTime: now, closesAt: CLOSE });
+  if (url.pathname === '/api/results' && req.method === 'GET')
+    return json(await liveResults(db, now, fetcher, true));
+  if (req.method === 'GET' && url.pathname.startsWith('/api/models/')) {
+    const id = url.pathname.slice('/api/models/'.length);
+    const row =
+      uuid.test(id) &&
+      (await db
+        .prepare('SELECT id,nick,settings FROM cards WHERE stage=? AND id=?')
+        .bind(stage.id, id)
+        .first());
+    if (!row) return failure('Modelo não encontrado nesta fase.', 404);
+    const { form, trust, bonus, description = '' } = JSON.parse(row.settings);
+    return json({
+      id: row.id,
+      nick: row.nick,
+      form,
+      trust,
+      bonus,
+      description,
+    });
+  }
+  if (url.pathname === '/api/models' && req.method === 'GET') {
+    const raw = url.searchParams.get('page') ?? '0';
+    if (!/^\d{1,5}$/.test(raw)) return failure('Página inválida.', 400);
+    const size = 30;
+    const { results } = await db
+      .prepare(
+        'SELECT id,nick FROM cards WHERE stage=? ORDER BY nick_key,id LIMIT ? OFFSET ?'
+      )
+      .bind(stage.id, size + 1, Number(raw) * size)
+      .all();
+    return json({
+      models: results.slice(0, size),
+      hasMore: results.length > size,
+    });
+  }
   if (url.pathname !== '/api/cards')
     return failure('Página não encontrada.', 404);
   if (req.method === 'GET') {
@@ -88,6 +124,9 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     form,
     trust,
     bonus,
+    ...(body.state.description?.trim()
+      ? { description: body.state.description.trim() }
+      : {}),
   });
   const nickKey = nick.toLocaleLowerCase('pt-BR');
   const retry = async () => {
@@ -108,7 +147,10 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     .run();
   if (result.meta.changes) return json({ id: body.id }, 201);
   if (await retry()) return json({ id: body.id });
-  const clock = await db.prepare('SELECT unixepoch() >= ? AS closed').bind(CLOSE / 1000).first();
+  const clock = await db
+    .prepare('SELECT unixepoch() >= ? AS closed')
+    .bind(CLOSE / 1000)
+    .first();
   if (clock.closed) return closed();
   return failure(
     'Este nick já tem um cartão registrado nesta fase. Escolha outro se for uma pessoa diferente.',

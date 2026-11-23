@@ -1,6 +1,6 @@
 # Sala do Pick’Em
 
-Calculadora em português para montar um cartão do Stage 1 do PGL Major de Singapura, testar hipóteses do grupo e compartilhar o cenário inteiro por link. O cálculo roda no navegador em um Web Worker. O endereço de produção fica no campo **About** deste repositório.
+Calculadora em português para montar um cartão do Stage 1 do PGL Major de Singapura, testar modelos pessoais e compartilhar cartões salvos e modelos por link. O cálculo roda no navegador em um Web Worker. O endereço de produção fica no campo **About** deste repositório.
 
 ## Rodar e contribuir
 
@@ -40,7 +40,7 @@ A fase usa o quadro de participantes e seeds da PGL. Os dados de força têm cor
 
 [Evento e equipes da PGL](https://www.pglesports.com/cs2/pgl-major-singapore-2026/) · [Regras de pareamento](https://github.com/ValveSoftware/counter-strike_rules_and_regs/blob/745a40758ed7877483d5544605cda6c6e1a1cd65/major-supplemental-rulebook.md) · [Rankings Valve](https://github.com/ValveSoftware/counter-strike_regional_standings) · [Arquivo de resultados de partidas](https://bo3.gg/matches/finished)
 
-O neutro atribui 50% a ambos os lados. No modelo VRS, a diferença dos pontos é dividida por 340 em MD1 ou 255 em MD3 e convertida pela função logística. No Elo, a diferença é dividida por 170 e multiplicada por 0,73 nas MD1. No modelo do grupo, os componentes de cada equipe são centralizados pela média das 16 equipes e misturados na escala de log-odds. O peso efetivo do Elo é o peso global vezes a confiança individual. Um bônus hipotético de +5 p.p. soma logit(0,55) à força do time. Esse ajuste vale a fase inteira e sua magnitude em pontos percentuais varia com o adversário. O grupo pode experimentar um histórico regional pouco comparável ou um desempenho excepcional de Major. Os ajustes manuais começam neutros e não foram calibrados como efeitos históricos.
+O neutro atribui 50% a ambos os lados. No modelo VRS, a diferença dos pontos é dividida por 340 em MD1 ou 255 em MD3 e convertida pela função logística. No Elo, a diferença é dividida por 170 e multiplicada por 0,73 nas MD1. No modelo pessoal, os componentes de cada equipe são centralizados pela média das 16 equipes e misturados na escala de log-odds. O peso efetivo do Elo é o peso global vezes a confiança individual. Um bônus hipotético de +5 p.p. soma logit(0,55) à força do time. Esse ajuste vale a fase inteira e sua magnitude em pontos percentuais varia com o adversário. O grupo pode experimentar um histórico regional pouco comparável ou um desempenho excepcional de Major. Os ajustes manuais começam neutros e não foram calibrados como efeitos históricos.
 
 ## Interpretação
 
@@ -48,4 +48,6 @@ A prévia usa 12 mil fases por modelo e uma semente fixa. Os quatro modelos rece
 
 A enumeração visita cada sequência possível de vencedores uma vez e soma sua massa segundo o modelo em destaque. No início são 2³³ caminhos. Fixar resultados reduz a dimensão e permite fechar casos tardios rapidamente. Até terminar, o site exibe limites válidos a partir da massa conhecida de sucesso e de fracasso. A chave começa com todos os confrontos em aberto. Os resultados são inseridos pelo usuário e tratados como dados. Trocar o vencedor de uma rodada invalida as rodadas seguintes.
 
-O fragmento do link armazena a versão do cenário, o cartão, o modelo, seus parâmetros e os resultados fixados. O navegador também guarda o cartão localmente. Ao mudar dados, seeds ou semântica de parâmetros, versione o cenário para preservar a interpretação dos links publicados.
+O link de um cartão salvo abre o registro público em `/cartoes#<id>`. Cada cartão também publica uma cópia dos ajustes do modelo pessoal em `/modelos?modelo=<id>`, inclusive quando o autor escolhe um modelo predefinido para pontuar. O visitante pode usar e editar uma cópia desses ajustes. O cartão e os resultados hipotéticos do visitante são preservados. Links antigos de cenário continuam abrindo o simulador.
+
+Em `/partidas`, um clique explora os próximos confrontos. Dois cliques fixam o resultado e recalculam o cartão. Ao fixar uma partida futura, o simulador fixa primeiro as rodadas anteriores da chave exibida. Uma mudança em rodada anterior solta os resultados dependentes. Resultados oficiais têm prioridade. A agenda da inicial é consultada a cada minuto com a página visível, usa horários de Cuiabá e avança pela rodada informada na agenda da PGL. Os links da HLTV correspondem aos jogos programados do Stage 1. O arquivo `dist/data/schedule.json` fornece a programação inicial em caso de indisponibilidade da fonte.

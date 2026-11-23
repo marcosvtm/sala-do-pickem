@@ -28,6 +28,11 @@ export function validate(value) {
     !intArray(value.bonus, 16, -15, 15)
   )
     return false;
+  if (
+    value.description !== undefined &&
+    (typeof value.description !== 'string' || value.description.length > 280)
+  )
+    return false;
   if (!intArray(value.locks, 33, -1, 1)) return false;
   let incomplete = false;
   for (let r = 0; r < 5; r++) {

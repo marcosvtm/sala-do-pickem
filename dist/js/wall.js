@@ -1,5 +1,6 @@
-import { MODELS, makeMatrix } from './models.js';
+import { MODELS, modelName, makeMatrix } from './models.js';
 import { progress, pickStatus, fixtureBrier } from './progress.js';
+import { shareButton } from './share.js';
 import { defaults } from './state.js';
 const $ = (id) => document.getElementById(id);
 const node = (tag, text, cls) => {
@@ -64,7 +65,11 @@ function render(data) {
     item.id = c.id;
     const head = node('summary');
     const who = node('strong', c.nick);
-    const label = node('span', MODELS[c.settings.model], 'wall-model');
+    const label = node(
+      'span',
+      modelName(c.settings.model, c.nick),
+      'wall-model'
+    );
     const hits = node('b', c.hits + '/10', 'wall-hits'),
       chance = node('span', 'Calculando…', 'wall-chance');
     head.append(who, label, hits, chance);
@@ -110,6 +115,8 @@ function render(data) {
         'hint'
       )
     );
+    if (c.settings.description && c.settings.model === 'custom')
+      details.append(node('p', c.settings.description));
     if (c.settings.model === 'custom') {
       const tweaks = c.settings.trust
         .map((t, i) =>
@@ -136,7 +143,12 @@ function render(data) {
     }
     item.append(details);
     item.open = expanded.has(c.id) || location.hash.slice(1) === c.id;
-    container.append(item);
+    const wrap = node('div', undefined, 'wall-card-wrap');
+    wrap.append(
+      item,
+      shareButton('/cartoes#' + c.id, 'Compartilhar cartão de ' + c.nick)
+    );
+    container.append(wrap);
     const key = c.id + ':' + data.live.locks.join(',');
     const paint = ({ initial: p, current: q }) => {
       initial.textContent = pct(p);
@@ -204,7 +216,56 @@ function render(data) {
     $('modelScores').append(row);
   }
 }
+
+let modelsPage = 0,
+  loadingModels = false,
+  modelsVersion;
+async function refreshModels() {
+  if (loadingModels) return;
+  loadingModels = true;
+  try {
+    const res = await fetch('/api/models?page=' + modelsPage, {
+      cache: 'no-store',
+    });
+    if (!res.ok) throw Error();
+    const data = await res.json(),
+      sig = JSON.stringify([modelsPage, data]);
+    if (sig !== modelsVersion) {
+      const rows = data.models.map((m) => {
+        const row = node('div', undefined, 'saved-model-row'),
+          link = node('a', modelName('custom', m.nick));
+        link.href = '/modelos?modelo=' + encodeURIComponent(m.id);
+        row.append(
+          link,
+          shareButton(link.href, 'Compartilhar modelo de ' + m.nick)
+        );
+        return row;
+      });
+      $('savedModels').replaceChildren(
+        ...(rows.length
+          ? rows
+          : [
+              node(
+                'p',
+                'Os modelos aparecem aqui quando alguém salva um cartão.',
+                'hint'
+              ),
+            ])
+      );
+      $('modelsPrev').hidden = !modelsPage;
+      $('modelsNext').hidden = !data.hasMore;
+      modelsVersion = sig;
+    }
+  } catch {
+    if (!modelsVersion)
+      $('savedModels').textContent = 'Não foi possível carregar os modelos.';
+  } finally {
+    loadingModels = false;
+  }
+}
+
 async function refresh() {
+  refreshModels();
   if (busy) return;
   busy = true;
   $('reload').disabled = true;
@@ -237,6 +298,16 @@ async function init() {
   if (!res.ok) throw new Error();
   stage = await res.json();
   $('reload').onclick = refresh;
+  for (const [id, d] of [
+    ['modelsPrev', -1],
+    ['modelsNext', 1],
+  ])
+    $(id).onclick = () => {
+      if (!loadingModels) {
+        modelsPage += d;
+        refreshModels();
+      }
+    };
   for (const [id, d] of [
     ['prev', -1],
     ['next', 1],

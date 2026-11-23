@@ -46,6 +46,12 @@ const server = http.createServer(async (req, res) => {
       res.end(await api.text());
       return;
     }
+    if (
+      ['/modelos', '/modelos/', '/partidas', '/partidas/'].includes(
+        url.pathname
+      )
+    )
+      url.pathname = '/index.html';
     if (url.pathname === '/cartoes' || url.pathname === '/cartoes/')
       url.pathname = '/cartoes.html';
     if (url.pathname.startsWith('/server/') || url.pathname.startsWith('/.')) {

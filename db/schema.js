@@ -21,6 +21,7 @@ export const cards = sqliteTable(
 export const results = sqliteTable('stage_results', {
   stage: text('stage').primaryKey(),
   locks: text('locks').notNull(),
+  schedule: text('schedule'),
   checked: integer('checked').notNull(),
   attempted: integer('attempted').notNull(),
 });

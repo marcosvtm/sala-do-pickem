@@ -8,6 +8,13 @@
       "when": 1795395442965,
       "tag": "0000_public_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1795447538075,
+      "tag": "0001_stage_schedule",
+      "breakpoints": true
     }
   ]
 }

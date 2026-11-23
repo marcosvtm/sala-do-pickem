@@ -1,6 +1,8 @@
-import { MODELS, makeMatrix } from './models.js';
-import { availableGames } from './swiss.js';
-import { defaults, validate, swap, updateLock, STAGE } from './state.js';
+import { MODELS, makeMatrix, modelName } from './models.js';
+import { bindBracket } from './bracket.js';
+import { bindPages, renderCatalog } from './pages.js';
+import { bindFeed } from './schedule.js';
+import { defaults, validate, swap, STAGE } from './state.js';
 import { wilson } from './simulation.js';
 import { bindSaving } from './save-card.js';
 
@@ -14,7 +16,7 @@ const number = (x) => x.toLocaleString('pt-BR');
 const option = (text, value) => new Option(text, value);
 const categories = ['3–0', '3–1 / 3–2', '0–3'];
 const category = (slot) => (slot < 2 ? 0 : slot < 8 ? 1 : 2);
-let stage, state, worker, last, delay, toastTimer, activeRun;
+let owner, stage, state, worker, last, delay, toastTimer, activeRun;
 
 async function init() {
   const response = await fetch('data/stage.json');
@@ -40,11 +42,39 @@ async function init() {
   $('editTeam').value = 13;
   $('left').value = 13;
   $('right').value = 5;
+  if (location.hash.startsWith('#c=')) persist();
   bind();
-  bindSaving(() => state, stage);
+  bindPages(stage.teams, ({ form, trust, bonus, description }) => {
+    Object.assign(state, {
+      model: 'custom',
+      form,
+      trust: [...trust],
+      bonus: [...bonus],
+      description,
+    });
+    renderSettings();
+    refreshNames();
+    invalidate();
+  });
+  bindSaving(
+    () => state,
+    stage,
+    (nick) => {
+      owner = nick;
+      refreshNames();
+    }
+  );
   renderCard();
   renderSettings();
-  renderMatches();
+  const official = bindBracket(
+    stage.teams,
+    () => state.locks,
+    () => {
+      runHint();
+      invalidate();
+    }
+  );
+  bindFeed(stage, official);
   runHint();
   start('preview');
 }
@@ -61,11 +91,7 @@ function persist() {
     /* Storage may be disabled. */
   }
   if (location.hash.startsWith('#c='))
-    history.replaceState(
-      null,
-      '',
-      location.pathname + location.search + '#c=' + btoa(JSON.stringify(state))
-    );
+    history.replaceState(null, '', location.pathname + location.search);
 }
 function makeTile(teamId, cls, caption = '') {
   const team = stage.teams[teamId];
@@ -141,6 +167,7 @@ function pick(slot) {
   $('picker').showModal();
 }
 function renderSettings() {
+  $('hypothesis').value = state.description || '';
   const t = Number($('editTeam').value);
   for (const [key, value] of [
     ['form', state.form],
@@ -162,50 +189,24 @@ function renderDuel() {
     $('duel').textContent = 'Escolha duas equipes diferentes.';
     return;
   }
-  for (const [key, name] of Object.entries(MODELS)) {
+  for (const key of Object.keys(MODELS)) {
     const p = makeMatrix(stage.teams, key, state)[bo][a][b];
     const line = document.createElement('div');
     line.className = 'duel-row';
     const strong = document.createElement('b');
     strong.textContent = stage.teams[a].short + ' ' + percent(p);
-    line.append(name, strong);
+    line.append(modelName(key, owner), strong);
     $('duel').append(line);
   }
 }
-function renderMatches() {
-  const box = $('matches');
-  box.replaceChildren();
-  $('locksCount').textContent =
-    ' · ' + state.locks.filter((x) => x !== -1).length + '/33';
-  for (const [r, games] of availableGames(state.locks).entries()) {
-    const heading = document.createElement('h3');
-    heading.textContent = 'Rodada ' + (r + 1);
-    const group = document.createElement('div');
-    group.className = 'matches-grid';
-    for (const { a, b, bo, match } of games) {
-      const label = document.createElement('label');
-      label.textContent =
-        stage.teams[a].short + ' × ' + stage.teams[b].short + ' · MD' + bo;
-      const select = document.createElement('select');
-      select.append(
-        option('Em aberto', -1),
-        option(stage.teams[a].name, 0),
-        option(stage.teams[b].name, 1)
-      );
-      select.value = state.locks[match];
-      select.dataset.match = match;
-      select.onchange = () => {
-        updateLock(state, r, match, Number(select.value));
-        renderMatches();
-        box.querySelector('[data-match="' + match + '"]').focus();
-        invalidate();
-      };
-      label.append(select);
-      group.append(label);
-    }
-    box.append(heading, group);
-  }
-  runHint();
+function refreshNames() {
+  for (const opt of $('activeModel').options)
+    opt.textContent = modelName(opt.value, owner);
+  $('activeModel').value = state.model;
+  $('personalName').textContent = modelName('custom', owner);
+  renderCatalog(state.model, owner, chooseModel);
+  renderDuel();
+  renderEstimate();
 }
 function runHint() {
   const mode = $('mode').value;
@@ -221,7 +222,8 @@ function runHint() {
         : 'A mesma sequência de sorteios permite comparar os quatro modelos.';
 }
 function renderEstimate() {
-  $('saveModel').textContent = 'Modelo que ficará salvo: ' + MODELS[state.model];
+  $('saveModel').textContent =
+    'Modelo em uso: ' + modelName(state.model, owner);
   const model = state.model;
   const histograms = last?.histograms || {};
   const pass = (h) => h.slice(5).reduce((a, b) => a + b, 0);
@@ -242,6 +244,7 @@ function renderEstimate() {
     $('prob').textContent = '—';
     $('uncertainty').textContent = 'Calculando a prévia…';
   }
+  $('bracketProb').textContent = $('prob').textContent;
   for (const [key, name] of Object.entries(MODELS)) {
     let row = $('comparison').querySelector('[data-model="' + key + '"]');
     if (!row) {
@@ -251,6 +254,7 @@ function renderEstimate() {
       row.onclick = () => chooseModel(key);
       $('comparison').append(row);
     }
+    row.firstChild.textContent = modelName(key, owner);
     row.classList.toggle('active', key === model);
     row.setAttribute('aria-pressed', String(key === model));
     row.lastElementChild.textContent = histograms[key]
@@ -263,6 +267,7 @@ function chooseModel(key) {
   state.model = key;
   $('activeModel').value = key;
   persist();
+  renderCatalog(key, owner, chooseModel);
   if (changed && (activeRun === 'exact' || last?.kind === 'exact'))
     invalidate();
   else renderEstimate();
@@ -339,6 +344,10 @@ function start(mode) {
 }
 function bind() {
   $('activeModel').onchange = (e) => chooseModel(e.target.value);
+  $('hypothesis').oninput = () => {
+    state.description = $('hypothesis').value;
+    chooseModel('custom');
+  };
   $('editTeam').onchange = renderSettings;
   for (const id of ['left', 'right', 'bo']) $(id).onchange = renderDuel;
   for (const id of ['form', 'trust', 'bonus']) {
@@ -346,6 +355,7 @@ function bind() {
     const finishEdit = () => {
       if (!pending) return;
       pending = false;
+      renderCatalog(state.model, owner, chooseModel);
       persist();
       queuePreview();
     };
@@ -367,12 +377,13 @@ function bind() {
   $('resetModel').onclick = () => {
     const base = defaults(stage.card);
     Object.assign(state, {
+      description: '',
       form: base.form,
       trust: base.trust,
       bonus: base.bonus,
       model: 'custom',
     });
-    $('activeModel').value = 'custom';
+    chooseModel('custom');
     renderSettings();
     invalidate();
   };
@@ -386,19 +397,6 @@ function bind() {
   $('run').onclick = () => start($('mode').value);
   $('stop').onclick = () => worker?.postMessage({ stop: true });
   $('close').onclick = () => $('picker').close();
-  $('closeShare').onclick = () => $('shareDialog').close();
-  $('share').onclick = async () => {
-    const link = new URL(location.href);
-    link.hash = 'c=' + btoa(JSON.stringify(state));
-    try {
-      await navigator.clipboard.writeText(link.href);
-      toast('Link do cartão copiado.');
-    } catch {
-      $('shareLink').value = link.href;
-      $('shareDialog').showModal();
-      $('shareLink').select();
-    }
-  };
   window.addEventListener('hashchange', () => {
     if (location.hash.startsWith('#c=')) location.reload();
   });

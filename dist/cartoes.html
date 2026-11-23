@@ -13,7 +13,10 @@
         <a href="/" class="brand"
           ><img src="/assets/mark.svg" alt="" />Sala do Pick’Em</a
         >
-        <nav><a class="wall-nav" href="/">Simulador</a></nav>
+        <nav aria-label="Navegação principal">
+          <a href="/modelos">Modelos</a><a href="/partidas">Partidas</a
+          ><a href="/cartoes" aria-current="page">Cartões da galera</a>
+        </nav>
       </div>
     </header>
     <main class="wrap wall">
@@ -42,6 +45,20 @@
           Classificação por acertos confirmados. A chance de chegar a cinco usa
           o modelo salvo e os resultados publicados pela PGL.
         </p>
+      </section>
+      <section class="panel">
+        <h2>Modelos pessoais salvos</h2>
+        <p class="lead">
+          Cada cartão guarda uma cópia dos ajustes pessoais de quem o salvou.
+          Abra um modelo para consultar os pesos ou editar uma cópia sua.
+        </p>
+        <div id="savedModels"></div>
+        <div class="wall-pager">
+          <button class="outline" id="modelsPrev" hidden>Anterior</button
+          ><button class="outline" id="modelsNext" hidden>
+            Próxima página
+          </button>
+        </div>
       </section>
       <section class="panel">
         <details>

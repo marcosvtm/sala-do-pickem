@@ -1,0 +1,336 @@
+{
+  "games": [
+    {
+      "round": 1,
+      "slot": 1,
+      "at": 1795492800000,
+      "a": 2,
+      "b": 10,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 1,
+      "slot": 2,
+      "at": 1795492800000,
+      "a": 7,
+      "b": 15,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 1,
+      "slot": 3,
+      "at": 1795496400000,
+      "a": 0,
+      "b": 8,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 1,
+      "slot": 4,
+      "at": 1795496400000,
+      "a": 6,
+      "b": 14,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 1,
+      "slot": 5,
+      "at": 1795500000000,
+      "a": 4,
+      "b": 12,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 1,
+      "slot": 6,
+      "at": 1795500000000,
+      "a": 1,
+      "b": 9,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 1,
+      "slot": 7,
+      "at": 1795503600000,
+      "a": 3,
+      "b": 11,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 1,
+      "slot": 8,
+      "at": 1795503600000,
+      "a": 5,
+      "b": 13,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 2,
+      "slot": 1,
+      "at": 1795507200000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 2,
+      "slot": 2,
+      "at": 1795507200000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 2,
+      "slot": 3,
+      "at": 1795510800000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 2,
+      "slot": 4,
+      "at": 1795510800000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 2,
+      "slot": 5,
+      "at": 1795514400000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 2,
+      "slot": 6,
+      "at": 1795514400000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 2,
+      "slot": 7,
+      "at": 1795518000000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 2,
+      "slot": 8,
+      "at": 1795518000000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 3,
+      "slot": 1,
+      "at": 1795586400000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 3,
+      "slot": 2,
+      "at": 1795586400000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 3,
+      "slot": 3,
+      "at": 1795590000000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 3,
+      "slot": 4,
+      "at": 1795590000000,
+      "a": null,
+      "b": null,
+      "bo": 1,
+      "status": "upcoming"
+    },
+    {
+      "round": 3,
+      "slot": 5,
+      "at": 1795593600000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 3,
+      "slot": 6,
+      "at": 1795593600000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 3,
+      "slot": 7,
+      "at": 1795602600000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 3,
+      "slot": 8,
+      "at": 1795602600000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 4,
+      "slot": 1,
+      "at": 1795672800000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 4,
+      "slot": 2,
+      "at": 1795672800000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 4,
+      "slot": 3,
+      "at": 1795681800000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 4,
+      "slot": 4,
+      "at": 1795681800000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 4,
+      "slot": 5,
+      "at": 1795690800000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 4,
+      "slot": 6,
+      "at": 1795690800000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 5,
+      "slot": 1,
+      "at": 1795759200000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 5,
+      "slot": 2,
+      "at": 1795768200000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    },
+    {
+      "round": 5,
+      "slot": 3,
+      "at": 1795777200000,
+      "a": null,
+      "b": null,
+      "bo": 3,
+      "status": "upcoming"
+    }
+  ],
+  "links": [
+    "https://www.hltv.org/matches/2400494/heroic-vs-imperial-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400495/9z-vs-lynn-vision-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400496/ninjas-in-pyjamas-vs-m80-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400497/100-thieves-vs-chinggis-warriors-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400498/liquid-vs-bcgame-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400499/parivision-vs-dendele-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400500/faze-vs-wildcard-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400501/eternal-fire-vs-flyquest-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400557/pgl-major-singapore-2026-stage-1-swiss-round-2-1-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400558/pgl-major-singapore-2026-stage-1-swiss-round-2-2-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400559/pgl-major-singapore-2026-stage-1-swiss-round-2-3-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400560/pgl-major-singapore-2026-stage-1-swiss-round-2-4-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400561/pgl-major-singapore-2026-stage-1-swiss-round-2-5-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400562/pgl-major-singapore-2026-stage-1-swiss-round-2-6-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400563/pgl-major-singapore-2026-stage-1-swiss-round-2-7-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400564/pgl-major-singapore-2026-stage-1-swiss-round-2-8-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400565/pgl-major-singapore-2026-stage-1-swiss-round-3-1-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400566/pgl-major-singapore-2026-stage-1-swiss-round-3-2-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400567/pgl-major-singapore-2026-stage-1-swiss-round-3-3-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400568/pgl-major-singapore-2026-stage-1-swiss-round-3-4-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400569/pgl-major-singapore-2026-stage-1-swiss-round-3-5-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400570/pgl-major-singapore-2026-stage-1-swiss-round-3-6-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400571/pgl-major-singapore-2026-stage-1-swiss-round-3-7-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400572/pgl-major-singapore-2026-stage-1-swiss-round-3-8-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400573/pgl-major-singapore-2026-stage-1-swiss-round-4-1-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400574/pgl-major-singapore-2026-stage-1-swiss-round-4-2-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400575/pgl-major-singapore-2026-stage-1-swiss-round-4-3-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400576/pgl-major-singapore-2026-stage-1-swiss-round-4-4-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400577/pgl-major-singapore-2026-stage-1-swiss-round-4-5-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400578/pgl-major-singapore-2026-stage-1-swiss-round-4-6-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400579/pgl-major-singapore-2026-stage-1-swiss-round-5-1-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400580/pgl-major-singapore-2026-stage-1-swiss-round-5-2-pgl-major-singapore-2026-stage-1",
+    "https://www.hltv.org/matches/2400581/pgl-major-singapore-2026-stage-1-swiss-round-5-3-pgl-major-singapore-2026-stage-1"
+  ]
+}
