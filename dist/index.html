@@ -12,6 +12,7 @@
     />
     <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="suggestion.css" />
   </head>
   <body>
     <header>
@@ -98,6 +99,11 @@
           </p>
           <label for="activeModel">Modelo em destaque</label
           ><select id="activeModel"></select>
+          <button type="button" id="suggest" aria-haspopup="dialog" disabled>
+            <span class="suggest-icon" aria-hidden="true"
+              ><i></i><i></i><i></i></span
+            >Sugerir cartão
+          </button>
           <div class="big" id="prob">—</div>
           <div id="uncertainty" class="uncertainty">
             Complete os dez picks para simular.
@@ -377,6 +383,79 @@
         >Contribuir no GitHub</a
       >
     </footer>
+    <dialog id="suggestion" aria-labelledby="suggestionTitle">
+      <div class="modal-head">
+        <div>
+          <span id="modelTag" class="eyebrow"></span>
+          <h2 id="suggestionTitle">Sugestão de cartão</h2>
+        </div>
+        <button
+          type="button"
+          id="dismiss"
+          class="round-close"
+          aria-label="Fechar comparação"
+        >
+          ×
+        </button>
+      </div>
+      <p class="hint" id="suggestionLocks"></p>
+      <p class="hint" role="status" id="searchStatus"></p>
+      <div id="ready" hidden>
+        <div class="compare-stats">
+          <section class="stat">
+            <span>Seu cartão</span><b id="currentRate"></b
+            ><small id="currentLabel"></small>
+          </section>
+          <section class="stat suggested">
+            <span>Sugestão do modelo</span><b id="suggestedRate"></b
+            ><small>chance de fazer 5+ acertos</small>
+          </section>
+        </div>
+        <div class="delta-line">
+          <strong id="improvement"></strong
+          ><span id="diffLegend"><i></i> Mudança na categoria</span>
+        </div>
+        <div id="picksTable"></div>
+        <p class="hint" id="validationInfo" role="status"></p>
+        <details class="search-help">
+          <summary>Como a busca funciona</summary>
+          <p>
+            A busca rápida testa trocas a partir de oito cartões em 8.192
+            torneios simulados. O critério é a chance de fazer cinco ou mais
+            acertos com o modelo escolhido.
+          </p>
+          <p>
+            Refinar mantém o melhor candidato da busca e explora outras
+            combinações. A porcentagem pode variar quando a amostra de validação
+            cresce. O resultado é a melhor sugestão encontrada nas tentativas.
+          </p>
+        </details>
+        <div class="refinement" id="refinement">
+          <div>
+            <label for="searchTime">Tempo extra de busca</label>
+            <select id="searchTime">
+              <option value="10">10 segundos</option>
+              <option value="30">30 segundos</option>
+              <option value="60">1 minuto</option>
+              <option value="0">Até eu parar</option>
+            </select>
+          </div>
+          <button class="outline" type="button" id="refine">
+            Refinar busca
+          </button>
+          <button class="outline" type="button" id="stopSearch" hidden>
+            Parar e comparar
+          </button>
+        </div>
+        <div class="modal-bottom">
+          <small>A sugestão altera apenas o rascunho.</small>
+          <div>
+            <button class="outline" id="cancel">Voltar</button
+            ><button class="primary" id="apply">Usar esta sugestão</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
     <dialog id="picker">
       <div class="panel-title">
         <div>

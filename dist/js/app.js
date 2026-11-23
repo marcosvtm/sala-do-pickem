@@ -1,4 +1,5 @@
 import { MODELS, makeMatrix, modelName } from './models.js';
+import { bindSuggestions } from './suggestion-dialog.js';
 import { bindBracket } from './bracket.js';
 import { bindPages, renderCatalog } from './pages.js';
 import { bindFeed } from './schedule.js';
@@ -29,7 +30,8 @@ let owner,
   delay,
   toastTimer,
   activeRun,
-  refreshSaving;
+  refreshSaving,
+  refreshSuggestion;
 
 async function init() {
   const response = await fetch('data/stage.json');
@@ -72,6 +74,17 @@ async function init() {
   $('right').value = 5;
   if (location.hash.startsWith('#c=')) persist();
   bind();
+  refreshSuggestion = bindSuggestions(
+    stage.teams,
+    () => state,
+    () => modelName(state.model, publishedName || owner),
+    (card) => {
+      state.card = [...card];
+      renderCard();
+      invalidate();
+      toast('Sugestão aplicada ao rascunho.');
+    }
+  );
   editor = bindEditor(
     stage.teams,
     () => state,
@@ -340,6 +353,7 @@ function renderEstimate() {
 function chooseModel(key) {
   const changed = state.model !== key;
   state.model = key;
+  if (changed) refreshSuggestion?.();
   $('activeModel').value = key;
   persist();
   renderCatalog(key, publishedName || owner, chooseModel);
@@ -359,6 +373,7 @@ function queuePreview() {
   if (!state.card.includes(-1)) delay = setTimeout(() => start('preview'), 180);
 }
 function invalidate({ editing = false } = {}) {
+  refreshSuggestion?.();
   clearTimeout(delay);
   cancelWorker();
   last = null;

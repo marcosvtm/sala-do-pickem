@@ -52,6 +52,12 @@ Para reproduzir o ajuste, execute `node scripts/calibrate-hltv.js`. O arquivo `r
 
 O coeficiente minimiza a perda logarítmica nas 318 séries anteriores a outubro. Nas 174 séries reservadas de outubro e novembro, o Brier foi 0,2495 (50/50: 0,2500) e a perda logarítmica foi 0,6938 (50/50: 0,6931). Só três séries dessa avaliação eram MD1. Os resultados sustentam uma leitura cautelosa, especialmente para esse formato.
 
+### Sugestão de cartão
+
+Na Sala, a busca usa o modelo ativo, seus ajustes e os resultados fixados para maximizar a chance de cinco ou mais acertos. O Web Worker testa trocas de equipes entre as três categorias e os seis times de fora. Na busca rápida, oito pontos de partida usam 8.192 torneios simulados. Uma segunda amostra de 16.384 compara finalistas entre rodadas de busca. As porcentagens exibidas para o cartão atual e o sugerido usam os mesmos 32.768 torneios de validação, com uma terceira semente. A busca é heurística.
+
+O refinamento conserva o candidato mais bem pontuado na seleção, renova a amostra de busca a cada oito pontos de partida e continua por 10, 30 ou 60 segundos, ou até a pessoa parar. Cada refinamento concluído acrescenta 32.768 cenários de validação até 131.072. Com a chave inteira fixada, o resultado é calculado diretamente. Aplicar altera apenas o rascunho.
+
 ## Interpretação
 
 A prévia usa 12 mil fases por modelo e uma semente fixa. Todos os modelos recebem a mesma sequência de sorteios por posição na chave, mesmo após divergirem nos adversários. Para um cartão completo, conta-se a proporção com cinco ou mais acertos. A faixa de Wilson é nominal de 95% para uma amostra fixa. Parar seletivamente ao observar os resultados pode afetar a cobertura. A simulação contínua dura enquanto a aba puder executar. O navegador pode suspender abas em segundo plano.

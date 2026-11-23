@@ -3,11 +3,11 @@ import { makeMatrix, MODELS } from './models.js';
 
 // sfc32 with fixed independent state words. Reusing the stream pairs scenarios
 // across models and cards. Every path consumes 33 uniforms, even for locked games.
-function randomStream() {
+export function randomStream(seed = 0) {
   let a = 0x213edbf2,
     b = 0x369aca3d,
     c = 0x71ff1205,
-    d = 0x166832d1;
+    d = 0x166832d1 ^ seed;
   const next = () => {
     const t = (a + b + d) >>> 0;
     d = (d + 1) >>> 0;
