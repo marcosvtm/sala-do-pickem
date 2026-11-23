@@ -27,6 +27,10 @@
       </div>
     </header>
     <main class="wrap">
+      <aside id="editingBanner" class="panel" hidden>
+        <strong id="editingTitle"></strong>
+        <a id="cancelEdit" href="/cartoes">Cancelar e voltar ao mural</a>
+      </aside>
       <section class="hero" data-page="/">
         <div class="hero-copy">
           <span class="kicker"><i></i> PGL MAJOR · SINGAPURA 2026</span>
@@ -61,7 +65,8 @@
             <p>
               Seu nick, seus dez picks e o modelo escolhido ficam públicos em
               <a href="/cartoes">Cartões da galera</a>. Você pode salvar mesmo
-              sem simular. O cartão fica definitivo.
+              sem simular. Neste navegador, você pode editar ou excluir seu
+              cartão até o fim do timer.
             </p>
             <label for="nick">Seu nick</label>
             <input
@@ -321,7 +326,7 @@
           <a
             class="study-link"
             href="https://singapore-major-pickem-2026-br.marcosvtm.chatgpt.site/"
-            >Ver os dados e as previsões para o Stage 1 de Singapura</a
+            >Leia o estudo do Modelo IA para o Stage 1</a
           >
         </details>
         <details id="guide-custom" name="model-guide" class="model-guide">

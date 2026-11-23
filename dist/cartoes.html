@@ -36,6 +36,8 @@
           <button id="reload" class="outline">Atualizar</button>
         </div>
         <p id="feed" class="lead" aria-live="polite">Consultando a fase…</p>
+        <p id="wallDeadline" class="hint"></p>
+        <div id="cardActionMessage" role="status"></div>
         <div id="entries"></div>
         <div class="wall-pager">
           <button id="prev" class="outline" hidden>Anterior</button
@@ -73,6 +75,24 @@
         </details>
       </section>
     </main>
+    <dialog id="removeCard" aria-labelledby="removeTitle">
+      <h2 id="removeTitle">Excluir cartão?</h2>
+      <p id="removeInfo"></p>
+      <p id="removeError" role="status"></p>
+      <div class="save-actions">
+        <button type="button" id="cancelRemove" class="outline" autofocus>
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="confirmRemove"
+          class="outline"
+          data-card-mutation
+        >
+          Excluir cartão
+        </button>
+      </div>
+    </dialog>
     <footer class="wrap">
       <span>Sala do Pick’Em · Singapura 2026</span
       ><a href="https://www.pglesports.com/cs2/pgl-major-singapore-2026/"

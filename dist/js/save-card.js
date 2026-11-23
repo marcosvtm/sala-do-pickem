@@ -1,4 +1,5 @@
 import { shareButton } from './share.js';
+import { editKey, prepareEditKey } from './card-access.js';
 
 export function readReceipt(stage) {
   try {
@@ -8,7 +9,7 @@ export function readReceipt(stage) {
   }
 }
 
-export function bindSaving(current, stage, receipt, onOwner) {
+export function bindSaving(current, stage, receipt, onOwner, editing) {
   const form = document.querySelector('#saveCard'),
     input = form.elements.nick;
   const submit = document.querySelector('#saveButton'),
@@ -21,7 +22,10 @@ export function bindSaving(current, stage, receipt, onOwner) {
   // Also close an already-open tab. The authoritative check is inside the database insert.
   let offset = 0,
     timer;
-  if (receipt?.token) {
+  if (editing) {
+    token = editing.id;
+    input.value = editing.nick;
+  } else if (receipt?.token) {
     token = receipt.token;
     input.value = receipt.nick || '';
     saved = receipt.saved;
@@ -34,7 +38,7 @@ export function bindSaving(current, stage, receipt, onOwner) {
       share.append(
         shareButton('/cartoes#' + token, 'Compartilhar cartão de ' + saved)
       );
-    onOwner(saved);
+    onOwner(editing?.nick || saved);
   }
   function countdown() {
     const seconds = Math.max(
@@ -66,6 +70,7 @@ export function bindSaving(current, stage, receipt, onOwner) {
     if (!document.hidden) countdown();
   }, 1000);
   function remember() {
+    if (editing) return;
     try {
       localStorage.setItem(
         key,
@@ -91,7 +96,13 @@ export function bindSaving(current, stage, receipt, onOwner) {
       remaining <= 0 ||
       !input.value.trim() ||
       current().card.includes(-1);
-    submit.textContent = saved ? 'Cartão salvo' : 'Salvar cartão';
+    submit.textContent = pending
+      ? 'Salvando…'
+      : saved
+        ? 'Cartão salvo'
+        : editing
+          ? 'Salvar alterações'
+          : 'Salvar cartão';
     input.disabled = Boolean(saved) || pending || remaining <= 0;
     document.querySelector('#anotherNick').hidden = !saved || remaining <= 0;
     document.querySelector('#saveDeadline').textContent =
@@ -129,14 +140,37 @@ export function bindSaving(current, stage, receipt, onOwner) {
     feedback('Salvando o cartão…');
     const state = current();
     try {
-      const response = await fetch('/api/cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: token, nick, state }),
-      });
+      const secret = editing
+        ? editKey(stage, token)
+        : prepareEditKey(stage, token);
+      if (!secret) throw Error('Use o navegador em que você salvou o cartão.');
+      const response = await fetch(
+        editing ? '/api/cards/' + token : '/api/cards',
+        {
+          method: editing ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Card-Key': secret },
+          body: JSON.stringify({
+            id: token,
+            nick,
+            state,
+            revision: editing?.revision,
+          }),
+        }
+      );
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       saved = nick.normalize('NFKC').replace(/\s+/g, ' ');
+      if (editing) {
+        if (readReceipt(stage)?.token === token) {
+          localStorage.setItem(
+            key,
+            JSON.stringify({ token, nick: saved, saved })
+          );
+          localStorage.setItem(stage.id, JSON.stringify(state));
+        }
+        location.assign('/cartoes#' + token);
+        return;
+      }
       remember();
       ownerChanged();
     } catch (err) {

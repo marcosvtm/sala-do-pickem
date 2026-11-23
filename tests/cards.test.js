@@ -28,7 +28,7 @@ const post = (body) =>
   });
 const get = (suffix = '') =>
   new Request('https://example.org/api/cards' + suffix);
-test('immutable, named, idempotent cards; global visibility and no hypothetical results persisted', async () => {
+test('legacy card creation is named and idempotent, with public picks and no hypothetical results', async () => {
   const db = openDb(),
     body = input();
   db.sqlite.function('unixepoch', () => CLOSE / 1000 - 1);
@@ -79,6 +79,90 @@ test('immutable, named, idempotent cards; global visibility and no hypothetical 
   );
   assert.equal(db.sqlite.prepare('SELECT count(*) n FROM cards').get().n, 1);
   db.sqlite.close();
+});
+test('card owners can revise and remove cards before closing, including concurrent and retried writes', async () => {
+  const db = openDb(),
+    key = randomUUID(),
+    body = input();
+  let dbTime = CLOSE / 1000 - 5;
+  db.sqlite.function('unixepoch', () => dbTime);
+  const write = (method, payload, secret = key, now = CLOSE - 1) =>
+    cardsApi(
+      new Request(
+        'https://example.org/api/cards' +
+          (method === 'POST' ? '' : '/' + body.id),
+        {
+          method,
+          headers: { 'Content-Type': 'application/json', 'X-Card-Key': secret },
+          body: JSON.stringify(payload),
+        }
+      ),
+      db,
+      now
+    );
+  const update = {
+    ...body,
+    nick: 'Vitox',
+    revision: 1,
+    state: {
+      ...body.state,
+      model: 'study',
+      card: [...body.state.card].reverse(),
+    },
+  };
+  try {
+    assert.equal((await write('POST', body)).status, 201);
+    const legacy = input();
+    legacy.nick = 'Registro anterior';
+    assert.equal((await cardsApi(post(legacy), db, CLOSE - 1)).status, 201);
+    const publicView = await (await cardsApi(get(''), db, CLOSE - 1)).json();
+    assert.equal(publicView.cards.length, 2);
+    assert.equal(JSON.stringify(publicView).includes(key), false);
+    assert.equal('edit_hash' in publicView.cards[0], false);
+    for (const method of ['PUT', 'DELETE'])
+      assert.equal((await write(method, update, body.id)).status, 403);
+    assert.equal(
+      (await write('PUT', { ...update, nick: legacy.nick })).status,
+      409
+    );
+    assert.equal((await write('PUT', update)).status, 200);
+    assert.equal((await write('PUT', update)).status, 200);
+    assert.equal(
+      (await write('PUT', { ...update, nick: 'Desatualizado' })).status,
+      409
+    );
+    assert.equal((await write('DELETE', { revision: 1 })).status, 409);
+    const read = await (await cardsApi(get('/' + body.id), db)).json();
+    assert.equal(read.revision, 2);
+    assert.equal(read.nick, 'Vitox');
+    assert.deepEqual(read.settings.card, update.state.card);
+    assert.equal(read.settings.model, 'study');
+    for (const method of ['PUT', 'DELETE']) {
+      const payload = { ...update, revision: 2 };
+      assert.equal((await write(method, payload, key, CLOSE)).status, 409);
+      dbTime = CLOSE / 1000;
+      assert.equal((await write(method, payload)).status, 409);
+      dbTime -= 5;
+    }
+    assert.equal((await write('DELETE', { revision: 2 })).status, 200);
+    assert.equal((await write('DELETE', { revision: 2 })).status, 200);
+    assert.equal((await write('POST', body)).status, 409);
+    assert.equal((await cardsApi(get('/' + body.id), db)).status, 404);
+    const shared = new Request('https://example.org/api/models/' + body.id);
+    assert.equal((await cardsApi(shared, db)).status, 404);
+    const saved = await (await cardsApi(get(''), db, CLOSE - 1)).json();
+    assert.deepEqual(
+      saved.cards.map((c) => c.id),
+      [legacy.id]
+    );
+    assert.equal(
+      (await cardsApi(post({ ...input(), nick: 'Vitox' }), db, CLOSE - 1))
+        .status,
+      201
+    );
+  } finally {
+    db.sqlite.close();
+  }
 });
 function fixture(lockCount) {
   const locks = emptyLocks(),

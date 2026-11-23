@@ -8,6 +8,7 @@ import { bindEditor } from './model-editor.js';
 import { bindModelSaving } from './save-model.js';
 import { wilson } from './simulation.js';
 import { bindSaving, readReceipt } from './save-card.js';
+import { editKey } from './card-access.js';
 
 const $ = (id) => document.getElementById(id);
 const percent = (p) =>
@@ -24,6 +25,7 @@ let owner,
   editor,
   modelSaving,
   stage,
+  editingCard,
   state,
   worker,
   last,
@@ -39,11 +41,29 @@ async function init() {
   stage = await response.json();
   state = newDraft();
   const receipt = readReceipt(stage);
+  const editId = new URLSearchParams(location.search).get('editar');
+  if (editId) {
+    const res =
+      editKey(stage, editId) &&
+      (await fetch('/api/cards/' + encodeURIComponent(editId), {
+        cache: 'no-store',
+      }));
+    if (res?.ok) editingCard = await res.json();
+    if (!editingCard || editingCard.serverTime >= editingCard.closesAt) {
+      location.replace('/cartoes#' + encodeURIComponent(editId));
+      return;
+    }
+    $('editingTitle').textContent = 'Editando o cartão de ' + editingCard.nick;
+    $('cancelEdit').href = '/cartoes#' + encodeURIComponent(editId);
+    $('editingBanner').hidden = false;
+  }
   let saved;
   try {
-    saved = location.hash.startsWith('#c=')
-      ? JSON.parse(atob(location.hash.slice(3)))
-      : JSON.parse(localStorage.getItem(STAGE));
+    saved = editingCard
+      ? editingCard.settings
+      : location.hash.startsWith('#c=')
+        ? JSON.parse(atob(location.hash.slice(3)))
+        : JSON.parse(localStorage.getItem(STAGE));
     // Early versions could register a card before writing a local draft.
     if (
       !saved &&
@@ -70,6 +90,7 @@ async function init() {
         /* Storage may be unavailable. */
       }
       const frozen =
+        editingCard ||
         receipt?.saved ||
         location.hash.startsWith('#c=') ||
         (published?.signature &&
@@ -148,7 +169,8 @@ async function init() {
         invalidate();
       }
       refreshNames();
-    }
+    },
+    editingCard
   );
   modelSaving = bindModelSaving(
     stage,
@@ -179,6 +201,7 @@ function toast(text) {
   toastTimer = setTimeout(() => ($('toast').textContent = ''), 3200);
 }
 function persist() {
+  if (editingCard) return;
   try {
     localStorage.setItem(STAGE, JSON.stringify(state));
   } catch {

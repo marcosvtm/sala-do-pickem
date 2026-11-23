@@ -1,6 +1,7 @@
 import { MODELS, modelName, makeMatrix, describeBase } from './models.js';
 import { progress, pickStatus, fixtureBrier } from './progress.js';
 import { shareButton } from './share.js';
+import { editKey, forgetCard } from './card-access.js';
 import { newDraft } from './state.js';
 const $ = (id) => document.getElementById(id);
 const node = (tag, text, cls) => {
@@ -36,7 +37,77 @@ let stage,
   job,
   busy = false,
   polled = false;
+let deadline,
+  clockOffset = 0,
+  closeTimer,
+  removing,
+  deleting = false,
+  refreshAgain = false;
+const isLocked = () => !deadline || Date.now() + clockOffset >= deadline;
+function syncLock() {
+  clearTimeout(closeTimer);
+  const locked = isLocked();
+  for (const button of document.querySelectorAll('[data-card-mutation]'))
+    button.disabled = locked || (button.id === 'confirmRemove' && deleting);
+  $('wallDeadline').textContent = locked
+    ? 'Prazo encerrado. Os cartões desta fase estão fechados.'
+    : 'Você pode editar ou excluir seus cartões neste navegador até ' +
+      date(deadline) +
+      ' (Cuiabá).';
+  if (locked && $('removeCard').open)
+    $('removeError').textContent = 'O prazo desta fase terminou.';
+  if (!locked)
+    closeTimer = setTimeout(
+      syncLock,
+      Math.min(deadline - Date.now() - clockOffset + 1, 2147483647)
+    );
+}
+function showRemove(card) {
+  if (isLocked()) return syncLock();
+  removing = card;
+  $('removeInfo').textContent =
+    'O cartão de ' +
+    card.nick +
+    ' e sua cópia do modelo serão retirados do mural.';
+  $('removeError').textContent = '';
+  $('removeCard').showModal();
+}
+async function confirmRemove() {
+  const card = removing;
+  if (!card || deleting || isLocked()) return syncLock();
+  deleting = true;
+  syncLock();
+  try {
+    const res = await fetch('/api/cards/' + card.id, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Card-Key': editKey(stage, card.id),
+      },
+      body: JSON.stringify({ revision: card.revision }),
+    });
+    if (!res.ok)
+      throw Error((await res.json()).message || 'Falha ao excluir o cartão.');
+    forgetCard(stage, card.id);
+    $('removeCard').close();
+    $('cardActionMessage').textContent =
+      'Cartão de ' + card.nick + ' excluído.';
+    if (location.hash.slice(1) === card.id)
+      history.replaceState(null, '', '/cartoes');
+    if (page > 0 && $('entries').childElementCount === 1) page--;
+    await refresh();
+  } catch (error) {
+    $('removeError').textContent =
+      error.message || 'Falha ao excluir o cartão.';
+  } finally {
+    deleting = false;
+    syncLock();
+  }
+}
 function render(data) {
+  deadline = data.closesAt;
+  clockOffset = data.serverTime - Date.now();
+  syncLock();
   const { teams, finished } = progress(data.live.locks);
   $('feed').textContent =
     finished.length +
@@ -51,19 +122,26 @@ function render(data) {
         : '');
   const signature = JSON.stringify([page, data.cards, data.live.locks]);
   if (version === signature) return;
+  const firstRender = !version;
   version = signature;
   job?.terminate();
   const expanded = new Set(
-    [...document.querySelectorAll('#entries details[open]')].map((e) => e.id)
+    [
+      ...document.querySelectorAll(
+        '#entries .wall-summary[aria-expanded="true"]'
+      ),
+    ].map((e) => e.dataset.card)
   );
   const container = $('entries');
   container.replaceChildren();
   const waiting = [],
     outputs = new Map();
   for (const c of data.cards) {
-    const item = node('details', undefined, 'wall-card');
+    const item = node('div', undefined, 'wall-card');
     item.id = c.id;
-    const head = node('summary');
+    const head = node('button', undefined, 'wall-summary');
+    head.type = 'button';
+    head.dataset.card = c.id;
     const who = node('strong', c.nick);
     const label = node(
       'span',
@@ -73,7 +151,6 @@ function render(data) {
     const hits = node('b', c.hits + '/10', 'wall-hits'),
       chance = node('span', 'Calculando…', 'wall-chance');
     head.append(who, label, hits, chance);
-    item.append(head);
     const initial = node('b', '…'),
       current = node('b', '…');
     const info = node('p', undefined, 'wall-meta');
@@ -85,6 +162,15 @@ function render(data) {
     );
     const details = node('div', undefined, 'wall-details');
     details.append(info);
+    if (!c.hasEditKey && !isLocked()) {
+      details.append(
+        node(
+          'p',
+          'Este cartão foi salvo antes da edição por navegador e está disponível para consulta.',
+          'hint'
+        )
+      );
+    }
     for (const [i, id] of c.settings.card.entries()) {
       if ([0, 2, 8].includes(i))
         details.append(
@@ -142,15 +228,40 @@ function render(data) {
         )
       );
     }
-    item.append(details);
-    item.open = expanded.has(c.id) || location.hash.slice(1) === c.id;
-    const wrap = node('div', undefined, 'wall-card-wrap');
-    wrap.append(
-      item,
+    details.id = 'picks-' + c.id;
+    head.setAttribute('aria-controls', details.id);
+    function expand(open) {
+      head.setAttribute('aria-expanded', String(open));
+      details.hidden = !open;
+    }
+    expand(
+      expanded.has(c.id) || (firstRender && location.hash.slice(1) === c.id)
+    );
+    head.onclick = () => expand(details.hidden);
+    const bar = node('div', undefined, 'wall-card-head');
+    const actions = node('div', undefined, 'wall-actions');
+    if (c.hasEditKey && editKey(stage, c.id)) {
+      for (const label of ['Editar', 'Excluir']) {
+        const button = node('button', label, 'card-action');
+        button.type = 'button';
+        button.dataset.cardMutation = '';
+        button.setAttribute('aria-label', label + ' cartão de ' + c.nick);
+        button.disabled = isLocked();
+        button.onclick = () => {
+          if (isLocked()) return syncLock();
+          if (label === 'Editar') location.assign('/?editar=' + c.id);
+          else showRemove(c);
+        };
+        actions.append(button);
+      }
+    }
+    actions.append(
       shareButton('/cartoes#' + c.id, 'Compartilhar cartão de ' + c.nick)
     );
-    container.append(wrap);
-    const key = c.id + ':' + data.live.locks.join(',');
+    bar.append(head, actions);
+    item.append(bar, details);
+    container.append(item);
+    const key = c.id + ':' + c.revision + ':' + data.live.locks.join(',');
     const paint = ({ initial: p, current: q }) => {
       initial.textContent = pct(p);
       current.textContent = pct(q);
@@ -271,8 +382,11 @@ async function refreshModels() {
 }
 
 async function refresh() {
+  if (busy) {
+    refreshAgain = true;
+    return;
+  }
   refreshModels();
-  if (busy) return;
   busy = true;
   $('reload').disabled = true;
   const target = location.hash.slice(1);
@@ -297,12 +411,21 @@ async function refresh() {
   } finally {
     busy = false;
     $('reload').disabled = false;
+    if (refreshAgain) {
+      refreshAgain = false;
+      refresh();
+    }
   }
 }
 async function init() {
   const res = await fetch('/data/stage.json');
   if (!res.ok) throw new Error();
   stage = await res.json();
+  $('cancelRemove').onclick = () => $('removeCard').close();
+  $('confirmRemove').onclick = confirmRemove;
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) refresh();
+  });
   $('reload').onclick = refresh;
   for (const [id, d] of [
     ['modelsPrev', -1],

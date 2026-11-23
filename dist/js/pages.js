@@ -50,6 +50,17 @@ export function renderCatalog(
 }
 export function bindPages(teams, apply) {
   const $ = (id) => document.getElementById(id);
+  // Keep the clicked header under the pointer when another guide above it closes.
+  $('modelGuides').addEventListener('click', (event) => {
+    const header = event.target.closest('.model-guide > summary');
+    if (!header) return;
+    const top = header.getBoundingClientRect().top;
+    requestAnimationFrame(() => {
+      const delta = header.getBoundingClientRect().top - top;
+      if (Math.abs(delta) > 1)
+        window.scrollBy({ top: delta, behavior: 'instant' });
+    });
+  });
   for (const team of teams) {
     const e = team.formEvidence;
     const row = $('formEvidence').insertRow();
@@ -159,6 +170,8 @@ export function bindPages(teams, apply) {
     } else if (!id) requested = null;
   }
   function navigate(path) {
+    const editId = new URLSearchParams(location.search).get('editar');
+    if (editId) path += '?editar=' + encodeURIComponent(editId);
     if (location.pathname + location.search + location.hash !== path)
       history.pushState(null, '', path);
     render();

@@ -14,6 +14,9 @@ export const cards = sqliteTable(
     nickKey: text('nick_key').notNull(),
     submitted: integer('submitted').notNull(),
     settings: text('settings').notNull(),
+    editHash: text('edit_hash'),
+    revision: integer('revision').notNull().default(1),
+    removedAt: integer('removed_at'),
   },
   (t) => [uniqueIndex('stage_nick').on(t.stage, t.nickKey)]
 );
