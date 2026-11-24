@@ -73,8 +73,8 @@ async function showProfile(card, cell) {
 
 let page = 0,
   busy = false,
-  signature,
-  expanded;
+  signature;
+const expandedCards = new Set();
 function render(data) {
   $('rankingStatus').textContent = data.rows.length
     ? (data.finished
@@ -117,16 +117,11 @@ function render(data) {
       name.setAttribute('aria-expanded', String(open));
       if (open) showProfile(card, cell);
     };
-    toggle(card.id === expanded);
+    toggle(expandedCards.has(card.id));
     name.onclick = () => {
       const open = detail.hidden;
-      for (const current of body.querySelectorAll(
-        'button[aria-expanded="true"]'
-      )) {
-        current.setAttribute('aria-expanded', 'false');
-        $(current.getAttribute('aria-controls')).hidden = true;
-      }
-      expanded = open ? card.id : null;
+      if (open) expandedCards.add(card.id);
+      else expandedCards.delete(card.id);
       toggle(open);
     };
   }
