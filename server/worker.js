@@ -1,7 +1,13 @@
 import { cardsApi } from './api.js';
+import { retireLegacyCard } from './retire-legacy-card.js';
+let maintenance;
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (!maintenance) {
+      maintenance = retireLegacyCard(env.DB).catch(() => { maintenance = null; });
+      ctx.waitUntil(maintenance);
+    }
     if (url.pathname.startsWith('/api/')) {
       try {
         return await cardsApi(request, env.DB);
