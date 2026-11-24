@@ -34,7 +34,25 @@ async function request(fetcher, path) {
   return response;
 }
 
-// Live commentary sometimes announces both starting sides before the first round.
+// Some matches announce sides only in the first-half recap.
+function halftimeCT(events, game, mapName) {
+  for (const event of events) {
+    if (event.map?.name !== mapName || !Number.isFinite(event.eventDate) ||
+        ![event.scoreA, event.scoreB].every((n) => Number.isInteger(n) && n >= 0) ||
+        event.scoreA + event.scoreB !== 12) continue;
+    const recap = (event.description ?? '').replace(/\*/g, '').trim();
+    const parts = /^fim (?:do primeiro tempo|da primeira metade) com (?:[ao] )?(.+?) (?:confirmando|terminando|encerrando|fechando|abrindo)\b([^.!?;]*?)\bjogando de (CT|TR|T)\b/i.exec(recap);
+    if (!parts) continue;
+    const team = resolveTeam(parts[1]);
+    if (team !== game.a && team !== game.b) continue;
+    const opponent = team === game.a ? game.b : game.a;
+    const clause = normalize(parts[2]);
+    // A second team in the clause would make the side attribution ambiguous.
+    if ([...aliases].some(([name, id]) => id === opponent && clause.includes(name))) continue;
+    return parts[3].toUpperCase() === 'CT' ? team : opponent;
+  }
+}
+
 function openingCT(events, game, mapName, firstRoundAt) {
   for (const event of events) {
     if (!Number.isFinite(event.eventDate) || event.eventDate > firstRoundAt ||
@@ -52,6 +70,7 @@ function openingCT(events, game, mapName, firstRoundAt) {
     if (sides.size === 2 && sides.get(game.a) !== sides.get(game.b))
       return sides.get(game.a) === 'CT' ? game.a : game.b;
   }
+  return halftimeCT(events, game, mapName);
 }
 
 export async function addRoundScores(games, previous, fetcher, now = Date.now()) {

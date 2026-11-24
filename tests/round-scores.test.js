@@ -107,6 +107,13 @@ test('opening sides belong to the named teams and map, even when PGL has the new
   ]) assert.equal((await loadWith({ ...kickoff, ...invalid })).startingCT, undefined);
   assert.equal((await loadWith(kickoff, 3)).startingCT, undefined);
   assert.equal((await loadWith({ ...kickoff, map: round.map }, 3)).startingCT, 7);
+  const halftime = { ...round, scoreA: 7, scoreB: 5,
+    description: 'Fim do primeiro tempo com a Lynn Vision confirmando a virada no placar e abrindo uma vantagem mínima jogando de TR na Inferno!' };
+  assert.equal((await loadWith(halftime)).startingCT, 7);
+  assert.equal((await loadWith({ ...halftime, description: halftime.description.replace('de TR', 'de CT') })).startingCT, 15);
+  for (const change of [{ scoreA: 8 }, { map: { name: 'de_nuke' } },
+    { description: halftime.description.replace('a virada no placar', 'a virada sobre a 9z') }])
+    assert.equal((await loadWith({ ...halftime, ...change })).startingCT, undefined);
   const advanced = { ...game, map: { name: 'inferno', score: [12, 9] } };
   await addRoundScores([advanced], [{ ...previous[0], map: updated }], async () => { throw Error('offline'); });
   assert.deepEqual(advanced.map, { name: 'inferno', score: [12, 9], startingCT: 7 });
