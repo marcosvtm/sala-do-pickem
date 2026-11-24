@@ -219,44 +219,34 @@
       <div id="phaseAgendas" data-page="/ /partidas"></div>
       <section data-page="/modelos" hidden class="hero models-hero">
         <img class="hero-art" src="/assets/banner-modelos.webp" loading="lazy" alt="" />
-        <svg class="mirage-radar" viewBox="72 95 905 806" role="img" aria-labelledby="mirage-title mirage-description">
-          <title id="mirage-title">Mirage · disputa pelo bombsite A</title>
+        <svg class="mirage-radar" viewBox="74 130 902 774" preserveAspectRatio="none" role="img" aria-label="Maquete da Mirage" aria-describedby="mirage-description">
           <desc id="mirage-description">O TR sai da sua base em laranja, entra pela rampa A e chega ao plant. O CT sai da sua base em azul e sobe até a bilheteria, de onde defende o bomb.</desc>
           <defs>
-            <filter id="mirage-relief" color-interpolation-filters="sRGB">
-              <feMorphology in="SourceAlpha" operator="dilate" radius="2.2" result="silhouette" />
-              <feFlood flood-color="#b0cfb9" flood-opacity=".82" />
-              <feComposite in2="silhouette" operator="in" result="rim" />
-              <feColorMatrix in="SourceGraphic" type="matrix"
-                values=".66 .35 .13 0 -.04  .38 .84 .23 0 .005  .30 .66 .36 0 -.005  0 0 0 1 0" />
-              <feComposite in2="rim" operator="over" />
-            </filter>
             <path id="tr-to-a" d="M891 369 L891 451 882 486 881 537 870 555 858 562 798 562 795 579 780 653 762 664 744 658 711 655 704 655 677 659 661 670 628 672 601 697 589 723 572 744 556 751 550 770 550 780" />
             <path id="ct-to-ticket" d="M286 717 L309 739 325 781 344 804 365 808 407 822 433 818 451 823" />
-            <g id="route-end" fill="currentColor" stroke="#101c1a" stroke-width="4">
-              <circle r="15" /><circle r="6" fill="#14211d" stroke="none" />
+            <g id="route-end" fill="currentColor">
+              <circle r="18" fill-opacity=".13" stroke="currentColor" stroke-width="3" />
+              <circle r="7" />
             </g>
-            <path id="route-direction" d="M-10 -11 12 0 -10 11 -5 0Z" fill="currentColor" stroke="#15221e" stroke-width="2" />
           </defs>
-          <image href="/assets/radar-mirage.webp" width="1024" height="1024" filter="url(#mirage-relief)" />
+          <image href="/assets/radar-mirage.webp" width="1024" height="1024" />
           <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <g stroke="#0b1b20" stroke-width="12"><use href="#ct-to-ticket" /><use href="#tr-to-a" /></g>
-            <use class="ct" href="#ct-to-ticket" stroke="currentColor" stroke-width="8" />
-            <use class="tr" href="#tr-to-a" stroke="currentColor" stroke-width="8" stroke-dasharray="14 9" />
+            <use class="ct" href="#ct-to-ticket" stroke="currentColor" stroke-opacity=".28" stroke-width="7" />
+            <use class="tr" href="#tr-to-a" stroke="currentColor" stroke-opacity=".28" stroke-width="7" />
+            <g stroke="currentColor" stroke-dasharray="1 9" stroke-width="5">
+              <use class="ct" href="#ct-to-ticket" />
+              <use class="tr" href="#tr-to-a" />
+            </g>
           </g>
-          <use class="ct" href="#route-direction" transform="translate(384 814) rotate(18)" />
-          <use class="tr" href="#route-direction" transform="translate(826 562) rotate(180)" />
-          <g stroke="#15221e" stroke-width="3">
-            <circle class="ct" cx="286" cy="717" r="11" fill="currentColor" />
-            <circle class="tr" cx="891" cy="369" r="11" fill="currentColor" />
+          <g fill="currentColor">
+            <circle class="ct" cx="286" cy="717" r="9" />
+            <circle class="ct" cx="344" cy="804" r="6" />
+            <circle class="tr" cx="891" cy="369" r="9" />
+            <circle class="tr" cx="858" cy="562" r="6" />
+            <circle class="tr" cx="762" cy="664" r="6" />
           </g>
           <use class="ct" href="#route-end" x="451" y="823" />
           <use class="tr" href="#route-end" x="550" y="780" />
-          <text class="map-name" x="940" y="140" text-anchor="end">MIRAGE</text>
-          <g class="callout" text-anchor="middle">
-            <text x="286" y="688">CT</text><text x="891" y="341">TR</text>
-            <text x="595" y="801">A</text><text x="235" y="297" opacity=".72">B</text>
-          </g>
         </svg>
         <div class="hero-copy">
           <span class="kicker"><i></i><span id="modelsPhaseLabel">Stage 1 · Singapura</span></span>
