@@ -1384,7 +1384,7 @@ nav a {
   align-items: center;
   gap: 0 12px;
 }
-.deadline span {
+.deadline > span {
   font-weight: 600;
   font-size: 0.84rem;
   color: #dce6d8;
@@ -1397,6 +1397,9 @@ nav a {
   font-variant-numeric: tabular-nums;
   line-height: 1.12;
   color: var(--acid);
+}
+.deadline svg {
+  display: block;
 }
 .deadline small,
 .game-time small,

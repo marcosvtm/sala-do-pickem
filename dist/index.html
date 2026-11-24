@@ -44,9 +44,18 @@
           </div>
         </div>
         <div class="deadline">
-          <span>Prazo para salvar os picks</span
-          ><strong id="countdown" role="timer">—</strong
-          ><small id="closingTime"></small>
+          <span>Prazo para salvar os picks</span>
+          <strong>
+            <span id="countdown" role="timer">—</span>
+            <svg id="closedLock" hidden role="img" aria-label="Picks fechados" width="32" height="32"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <title>Picks fechados</title>
+              <path d="M7.5 10V7a4.5 4.5 0 0 1 9 0v3" />
+              <rect x="4.5" y="10" width="15" height="11" rx="2.5" />
+              <path d="M12 14.5v2" />
+            </svg>
+          </strong>
+          <small id="closingTime"></small>
         </div>
       </section>
       <div class="dashboard" data-page="/">

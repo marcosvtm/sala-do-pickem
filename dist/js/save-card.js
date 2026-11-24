@@ -31,6 +31,12 @@ export function bindSaving(current, stage, receipt, onOwner, editing) {
     saved = receipt.saved;
   }
   const share = document.querySelector('#savedShare');
+  const timerText = document.querySelector('#countdown');
+  const closedLock = document.querySelector('#closedLock');
+  const closeLabel = document.querySelector('#closingTime');
+  const dateOptions = { timeZone: 'America/Cuiaba' };
+  const closeDay = new Intl.DateTimeFormat('pt-BR', { ...dateOptions, day: '2-digit', month: '2-digit' });
+  const closeHour = new Intl.DateTimeFormat('pt-BR', { ...dateOptions, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   function ownerChanged() {
     share.hidden = !saved;
     share.replaceChildren();
@@ -50,19 +56,13 @@ export function bindSaving(current, stage, receipt, onOwner, editing) {
       Math.floor(seconds / 60) % 60,
       seconds % 60,
     ];
-    document.querySelector('#countdown').textContent = seconds
-      ? parts.map((n) => String(n).padStart(2, '0')).join(':')
-      : 'Prazo encerrado';
-    document.querySelector('#closingTime').textContent =
-      'Fechamento em ' +
-      new Intl.DateTimeFormat('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'America/Cuiaba',
-      }).format(closeAt) +
-      ' (Cuiabá)';
+    timerText.hidden = seconds === 0;
+    closedLock.toggleAttribute('hidden', seconds > 0);
+    if (seconds) timerText.textContent = parts.map((n) => String(n).padStart(2, '0')).join(':');
+    const day = closeDay.format(closeAt), hour = closeHour.format(closeAt);
+    closeLabel.textContent = seconds
+      ? `Fechamento em ${day}, ${hour} (Cuiabá)`
+      : `Fechado ${day} às ${hour} (UTC-4)`;
   }
   ownerChanged();
   countdown();
