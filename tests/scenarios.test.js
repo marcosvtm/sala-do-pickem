@@ -58,16 +58,11 @@ test('agenda switches between two rounds on the same date using status, preserve
     Array(8).fill(2)
   );
   assert.equal(currentGames(games)[0].status, 'live');
-  const rows = agenda.games
-    .map(
-      (g) =>
-        '{leftTeam:"A",leftTeamKey:"heroic",rightTeamKey:"imperial_esports",leftScore:0,rightScore:0,format:"BO' +
-        g.bo +
-        '",date:"24.11.2026",round:"' +
-        (g.round === 1 ? 'opening round' : 'round ' + g.round) +
-        '",time:"12:00",timeZone:"SGT",status:"upcoming",maps:[{map:"de_nuke",leftScore:8,rightScore:7}]}'
-    )
-    .join(',');
+  const rows = agenda.games.map((g) => ({
+    leftTeamKey: 'heroic', rightTeamKey: 'imperial_esports', leftScore: 0, rightScore: 0,
+    format: 'BO' + g.bo, date: '24.11.2026', round: g.round === 1 ? 'opening round' : 'round ' + g.round,
+    time: '12:00', timeZone: 'SGT', status: 'upcoming', maps: [{map: 'de_nuke', leftScore: 8, rightScore: 7}],
+  }));
   const live = parseSchedule(rows)[0];
   assert.equal(live.status, 'live');
   assert.deepEqual(live.map, { name: 'nuke', score: [8, 7] });

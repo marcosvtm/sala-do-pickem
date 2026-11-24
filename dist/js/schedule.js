@@ -18,8 +18,8 @@ const el = (tag, cls, value) => {
 };
 export function currentGames(games) {
   const pending = games.filter((g) => g.status !== 'end');
-  const round = Math.min(...pending.map((g) => g.round));
-  return pending
+  const round = pending.length ? Math.min(...pending.map((g) => g.round)) : Math.max(...games.map((g) => g.round));
+  return games
     .filter((g) => g.round === round || g.status === 'live')
     .sort(
       (a, b) =>
@@ -49,7 +49,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
     signature,
     busy = false,
     confirmedLocks,
-    latestGames;
+    latestGames, lastChecked;
   function apply(locks) {
     if (
       !Array.isArray(locks) ||
@@ -68,17 +68,18 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
   } catch {}
   function paint(games, stale, checked) {
     latestGames = games;
+    lastChecked = checked;
     onSchedule?.({ games, stale, base, locks: confirmedLocks });
     const rows = currentGames(games),
       sig = JSON.stringify([rows, stale, Boolean(base)]);
     $('agendaStatus').textContent =
-      (rows.length
+      (rows.some((g) => g.status !== 'end')
         ? 'Rodada ' + Math.min(...rows.map((g) => g.round)) + ' · '
         : 'Stage 1 encerrado · ') +
       'Horários de Cuiabá' +
       (stale
         ? ' · Agenda da última leitura disponível'
-        : ' · Consulta a cada minuto') +
+        : ' · Consulta a cada 30 s') +
       (checked
         ? ' · PGL ' + day.format(checked) + ' às ' + time.format(checked)
         : ' · Programação publicada');
@@ -92,7 +93,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
         el(
           'b',
           live ? 'live' : '',
-          live ? (stale ? 'Em jogo*' : 'Ao vivo') : time.format(g.at)
+          live ? (stale ? 'Última leitura' : 'Ao vivo') : g.status === 'end' ? 'Encerrado' : time.format(g.at)
         ),
         el('small', '', day.format(g.at))
       );
@@ -112,8 +113,10 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
         }
       const info = el('div', 'scheduled-info');
       info.append(names);
-      const score =
-        live && g.map ? ' · ' + g.map.name + ' ' + g.map.score.join('–') : '';
+      let score = g.map ? ' · ' + g.map.name[0].toUpperCase() + g.map.name.slice(1) : '';
+      if (g.map?.score) score += ' ' + g.map.score.join('–');
+      else if (live) score += ' · Aguardando placar';
+      if (g.map?.reportedAt) score += ' · DRAFT5 ' + time.format(g.map.reportedAt);
       info.append(
         el(
           'small',
@@ -122,17 +125,18 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
             g.round +
             ' · MD' +
             g.bo +
-            (live && g.bo > 1 && g.series
+            (g.series && (g.bo > 1 || (g.status === 'end' && !g.map?.score))
               ? ' · Mapas ' + g.series.join('–')
               : '') +
             score
         )
       );
       row.append(timing, info);
-      if (base) {
+      const href = matchLink(g, base);
+      if (href) {
         const slot = g.slot;
         const link = el('a', 'match-link', 'HLTV');
-        link.href = matchLink(g, base);
+        link.href = href;
         link.setAttribute(
           'aria-label',
           'Partida ' + slot + ' da rodada ' + g.round + ' na HLTV'
@@ -174,15 +178,9 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
       paint(data.schedule, stale, data.scheduleChecked);
       $('feedStatus').textContent = data.stale
         ? 'PGL temporariamente indisponível. Exibindo os últimos resultados confirmados.'
-        : 'Fonte: PGL · Resultados oficiais atualizados a cada minuto.';
+        : 'Fonte: PGL · Consulta a cada 30 s.';
     } catch {
-      if (latestGames)
-        onSchedule?.({
-          games: latestGames,
-          stale: true,
-          base,
-          locks: confirmedLocks,
-        });
+      if (latestGames) paint(latestGames, true, lastChecked);
       $('agendaStatus').textContent =
         'PGL indisponível. Exibindo a última agenda recebida · Horários de Cuiabá.';
       $('feedStatus').textContent =
@@ -194,7 +192,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
   await poll();
   setInterval(() => {
     if (!document.hidden) poll();
-  }, 60000);
+  }, 30000);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) poll();
   });

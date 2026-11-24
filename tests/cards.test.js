@@ -175,25 +175,17 @@ function fixture(lockCount) {
       const key = (i) => stage.teams[i].logo.split('.')[0];
       const a = g ? key(g.a) : '',
         b = g ? key(g.b) : '';
-      rows.push(
-        '{leftTeam:"A",leftTeamKey:"' +
-          a +
-          '",rightTeamKey:"' +
-          b +
-          '",leftScore:' +
-          (done ? Math.ceil(g.bo / 2) : 0) +
-          ',rightScore:0,format:"BO' +
-          (g?.bo || 1) +
-          '",date:"24.11.2026",round:"' +
-          (r === 0 ? 'opening round m1' : 'round ' + (r + 1)) +
-          '",status:"' +
-          (done ? 'end' : 'upcoming') +
-          '",maps:[]}'
-      );
+      rows.push({
+        leftTeamKey: a, rightTeamKey: b,
+        leftScore: done ? Math.ceil(g.bo / 2) : 0, rightScore: 0,
+        format: 'BO' + (g?.bo || 1), date: '24.11.2026', time: '12:00',
+        timeZone: 'SGT', round: r === 0 ? 'opening round m1' : 'round ' + (r + 1),
+        status: done ? 'end' : 'upcoming', maps: [],
+      });
       if (done) locks[g.match] = 0;
     }
   }
-  return rows.join(',');
+  return rows;
 }
 test('PGL stages map by opponent, retain pending games and settle every pick at completion', () => {
   assert.equal(parsePgl(fixture(8)).filter((x) => x >= 0).length, 8);
@@ -219,12 +211,10 @@ test('PGL stages map by opponent, retain pending games and settle every pick at 
 });
 test('feed retains verified results during a source outage and marks them stale', async () => {
   const db = openDb();
-  const fetcher = async (url) =>
-    new Response(
-      String(url).endsWith('.js')
-        ? fixture(8)
-        : '<script src="/_next/static/chunks/app/cs2/pgl-major-singapore-2026/page-123.js"></script>'
-    );
+  const fetcher = async (url) => {
+    assert.equal(url, 'https://news.pglesports.com/api/groupStageEndpoint?stage=1');
+    return Response.json(fixture(8));
+  };
   const first = await liveResults(db, START + 2000, fetcher);
   assert.equal(first.locks.filter((x) => x >= 0).length, 8);
   const later = await liveResults(db, START + 64000, async () => {

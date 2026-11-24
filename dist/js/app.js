@@ -182,7 +182,7 @@ async function init() {
   );
   renderCard();
   renderSettings();
-  const official = bindBracket(
+  const bracket = bindBracket(
     stage.teams,
     () => state.locks,
     () => {
@@ -190,7 +190,10 @@ async function init() {
       invalidate();
     }
   );
-  bindFeed(stage, official, editor.setSchedule);
+  bindFeed(stage, bracket.setOfficial, (feed) => {
+    bracket.setSchedule(feed);
+    editor.setSchedule(feed);
+  });
   runHint();
   start('preview');
 }
