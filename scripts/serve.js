@@ -13,6 +13,7 @@ const types = {
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
+  '.png': 'image/png',
 };
 const port = Number(process.env.PORT || 4173);
 await mkdir(new URL('../.local/', import.meta.url), { recursive: true });
