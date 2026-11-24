@@ -51,6 +51,11 @@ test('live state follows the named opponents and swaps sides before round 13 eve
   const html = (frame) => '<script>self.__next_f.push(' +
     JSON.stringify([1, '20:' + JSON.stringify(['$', 'main', { initialState: frame }]) + '\n']) + ')</script>';
   assert.deepEqual(publicLiveState(html(state), id), state);
+  const record = '22:' + JSON.stringify(['$', 'main', { initialState: state }]) + '\n';
+  const cut = record.indexOf('cs2_live_state') + 3;
+  const split = [record.slice(0, cut), record.slice(cut)].map((part) =>
+    '<script>self.__next_f.push(' + JSON.stringify([1, part]) + ')</script>').join('');
+  assert.deepEqual(publicLiveState(split, id), state);
   assert.equal(publicLiveState(html(state), 'cs2-match-other'), null);
   assert.equal(currentCT({ ...game, map: { score: [5, 6], startingCT: 0 } }), 0);
   for (const frame of [state, { ...state, currentRound: 13, ctTeam: 'team2', tTeam: 'team1' }]) {
@@ -62,7 +67,7 @@ test('live state follows the named opponents and swaps sides before round 13 eve
   }
   assert.equal(mapSnapshot(state, { ...game, b: 6 }, resolve, now), null);
   assert.equal(mapSnapshot({ ...state, currentMap: 'de_nuke' }, game, resolve, now), null);
-  assert.equal(mapSnapshot(state, game, resolve, now + 181000), null);
+  assert.deepEqual(mapSnapshot(state, game, resolve, now + 181000), { name: 'mirage', startingCT: 0 });
   const live = { ...state, currentRound: 14, ctTeam: 'team2', tTeam: 'team1', score: { team1: 6, team2: 7 } };
   const reader = (frame) => async (url) => url.startsWith('https://cito.gg/')
     ? new Response(html(frame)) : new Response('', { status: 503 });
@@ -74,8 +79,34 @@ test('live state follows the named opponents and swaps sides before round 13 eve
   const next = structuredClone(game);
   await addRoundScores([next], [fresh], reader(state), now);
   assert.deepEqual(next.map.score, [6, 7]);
+  const newerPgl = { ...game, map: { name: 'mirage', score: [8, 7] } };
+  await addRoundScores([newerPgl], [], reader(state), now + 181000);
+  assert.deepEqual(newerPgl.map, { name: 'mirage', score: [8, 7], startingCT: 0 });
+  const secondMap = { ...game, bo: 3, map: null, series: [1, 0], completedMaps: ['mirage'] };
+  await addRoundScores([secondMap], [{ ...fresh, bo: 3 }], reader(state), now);
+  assert.equal(secondMap.map, null);
+  await addRoundScores([secondMap], [], reader({ ...live, currentMap: 'de_nuke', currentRound: 1,
+    score: { team1: 0, team2: 0 }, ctTeam: 'team2', tTeam: 'team1' }), now);
+  assert.equal(secondMap.map.name, 'nuke');
+  assert.equal(currentCT(secondMap), 8);
 });
 
+test('round evidence identifies the defense on either side and keeps colors through MR12 and repeated MR3', async () => {
+  const game = { round: 1, slot: 5, status: 'live', bo: 1, a: 12, b: 4, map: { name: 'nuke', score: [0, 3] } };
+  const previous = [{ ...structuredClone(game), coverage: { id: 'fixture', reversed: true } }];
+  const pistol = { map: { name: 'de_nuke' }, scoreA: 1, scoreB: 0, eventDate: 100,
+    description: 'GOSH tenta entrada rápida no bombsite da A e é totalmente neutralizada pela defesa da Liquid!' };
+  const feed = async () => Response.json({ data: [pistol] });
+  await addRoundScores([game], previous, feed);
+  assert.equal(game.map.startingCT, 4);
+  for (const [score, expectedCT] of [
+    [[0, 3], 4], [[4, 8], 12], [[12, 12], 12], [[13, 14], 4], [[15, 15], 4], [[16, 17], 12],
+  ]) assert.equal(currentCT({ ...game, map: { ...game.map, score } }), expectedCT);
+  const neutral = { ...game, map: { name: 'nuke', score: [0, 3] } };
+  await addRoundScores([neutral], previous, async () => Response.json({ data: [{ ...pistol,
+    description: 'Liquid vence o round.' }] }));
+  assert.equal(currentCT(neutral), null);
+});
 test('finished best-of-ones show rounds even in overtime and finished best-of-threes show series wins', () => {
   const ended = { status: 'end', bo: 1, map: { name: 'mirage', score: [14, 16] }, series: [0, 1] };
   assert.deepEqual(agendaScore(ended), [14, 16]);

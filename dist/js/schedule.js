@@ -48,23 +48,33 @@ export function matchLink(game, base) {
     ROUND_START[game.round - 1] + (opening?.slot ?? game.slot) - 1
   ];
 }
+// The same calculation recovers the opening CT from the CT observed in a given round.
+export function ctAtRound(a, b, startingCT, round) {
+  if ((startingCT !== a && startingCT !== b) || startingCT == null ||
+      !Number.isInteger(round) || round < 1) return null;
+  // MR3 keeps the previous side when an overtime starts and swaps after its third round.
+  const overtimePhase = (round - 25) % 12;
+  const openingSides = round <= 12 || (round >= 25 && overtimePhase >= 3 && overtimePhase < 9);
+  return openingSides ? startingCT : (startingCT === a ? b : a);
+}
 export function currentCT(game) {
   const map = game.map;
   if (!map?.score) return null;
   const rounds = map.score[0] + map.score[1];
-  const teams = [game.a, game.b];
-  if (rounds < 24 && Math.max(...map.score) < 13 && teams.includes(map.startingCT))
-    return rounds < 12 ? map.startingCT : teams.find((id) => id !== map.startingCT);
-  return map.sideRound === rounds + 1 && teams.includes(map.currentCT) ? map.currentCT : null;
+  const low = Math.min(...map.score);
+  const target = low < 12 ? 13 : 16 + 3 * Math.floor((low - 12) / 3);
+  const round = Math.max(...map.score) >= target ? rounds : rounds + 1;
+  if (map.sideRound === round && [game.a, game.b].includes(map.currentCT)) return map.currentCT;
+  return ctAtRound(game.a, game.b, map.startingCT, round);
 }
 export function agendaScore(game) {
   if (game.status === 'live') return game.map?.score ?? null;
   if (game.status !== 'end') return null;
   return game.bo === 1 ? game.map?.score ?? game.series : game.series;
 }
-function inlineBoard(game, teams, score, stale) {
+function inlineBoard(game, teams, score) {
   const final = game.status === 'end';
-  const ct = !final && !stale ? currentCT(game) : null;
+  const ct = final ? null : currentCT(game);
   const board = el('strong', 'live-map-score');
   const labels = [game.a, game.b].map((id, i) => {
     const side = ct != null ? (id === ct ? 'CT' : 'TR') : '';
@@ -142,7 +152,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
         names.append(el('strong', '', 'Adversários a definir'));
       else
         for (const [i, id] of [g.a, g.b].entries()) {
-          if (i) names.append(inlineScore ? inlineBoard(g, stage.teams, inlineScore, stale) : el('small', '', '×'));
+          if (i) names.append(inlineScore ? inlineBoard(g, stage.teams, inlineScore) : el('small', '', '×'));
           const lost = g.status === 'end' && inlineScore && inlineScore[i] < inlineScore[1 - i];
           const team = stage.teams[id],
             span = el('span', lost ? 'losing-team' : '', team.name),
@@ -161,6 +171,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
         score += ' · ' + (delayedScore(g) ? 'Último placar disponível · ' : '') +
           (g.map.source ?? (reported ? 'DRAFT5' : 'PGL'));
         if (reported) score += ' ' + scoreTime.format(reported);
+        if (currentCT(g) == null) score += ' · Aguardando lados CT/TR';
       }
       info.append(
         el(

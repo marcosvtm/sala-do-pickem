@@ -2,6 +2,13 @@ import stage from '../dist/data/stage.json' with { type: 'json' };
 import { ROUND_SIZES } from '../dist/js/swiss.js';
 
 const teamIndex = new Map(stage.teams.map((t, i) => [t.logo.split('.')[0], i]));
+export function isCurrentMap(game, name) {
+  if (game.map?.name) return game.map.name === name;
+  if (game.bo === 1) return true;
+  const completed = game.completedMaps ?? [];
+  return game.bo === 3 && game.series && completed.length === game.series[0] + game.series[1] &&
+    !completed.includes(name);
+}
 export function* stageRows(source) {
   if (!Array.isArray(source)) throw Error('Agenda inválida');
   for (const row of source) {
@@ -52,6 +59,10 @@ export function parseSchedule(source) {
       b,
       bo: Number(row.format.slice(2)),
       status,
+      ...(status === 'live' && row.format === 'BO3' ? {
+        completedMaps: maps.slice(0, sa + sb).map((m) => m.map)
+          .filter((name) => /^de_[a-z0-9_]+$/i.test(name)).map((name) => name.slice(3)),
+      } : {}),
       ...(status !== 'upcoming'
         ? {
             series:
