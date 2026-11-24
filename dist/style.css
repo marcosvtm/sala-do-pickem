@@ -2231,8 +2231,28 @@ nav a {
 .models-hero .kicker,
 .matches-hero .kicker { text-transform: uppercase; }
 .models-hero p { max-width: 44ch; }
-.models-hero { background-color: #0c1717; }
+.models-hero { background-color: #0a1715; }
 .models-hero .hero-art { object-fit: contain; object-position: right center; }
+.mirage-radar {
+  position: absolute;
+  inset: 3% 9% auto auto;
+  width: 46%;
+  height: 94%;
+  pointer-events: none;
+}
+.mirage-radar text {
+  font-family: inherit;
+  font-weight: 760;
+  fill: #e8f2ec;
+  paint-order: stroke fill;
+  stroke: #101c1a;
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+.mirage-radar .map-name { font-size: 33px; letter-spacing: .12em; }
+.mirage-radar .callout { font-size: 32px; }
+.mirage-radar .ct { color: #5adeff; }
+.mirage-radar .tr { color: #ffb24f; }
 .matches-hero h1 { margin-bottom: 18px; }
 .phase-picker {
   --phases: 4;
@@ -2334,7 +2354,14 @@ nav a {
   .wall .hero .hero-copy, .matches-hero .hero-copy {
     padding-top: clamp(105px, 37.5vw, 185px);
   }
-  .models-hero .hero-art { object-fit: cover; object-position: 75% center; }
+  .models-hero .hero-art { object-fit: cover; object-position: 92% center; }
+  .models-hero .mirage-radar {
+    inset: 4px 0 auto;
+    width: 100%;
+    height: clamp(165px, 47vw, 215px);
+  }
+  .models-hero .hero-copy { padding-top: clamp(173px, 49vw, 226px); }
+  .mirage-radar .callout, .mirage-radar .map-name { font-size: 43px; }
   .hero-home .hero-art { object-position: 72% 20%; }
   .hero-home .deadline { margin-inline-start: clamp(10px, 3.5vw, 22px); }
 }
