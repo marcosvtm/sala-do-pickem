@@ -1638,6 +1638,8 @@ nav a {
   z-index: 5;
 }
 .bracket-panel {
+  --official-fill: #1c433e;
+  --official-accent: #67dac5;
   padding: 20px;
 }
 .legend {
@@ -1663,7 +1665,9 @@ nav a {
   background: var(--acid);
 }
 .legend span:nth-child(4):before {
-  background: #67dac5;
+  box-sizing: border-box;
+  background: var(--official-fill);
+  border-bottom: 3px solid var(--official-accent);
 }
 .bracket-scroll {
   container-type: inline-size;
@@ -1744,7 +1748,7 @@ nav a {
   filter: brightness(0) invert(0.94);
 }
 .team-side[aria-pressed='true'] {
-  background: #344043;
+  background: #2b3438;
   color: #f4f8f3;
 }
 .preview [aria-pressed='true'] {
@@ -1756,8 +1760,17 @@ nav a {
   color: var(--acid);
 }
 .official [aria-pressed='true'] {
-  background: #1c433e;
-  color: #a7f4de;
+  position: relative;
+  background: var(--official-fill);
+}
+.official [aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  border-bottom: 3px solid var(--official-accent);
+}
+.official .fixture-status {
+  color: var(--official-accent);
 }
 .fixture-clock,
 .fixture-status,
