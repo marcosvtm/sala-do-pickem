@@ -227,6 +227,7 @@ export function bindPages(stage, apply, onModels) {
       e.altKey ||
       link.origin !== location.origin ||
       !['/', '/partidas', '/modelos'].includes(link.pathname) ||
+      (link.pathname === '/') !== (location.pathname === '/') ||
       link.search ||
       link.hash
     )

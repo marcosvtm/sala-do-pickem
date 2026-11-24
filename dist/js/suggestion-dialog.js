@@ -1,4 +1,3 @@
-const $ = (id) => document.getElementById(id);
 const pct = new Intl.NumberFormat('pt-BR', {
   style: 'percent',
   minimumFractionDigits: 1,
@@ -61,7 +60,7 @@ function comparison(teams, original, suggestion) {
   return table;
 }
 
-export function bindSuggestions(teams, current, name, apply) {
+export function bindSuggestions(teams, current, name, apply, $ = id => document.getElementById(id)) {
   const dialog = $('suggestion');
   let worker,
     original,

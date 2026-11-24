@@ -6,11 +6,11 @@ import { editKey, prepareEditKey, readReceipt } from './card-access.js';
 
 export { readReceipt } from './card-access.js';
 
-export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline) {
-  const form = document.querySelector('#saveCard'),
+export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline, $ = id => document.getElementById(id)) {
+  const form = $('saveCard'),
     input = form.elements.nick;
-  const submit = document.querySelector('#saveButton'),
-    message = document.querySelector('#saveMessage');
+  const submit = $('saveButton'),
+    message = $('saveMessage');
   const key = 'public-card:' + stage.id;
   form.querySelector('a').href = phasePath('/ranking', stage.id);
   let token = crypto.randomUUID(),
@@ -29,13 +29,13 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     input.value = receipt.nick || '';
     saved = receipt.saved;
   }
-  const share = document.querySelector('#savedShare');
-  const timerText = document.querySelector('#countdown');
-  const closedLock = document.querySelector('#closedLock');
-  const closeLabel = document.querySelector('#closingTime');
-  const dialog = document.querySelector('#confirmCard');
-  const confirm = document.querySelector('#confirmSave');
-  const existing = document.querySelector('#existingCard');
+  const share = $('savedShare');
+  const timerText = $('countdown');
+  const closedLock = $('closedLock');
+  const closeLabel = $('closingTime');
+  const dialog = $('confirmCard');
+  const confirm = $('confirmSave');
+  const existing = $('existingCard');
   let confirmedChoice = null, writesPaused = false;
   document.addEventListener('phase-card-writes', ({ detail }) => {
     if (detail.id === stage.id && writesPaused !== Boolean(detail.writesPaused)) {
@@ -49,7 +49,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     delete existing.dataset.card;
     feedback('');
     refresh();
-  });
+  }, $);
   const dateOptions = { timeZone: 'America/Cuiaba' };
   const closeDay = new Intl.DateTimeFormat('pt-BR', { ...dateOptions, day: '2-digit', month: '2-digit' });
   const closeHour = new Intl.DateTimeFormat('pt-BR', { ...dateOptions, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
@@ -136,7 +136,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     }
     const draft = current();
     const available = modelAvailable(stage.teams, draft.model, draft);
-    document.querySelector('#saveModelUnavailable').hidden = available || closed;
+    $('saveModelUnavailable').hidden = available || closed;
     submit.disabled =
       writesPaused ||
       Boolean(saved) ||
@@ -154,8 +154,8 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
           ? 'Salvar alterações'
           : 'Salvar cartão';
     picker.setDisabled(Boolean(saved) || pending || closed);
-    document.querySelector('#anotherNick').hidden = !saved || remaining <= 0;
-    document.querySelector('#saveDeadline').textContent =
+    $('anotherNick').hidden = !saved || remaining <= 0;
+    $('saveDeadline').textContent =
       (remaining <= 0 ? 'Salvamento encerrado em ' : 'Prazo: ') +
       new Intl.DateTimeFormat('pt-BR', {
         dateStyle: 'short',
@@ -171,7 +171,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     remember();
     refresh();
   };
-  document.querySelector('#anotherNick').onclick = () => {
+  $('anotherNick').onclick = () => {
     saved = null;
     token = crypto.randomUUID();
     participantId = null;
@@ -188,17 +188,17 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     const choice = picker.choice();
     if (!choice?.nick) return;
     confirmedChoice = { ...choice };
-    document.querySelector('#confirmNick').textContent = "Deseja realmente Salvar como '" + choice.nick + "'?";
+    $('confirmNick').textContent = "Deseja realmente Salvar como '" + choice.nick + "'?";
     confirm.textContent = 'Sim, salvar como ' + choice.nick;
     dialog.showModal();
-    document.querySelector('#correctNick').focus();
+    $('correctNick').focus();
   });
   dialog.addEventListener('close', () => {
     confirmedChoice = null;
     if (dialog.returnValue === 'correct' && !wasClosed) picker.choose();
     dialog.returnValue = '';
   });
-  document.querySelector('#correctNick').onclick = () => dialog.close('correct');
+  $('correctNick').onclick = () => dialog.close('correct');
   confirm.onclick = async () => {
     if (!dialog.open || !confirmedChoice || pending) return;
     const { nick, id: selectedId } = confirmedChoice;

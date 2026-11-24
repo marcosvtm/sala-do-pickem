@@ -22,8 +22,7 @@ export function rememberParticipant(id) {
   try { localStorage.setItem(currentPerson, id); } catch {}
 }
 
-export function bindParticipantChoice(stage, editing, receipt, onChange) {
-  const $ = id => document.getElementById(id);
+export function bindParticipantChoice(stage, editing, receipt, onChange, $ = id => document.getElementById(id)) {
   const select = $('participantChoice'), input = $('nick'), retry = $('reloadParticipants');
   let people = [], ready = false, busy = false, disabled = false, compact = false;
   if (editing) input.value = editing.nick;

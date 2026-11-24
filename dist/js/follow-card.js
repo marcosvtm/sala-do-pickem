@@ -3,13 +3,13 @@ import { validate } from './state.js';
 
 // A followed card is a public simulation input. Keep this preference separate
 // from the receipt and the edit key on the device where the card was submitted.
-export function bindFollowCard(stage, readReceipt, onSelect) {
-  const select = document.getElementById('followNick');
-  const status = document.getElementById('followStatus');
-  const retry = document.getElementById('retryFollow');
+export function bindFollowCard(stage, readReceipt, onSelect, $ = id => document.getElementById(id), entry = new URL(location.href)) {
+  const select = $('followNick');
+  const status = $('followStatus');
+  const retry = $('retryFollow');
   const key = 'follow-card:' + stage.id;
   let generation = 0, listReady = false;
-  let shared = new URLSearchParams(location.search).get('simular');
+  let shared = entry.searchParams.get('simular');
   let preferred;
   try { preferred = localStorage.getItem(key); } catch {}
 
@@ -55,7 +55,8 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
         select.value = id;
         await loadCard(id);
         if (shared && select.value === id && !status.textContent) {
-          const result = document.getElementById('resultado');
+          const result = $('resultado');
+          if (!result.isConnected) return;
           result.focus({ preventScroll: true });
           result.scrollIntoView({ block: 'start' });
         }

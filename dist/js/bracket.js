@@ -83,6 +83,23 @@ const labels = {
   locked: 'Fixado',
   official: 'Oficial',
 };
+export function bindOfficialLocks(getLocks, onChange, paint) {
+  let official = Array(33).fill(-1);
+  function setOfficial(results) {
+    official = results;
+    const locks = getLocks();
+    const merged = mergeOfficial(locks, results);
+    if (merged.some((side, i) => side !== locks[i])) {
+      locks.splice(0, locks.length, ...merged);
+      onChange();
+    }
+    const verified = results.filter(side => side >= 0).length;
+    const fixed = locks.filter(side => side >= 0).length - verified;
+    paint(verified + ' oficiais · ' + fixed + ' fixados', results);
+  }
+  return { setOfficial, syncScenario: () => setOfficial(official) };
+}
+
 export function bindBracket(teams, getLocks, onChange) {
   const grid = document.getElementById('matches');
   const scroll = grid.parentElement;
@@ -278,17 +295,10 @@ export function bindBracket(teams, getLocks, onChange) {
     draw();
   };
   draw();
-  function setOfficial(results) {
-    const locks = getLocks(),
-      merged = mergeOfficial(locks, results);
+  const { setOfficial } = bindOfficialLocks(getLocks, onChange, (_count, results) => {
     official = results;
-    const changed = merged.some((v, i) => v !== locks[i]);
-    if (changed) {
-      locks.splice(0, 33, ...merged);
-      onChange();
-    }
     draw();
-  }
+  });
   function syncScenario() {
     previews.clear();
     previousTap = null;

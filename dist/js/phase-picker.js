@@ -20,9 +20,9 @@ export async function readStageCatalog() {
   return null;
 }
 
-export function bindPhasePickers(selected, initialCatalog) {
+export function bindPhasePickers(selected, initialCatalog, pickers = document.querySelectorAll('.phase-picker')) {
   const tabs = [];
-  for (const nav of document.querySelectorAll('.phase-picker')) {
+  for (const nav of pickers) {
     const path = nav.dataset.destination;
     if (path === '/ranking') {
       const general = document.createElement('a');
@@ -84,4 +84,14 @@ export function bindPhasePickers(selected, initialCatalog) {
   render(Boolean(catalog));
   setInterval(refresh, 15000);
   document.addEventListener('visibilitychange', refresh);
+  return {
+    select(phase) {
+      selected = phase;
+      for (const item of tabs) {
+        if (item.phase === phase) item.tab.setAttribute('aria-current', 'page');
+        else item.tab.removeAttribute('aria-current');
+      }
+    },
+    info: phase => catalog?.stages.find(stage => stage.id === phase.id),
+  };
 }

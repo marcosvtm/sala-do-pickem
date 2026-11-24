@@ -2347,5 +2347,8 @@ nav a {
 }
 .phase-preview, .phase-agenda { margin-block: 18px; }
 .phase-agenda select { width: auto; margin: 0 0 10px; }
+.swiss-agenda .agenda-toolbar { margin-top: 12px; }
+.swiss-agenda .agenda-round { margin-left: auto; }
+.swiss-agenda .agenda-round select { margin-bottom: 0; }
 .phase-timeslot { display: flex; align-items: center; gap: 22px; padding: 8px 0; border-top: 1px solid var(--line); }
 .phase-timeslot span { color: var(--muted); }

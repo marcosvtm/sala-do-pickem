@@ -3,7 +3,6 @@ import { ROUND_START } from './swiss.js';
 import { hltvMatchLink } from './hltv-link.js';
 export const SCORE_POLL_MS = 15000;
 export const SCHEDULE_FRESH_MS = 180000;
-const $ = (id) => document.getElementById(id);
 const time = new Intl.DateTimeFormat('pt-BR', {
   hour: '2-digit',
   minute: '2-digit',
@@ -281,7 +280,7 @@ export function renderGame(game, games, teams, base, stale, expanded, prefix = '
   }
   return row;
 }
-export async function bindFeed(stage, applyOfficial, onSchedule) {
+export async function bindFeed(stage, applyOfficial, onSchedule, $ = id => document.getElementById(id), isActive = () => true, prefix = '') {
   const localKey = 'official:' + stage.id;
   let lastOfficial,
     base,
@@ -335,9 +334,9 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
       return rect.bottom > 0 && rect.top < window.innerHeight && (node.matches(':focus-within') || node.querySelector('[aria-expanded="true"]'));
     });
     const offset = anchor?.getBoundingClientRect().top;
-    const view = rows.map((game) => renderGame(game, games, stage.teams, base, stale, expanded));
+    const view = rows.map((game) => renderGame(game, games, stage.teams, base, stale, expanded, prefix));
     list.replaceChildren(...view);
-    if (focusId) $(focusId)?.focus({ preventScroll: true });
+    if (focusId) list.querySelector('#' + CSS.escape(focusId))?.focus({ preventScroll: true });
     const updated = anchor && view.find((node) => node.dataset.series === anchor.dataset.series);
     if (updated) window.scrollBy(0, updated.getBoundingClientRect().top - offset);
   }
@@ -373,14 +372,16 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
       const stale =
         !data.scheduleChecked || Date.now() - data.scheduleChecked > SCHEDULE_FRESH_MS;
       paint(data.schedule, stale, data.scheduleChecked);
-      $('feedStatus').textContent = data.stale
+      const feedStatus = $('feedStatus');
+      if (feedStatus) feedStatus.textContent = data.stale
         ? 'PGL temporariamente indisponível. Exibindo os últimos resultados confirmados.'
         : 'Fonte: PGL · Consulta a cada 15 s.';
     } catch {
       if (latestGames) paint(latestGames, true, lastChecked);
       $('agendaStatus').textContent =
         'PGL indisponível. Exibindo a última agenda recebida · Horários de Cuiabá.';
-      $('feedStatus').textContent =
+      const feedStatus = $('feedStatus');
+      if (feedStatus) feedStatus.textContent =
         'PGL indisponível. Exibindo os últimos resultados recebidos.';
     } finally {
       busy = false;
@@ -388,9 +389,10 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
   }
   await poll();
   setInterval(() => {
-    if (!document.hidden) poll();
+    if (!document.hidden && isActive()) poll();
   }, SCORE_POLL_MS);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) poll();
+    if (!document.hidden && isActive()) poll();
   });
+  return poll;
 }

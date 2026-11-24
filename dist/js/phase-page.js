@@ -6,14 +6,19 @@ const $ = id => document.getElementById(id);
 const url = new URL(location.href);
 const path = url.pathname.replace(/\/$/, '') || '/';
 const home = path === '/';
-const formatTime = ms => new Intl.DateTimeFormat('pt-BR', {
-  timeZone: 'America/Cuiaba', day: '2-digit', month: '2-digit', hour: '2-digit',
-  minute: '2-digit', hourCycle: 'h23',
-}).format(ms);
 
 async function start() {
   const catalog = await readStageCatalog();
   const phase = selectedPhase(url, catalog?.defaultStage);
+  if (home && ['#jogos', '#modelos'].includes(url.hash)) {
+    location.replace((url.hash === '#jogos' ? '/partidas' : '/modelos') + url.search);
+    return;
+  }
+  if (home) {
+    const { bindHomePhases } = await import('./home-phases.js');
+    bindHomePhases(phase, catalog);
+    return;
+  }
   const info = catalog?.stages.find(s => s.id === phase.id);
   const first = phase === majorPhases[0];
   const second = phase === majorPhases[1];
@@ -59,7 +64,7 @@ async function start() {
     for (const section of document.querySelectorAll('[data-page]')) {
       section.hidden = true;
     }
-    document.title = (home ? "Pick'em dos Broxinhas" : path === '/modelos' ? 'Modelos' : 'Partidas') +
+    document.title = (path === '/modelos' ? 'Modelos' : 'Partidas') +
       ' · ' + phase.name;
     for (const a of document.querySelectorAll('header a'))
       if (a.pathname === path) a.setAttribute('aria-current', 'page');
@@ -67,18 +72,7 @@ async function start() {
     panel.hidden = false;
     const title = $('phasePreviewTitle'), text = $('phasePreviewText');
     const swiss = phase.format === 'swiss';
-    if (home) {
-      const hero = document.querySelector('.hero-home');
-      hero.hidden = false;
-      hero.querySelector('.deadline').hidden = true;
-      title.textContent = (swiss ? 'Cartão do ' : 'Chave dos ') + phase.name;
-      text.textContent = second
-        ? 'Oito convidados aguardam os oito classificados do Stage 1. Os picks e a simulação abrem com as equipes e os confrontos confirmados.'
-        : swiss ? 'Os dez picks e a simulação estarão disponíveis quando as equipes forem confirmadas.'
-          : 'Você escolherá os vencedores das quatro quartas de final, das duas semifinais e da final.';
-      if (info?.closesAt) text.append(' Prazo previsto para salvar: ' + formatTime(info.closesAt) + ' (UTC−4).');
-      agendas.hidden = false;
-    } else if (path === '/modelos') {
+    if (path === '/modelos') {
       const hero = document.querySelector('.models-hero');
       hero.hidden = false;
       hero.after(panel);
@@ -102,19 +96,6 @@ async function start() {
       for (const previous of majorPhases.slice(0, majorPhases.indexOf(phase)).reverse()) {
         agendas.append(phaseAgenda(previous, { completed: isComplete(previous) }));
       }
-    }
-    if (home && second) {
-      try {
-        $('majorMain').hidden = false;
-        const r = await fetch('/api/stage?stage=' + phase.id, { signal: AbortSignal.timeout(5000) });
-        if (r.ok) {
-          const detail = await r.json();
-          if (detail.invitedTeams?.length) {
-            $('phaseInvites').textContent = 'Convidados: ' + detail.invitedTeams.map(t => t.name).join(' · ');
-            $('phaseInvites').hidden = false;
-          }
-        }
-      } catch { /* The published schedule is available separately. */ }
     }
   }
 }
