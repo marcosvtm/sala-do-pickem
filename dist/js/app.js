@@ -11,6 +11,7 @@ import { bindModelSaving } from './save-model.js';
 import { wilson } from './simulation.js';
 import { bindSaving, readReceipt } from './save-card.js';
 import { bindFollowCard } from './follow-card.js';
+import { bindPreviousModels } from './previous-models.js';
 import { editKey } from './card-access.js';
 
 const $ = (id) => document.getElementById(id);
@@ -38,7 +39,7 @@ let owner,
   refreshSaving,
   refreshSuggestion;
 let sharedSimulation = new URLSearchParams(location.search).has('simular');
-let picksClosed = false, followedCard, localDraft;
+let picksClosed = false, followedCard, localDraft, bracket;
 const needsCard = () => (picksClosed && !followedCard) || state.card.includes(-1);
 function personalNick() {
   if (!followedCard) return publishedName || owner;
@@ -53,6 +54,8 @@ export async function startSwissEdition(edition) {
   if (stage.id !== edition.id) throw Error('O elenco não pertence à fase.');
   stage.scheduleUrl = edition.scheduleUrl;
   state = newDraft(stage.id);
+  if (!modelAvailable(stage.teams, 'study', state)) state.weights.study = 0;
+  $('bracketResultLink').href = phasePath('/#resultado', stage.id);
   const receipt = readReceipt(stage);
   const editId = new URLSearchParams(location.search).get('editar');
   if (editId) {
@@ -151,7 +154,7 @@ export async function startSwissEdition(edition) {
     }
   );
   const community = bindCommunityModels(stage);
-  bindPages(stage, (settings) => {
+  function applyPersonalSettings(settings) {
     delete state.weights;
     delete state.base;
     delete state.weight;
@@ -163,13 +166,15 @@ export async function startSwissEdition(edition) {
     renderSettings();
     refreshNames();
     invalidate();
-  }, community.show);
+  }
+  bindPages(stage, applyPersonalSettings, community.show);
+  bindPreviousModels(stage, applyPersonalSettings);
   const follow = bindFollowCard(stage, () => readReceipt(stage), (card, resume, temporary) => {
     if (temporary !== undefined) sharedSimulation = temporary;
     if (!card && !followedCard) return;
-    const locks = state.locks;
     if (!followedCard) localDraft = state;
     followedCard = card;
+    $('restorePublished').hidden = !card;
     $('jumpSimulation').hidden = !card;
     if (card) {
       let working;
@@ -178,13 +183,23 @@ export async function startSwissEdition(edition) {
       }
       const settings = validate(working, { stageId: stage.id }) && working.card.every((team, i) => team === card.settings.card[i])
         ? working : structuredClone(card.settings);
-      state = { ...settings, card: [...card.settings.card], locks, formVersion: settings.formVersion ?? 1 };
-    } else state = { ...localDraft, locks };
+      state = { ...settings, card: [...card.settings.card], formVersion: settings.formVersion ?? 1 };
+    } else state = localDraft;
+    bracket?.syncScenario();
     renderCard();
     renderSettings();
     refreshNames();
     invalidate();
   });
+  $('restorePublished').onclick = () => {
+    if (!followedCard) return;
+    const saved = structuredClone(followedCard.settings);
+    state = { ...saved, formVersion: saved.formVersion ?? 1, locks: state.locks };
+    renderSettings();
+    refreshNames();
+    invalidate();
+    toast('Modelo publicado restaurado.');
+  };
   refreshSaving = bindSaving(
     () => state,
     stage,
@@ -225,7 +240,7 @@ export async function startSwissEdition(edition) {
   );
   renderCard();
   renderSettings();
-  const bracket = bindBracket(
+  bracket = bindBracket(
     stage.teams,
     () => state.locks,
     () => {
@@ -237,9 +252,15 @@ export async function startSwissEdition(edition) {
     bracket.setSchedule(feed);
     editor.setSchedule(feed);
     if (feed.locks) community.setLocks(feed.locks);
-    if (edition.key === 'stage-1' && feed.locks?.length === 33 && feed.locks.every(side => side === 0 || side === 1))
-      document.dispatchEvent(new Event('stage-one-completed'));
+    if (feed.locks?.length === 33 && feed.locks.every(side => side === 0 || side === 1))
+      document.dispatchEvent(new Event('swiss-stage-completed'));
   });
+  if (location.hash === '#resultado' && !sharedSimulation) {
+    requestAnimationFrame(() => {
+      $('resultado').focus({ preventScroll: true });
+      $('resultado').scrollIntoView({ block: 'start' });
+    });
+  }
   runHint();
   start('preview');
 }
@@ -254,8 +275,8 @@ function persist() {
   try {
     if (followedCard) {
       const key = 'card-simulation:' + stage.id + ':' + followedCard.id;
-      localStorage.setItem(key, JSON.stringify({ ...state, locks: followedCard.settings.locks }));
-      localStorage.setItem(stage.id, JSON.stringify({ ...localDraft, locks: state.locks }));
+      localStorage.setItem(key, JSON.stringify(state));
+      localStorage.setItem(stage.id, JSON.stringify(localDraft));
     } else localStorage.setItem(stage.id, JSON.stringify(state));
   } catch {
     /* Storage may be disabled. */
@@ -394,12 +415,14 @@ function renderDuel() {
 function refreshNames() {
   const nick = personalNick();
   $('legacyForm').hidden = $('legacyFormHome').hidden = state.formVersion !== 1;
-  for (const opt of $('activeModel').options)
+  for (const opt of $('activeModel').options) {
+    opt.disabled = !modelAvailable(stage.teams, opt.value, state);
     opt.textContent = modelName(
       opt.value,
       nick,
       state.formVersion
     );
+  }
   $('activeModel').value = state.model;
   $('personalName').textContent = modelName('custom', nick);
   renderCatalog(

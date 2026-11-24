@@ -4,13 +4,13 @@
     "vrs": "https://github.com/ValveSoftware/counter-strike_regional_standings/blob/main/invitation/2026/standings_global_2026_11_02.md"
   },
   "teams": [
-    { "id": "fut_esports", "name": "FUT Esports", "vrs": 1721 },
-    { "id": "nemiga", "name": "Nemiga Gaming", "vrs": 1650 },
-    { "id": "g2_esports", "name": "G2 Esports", "vrs": 1616 },
-    { "id": "1win", "name": "The One", "vrs": 1598 },
-    { "id": "natus_vincere", "name": "Natus Vincere", "vrs": 1589 },
-    { "id": "astralis", "name": "Astralis", "vrs": 1572 },
-    { "id": "the_mongolz", "name": "The MongolZ", "vrs": 1554 },
-    { "id": "mibr", "name": "MIBR", "vrs": 1546 }
+    { "id": "fut_esports", "name": "FUT Esports", "short": "FUT", "logo": "fut_esports.webp", "vrs": 1721 },
+    { "id": "nemiga", "name": "Nemiga Gaming", "short": "NEM", "logo": "nemiga.webp", "vrs": 1650 },
+    { "id": "g2_esports", "name": "G2 Esports", "short": "G2", "logo": "g2_esports.webp", "vrs": 1616 },
+    { "id": "1win", "name": "The One", "short": "ONE", "logo": "1win.svg", "vrs": 1598 },
+    { "id": "natus_vincere", "name": "Natus Vincere", "short": "NAVI", "logo": "natus_vincere.webp", "vrs": 1589 },
+    { "id": "astralis", "name": "Astralis", "short": "AST", "logo": "astralis.svg", "vrs": 1572 },
+    { "id": "the_mongolz", "name": "The MongolZ", "short": "MGLZ", "logo": "the_mongolz.svg", "vrs": 1554 },
+    { "id": "mibr", "name": "MIBR", "short": "MIBR", "logo": "mibr.svg", "vrs": 1546 }
   ]
 }

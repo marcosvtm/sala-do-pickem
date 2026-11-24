@@ -1,11 +1,12 @@
 import { cardsApi } from './api.js';
 import { withSharePreview } from './share-preview.js';
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, context) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) {
       try {
-        return await cardsApi(request, env.DB);
+        return await cardsApi(request, env.DB, Date.now(), fetch, task => context.waitUntil(task),
+          env.PAUSE_STAGE2_PICKS === '1' ? 'sg26-s2-v1' : null);
       } catch (err) {
         console.error('Cards API:', err.message);
         return Response.json(

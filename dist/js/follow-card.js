@@ -13,7 +13,7 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
   let preferred;
   try { preferred = localStorage.getItem(key); } catch {}
 
-  async function loadCard(id, resume = false) {
+  async function loadCard(id) {
     const request = ++generation;
     retry.hidden = true;
     status.textContent = id ? 'Carregando cartão…' : '';
@@ -25,7 +25,7 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
       const card = await res.json();
       if (request !== generation) return;
       if (card.id !== id || !validate(card.settings, { stageId: stage.id })) throw Error();
-      onSelect(card, resume, Boolean(shared));
+      onSelect(card, !shared, Boolean(shared));
       status.textContent = '';
     } catch {
       if (request !== generation) return;
@@ -53,7 +53,7 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
       const id = shared ?? preferred ?? (receipt?.saved ? receipt.token : null);
       if (id && cards.some((card) => card.id === id)) {
         select.value = id;
-        await loadCard(id, !shared);
+        await loadCard(id);
         if (shared && select.value === id && !status.textContent) {
           const result = document.getElementById('resultado');
           result.focus({ preventScroll: true });

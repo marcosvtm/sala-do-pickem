@@ -30,6 +30,8 @@ export function validateStage2Study(study, schedule) {
   if (!Number.isFinite(deadline)) throw Error('Horário de abertura inválido na agenda PGL.');
   if (study.stage !== stageId || typeof study.version !== 'string' || !study.version.trim())
     throw Error('Informe a fase sg26-s2-v1 e a versão do estudo.');
+  if (study.sourceUrl !== undefined && new URL(study.sourceUrl).protocol !== 'https:')
+    throw Error('O endereço do estudo publicado deve usar HTTPS.');
   if (typeof study.cutoff !== 'string' || !/(Z|[+-]\d\d:\d\d)$/.test(study.cutoff) ||
       !Number.isFinite(Date.parse(study.cutoff)) || Date.parse(study.cutoff) > deadline)
     throw Error('O corte dos dados deve ter fuso horário e anteceder ou coincidir com o fechamento.');
@@ -49,6 +51,7 @@ export function validateStage2Study(study, schedule) {
   }
   return {
     stage: stageId, version: study.version, cutoff: study.cutoff,
+    ...(study.sourceUrl ? { sourceUrl: study.sourceUrl } : {}),
     teamIds: study.teamIds, probabilities: { 1: study.probabilities[1], 3: study.probabilities[3] },
   };
 }

@@ -2,7 +2,7 @@ import { studyTeams, studyProbabilities } from '../data/study-v1.js';
 import stage2Study from '../data/study-s2.js';
 
 const stage1Study = { teamIds: studyTeams, probabilities: studyProbabilities };
-function studyFor(stage) {
+export function studyFor(stage) {
   if (stage === undefined || stage === 'sg26-s1-v1') return stage1Study;
   return stage2Study && stage === stage2Study.stage ? stage2Study : null;
 }

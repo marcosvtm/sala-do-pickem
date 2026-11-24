@@ -1,4 +1,5 @@
-import { modelName, makeMatrix, describeBase } from './models.js';
+import { modelName, makeMatrix, describeBase, modelAvailable } from './models.js';
+import { phasePath, majorPhases } from './major-phases.js';
 import { progress, pickStatus, fixtureBrier } from './progress.js';
 import { shareButton } from './share.js';
 import { editKey, forgetCard } from './card-access.js';
@@ -36,19 +37,19 @@ let stage,
   job,
   busy = false,
   polled = false;
-let deadline,
+let deadline, writesPaused = false,
   clockOffset = 0,
   closeTimer,
   removing,
   deleting = false,
   refreshAgain = false;
-const isLocked = () => !deadline || Date.now() + clockOffset >= deadline;
+const isLocked = () => writesPaused || !deadline || Date.now() + clockOffset >= deadline;
 function syncLock() {
   clearTimeout(closeTimer);
   const locked = isLocked();
   for (const button of document.querySelectorAll('[data-card-mutation]'))
     button.disabled = locked || (button.id === 'confirmRemove' && deleting);
-  $('wallDeadline').textContent = locked
+  $('wallDeadline').textContent = writesPaused ? 'Envio e edição de cartões pausados.' : locked
     ? 'Prazo encerrado. Os cartões desta fase estão fechados.'
     : 'Você pode editar ou excluir seus cartões neste navegador até ' +
       date(deadline) +
@@ -77,7 +78,7 @@ async function confirmRemove() {
   deleting = true;
   syncLock();
   try {
-    const res = await fetch('/api/cards/' + card.id, {
+    const res = await fetch(phasePath('/api/cards/' + card.id, stage.id), {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -92,7 +93,7 @@ async function confirmRemove() {
     $('cardActionMessage').textContent =
       'Cartão de ' + card.nick + ' excluído.';
     if (location.hash.slice(1) === card.id)
-      history.replaceState(null, '', '/ranking?fase=stage-1');
+      history.replaceState(null, '', phasePath('/ranking', stage.id));
     if (page > 0 && $('entries').childElementCount === 1) page--;
     await refresh();
   } catch (error) {
@@ -104,6 +105,7 @@ async function confirmRemove() {
   }
 }
 function render(data) {
+  writesPaused = Boolean(data.writesPaused);
   deadline = data.closesAt;
   clockOffset = data.serverTime - Date.now();
   syncLock();
@@ -119,7 +121,7 @@ function render(data) {
       : finished.length === 0
         ? ' · Aguardando o primeiro resultado.'
         : '');
-  const signature = JSON.stringify([page, data.cards, data.live.locks]);
+  const signature = JSON.stringify([page, data.cards, data.live.locks, isLocked()]);
   if (version === signature) return;
   const firstRender = !polled;
   version = signature;
@@ -215,15 +217,16 @@ function render(data) {
         picks.append(row);
       }
     }
-    const openPicks = c.settings.card.some((id, i) => pickStatus(i, teams[id]) === 'open');
+    const canEstimate = modelAvailable(stage.teams, c.settings.model, c.settings);
+    const openPicks = canEstimate && c.settings.card.some((id, i) => pickStatus(i, teams[id]) === 'open');
+    if (!canEstimate) initial.textContent = current.textContent = 'Estudo em preparação';
     if (openPicks) chance.textContent = 'Ver chance';
     function buildModelDetails() {
-      const matrix = makeMatrix(stage.teams, c.settings.model, c.settings);
-      modelInfo.append(
+      if (canEstimate) modelInfo.append(
         node(
           'p',
           'Brier do modelo deste cartão: ' +
-            brier(fixtureBrier(matrix, finished)),
+            brier(fixtureBrier(makeMatrix(stage.teams, c.settings.model, c.settings), finished)),
           'hint'
         )
       );
@@ -256,7 +259,7 @@ function render(data) {
       }
       if (c.settings.model === 'custom') {
         const link = node('a', 'Abrir uma cópia em Modelos');
-        link.href = '/modelos?modelo=' + c.id;
+        link.href = phasePath('/modelos?modelo=' + c.id, stage.id);
         modelInfo.append(link);
       }
     }
@@ -267,7 +270,7 @@ function render(data) {
       if (modelInfo.open && modelInfo.childElementCount === 1) buildModelDetails();
     };
     const simulate = node('a', 'Simular este cartão', 'simulation-link');
-    simulate.href = '/?simular=' + c.id + '#resultado';
+    simulate.href = phasePath('/?simular=' + c.id + '#resultado', stage.id);
     if (isLocked()) details.append(simulate);
     details.append(modelInfo);
     details.id = 'picks-' + c.id;
@@ -276,7 +279,7 @@ function render(data) {
       head.setAttribute('aria-expanded', String(open));
       details.hidden = !open;
       if (open && !picks.childElementCount) buildPickRows();
-      if (open && !requested && !cache.has(key)) {
+      if (open && canEstimate && !requested && !cache.has(key)) {
         requested = true;
         chance.textContent = 'Calculando…';
         compute(c);
@@ -295,14 +298,14 @@ function render(data) {
         button.disabled = isLocked();
         button.onclick = () => {
           if (isLocked()) return syncLock();
-          if (label === 'Editar') location.assign('/?editar=' + c.id);
+          if (label === 'Editar') location.assign(phasePath('/?editar=' + c.id, stage.id));
           else showRemove(c);
         };
         actions.append(button);
       }
     }
     actions.append(
-      shareButton('/ranking?fase=stage-1#' + c.id, 'Compartilhar cartão de ' + c.nick)
+      shareButton(phasePath('/ranking#' + c.id, stage.id), 'Compartilhar cartão de ' + c.nick)
     );
     bar.append(head, actions);
     item.append(bar, details);
@@ -330,7 +333,7 @@ function render(data) {
         : 'Nenhum cartão nesta página. '
     );
     const link = node('a', 'Montar meu cartão');
-    link.href = '/';
+    link.href = phasePath('/', stage.id);
     empty.append(link);
     container.append(empty);
   }
@@ -347,7 +350,7 @@ async function refresh() {
   $('reload').disabled = true;
   const target = location.hash.slice(1);
   try {
-    const url = new URL('/api/cards', location.origin);
+    const url = new URL(phasePath('/api/cards', stage.id), location.origin);
     url.searchParams.set('page', page);
     if (!polled && /^[a-f\d-]{36}$/i.test(target))
       url.searchParams.set('focus', target);
@@ -377,10 +380,11 @@ async function refresh() {
     }
   }
 }
-async function init() {
-  const res = await fetch('/data/stage.json');
+async function init(phase) {
+  const res = await fetch(phase.rosterUrl);
   if (!res.ok) throw new Error();
   stage = await res.json();
+  if (stage?.id !== phase.id) throw Error('Elenco indisponível para esta fase.');
   $('cancelRemove').onclick = () => $('removeCard').close();
   $('confirmRemove').onclick = confirmRemove;
   window.addEventListener('pageshow', (event) => {
@@ -413,7 +417,7 @@ async function init() {
     if (!document.hidden) refresh();
   });
 }
-export const loadStageBoard = () => init().catch(
+export const loadStageBoard = (phase = majorPhases[0]) => init(phase).catch(
   () =>
     ($('feed').textContent = 'Falha ao carregar a fase. Recarregue a página.')
 );

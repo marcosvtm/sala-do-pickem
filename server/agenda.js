@@ -1,7 +1,15 @@
 import stage from '../dist/data/stage.json' with { type: 'json' };
+import openingSchedule from '../dist/data/schedule.json' with { type: 'json' };
 import { ROUND_SIZES } from '../dist/js/swiss.js';
 
-const teamIndex = new Map(stage.teams.map((t, i) => [t.logo.split('.')[0], i]));
+export function agendaContext(teams, games) {
+  const teamIndex = new Map(teams.map((team, index) => [team.id ?? team.logo.split('.')[0], index]));
+  const dates = new Set(games.map(game =>
+    new Date(game.at + 8 * 3600000).toISOString().slice(0, 10).split('-').reverse().join('.')
+  ));
+  return { teamIndex, dates };
+}
+export const firstAgenda = agendaContext(stage.teams, openingSchedule.games);
 export function isCurrentMap(game, name) {
   if (!name || game.status === 'end') return false;
   if (game.maps && !game.maps.some((map) => map.status === 'upcoming' || map.status === 'live'))
@@ -43,10 +51,10 @@ function mapHistory(boards, completed, decided, status) {
   });
 }
 
-export function* stageRows(source) {
+export function* stageRows(source, context = firstAgenda) {
   if (!Array.isArray(source)) throw Error('Agenda inválida');
   for (const row of source) {
-    if (!/^(24|25|26|27)\.11\.2026$/.test(row.date)) continue;
+    if (!context.dates.has(row.date)) continue;
     const round = row.round?.startsWith('opening round')
       ? 1
       : Number(/^round ([2-5])\b/.exec(row.round)?.[1]);
@@ -58,10 +66,10 @@ export function* stageRows(source) {
     };
   }
 }
-export function parseSchedule(source) {
+export function parseSchedule(source, context = firstAgenda) {
   const counts = Array(5).fill(0),
     games = [];
-  for (const { row, round, maps } of stageRows(source)) {
+  for (const { row, round, maps } of stageRows(source, context)) {
     const slot = ++counts[round - 1];
     const [day, month, year] = row.date.split('.');
     const at = Date.parse(
@@ -69,8 +77,8 @@ export function parseSchedule(source) {
     );
     if (row.timeZone !== 'SGT' || !Number.isFinite(at))
       throw Error('Horário desconhecido');
-    const a = teamIndex.get(row.leftTeamKey) ?? null,
-      b = teamIndex.get(row.rightTeamKey) ?? null;
+    const a = context.teamIndex.get(row.leftTeamKey) ?? null,
+      b = context.teamIndex.get(row.rightTeamKey) ?? null;
     const bo = Number(row.format.slice(2));
     if (![1, 3, 5].includes(bo)) throw Error('Formato de série desconhecido');
     const series = readScore(row.leftScore, row.rightScore);

@@ -1,5 +1,5 @@
-import { phasePath } from './major-phases.js';
-import { MODELS, explanations, modelName, describeBase } from './models.js';
+import { phasePath, majorPhases } from './major-phases.js';
+import { MODELS, explanations, modelName, describeBase, studyFor } from './models.js';
 import { personalSettings } from './state.js';
 
 export function renderCatalog(
@@ -31,8 +31,9 @@ export function renderCatalog(
         ? 'Esta cópia usa o Elo anterior à revisão regional.'
         : explanations[id];
     button.setAttribute('aria-pressed', String(id === selected));
-    status.textContent =
-      id === selected ? 'Em uso no cartão' : 'Usar no cartão';
+    button.disabled = id === 'study' && catalog.dataset.studyPending === 'true';
+    status.textContent = button.disabled ? 'Estudo em preparação'
+      : id === selected ? 'Em uso no cartão' : 'Usar no cartão';
   }
   document.getElementById('legacyFormGuide').hidden = formVersion !== 1;
   document.getElementById('revisedFormGuide').hidden = formVersion === 1;
@@ -52,6 +53,36 @@ export function renderCatalog(
 export function bindPages(stage, apply, onModels) {
   const { teams } = stage;
   const $ = (id) => document.getElementById(id);
+  const phase = majorPhases.find(p => p.id === stage.id);
+  if (phase.key !== 'stage-1') {
+    const when = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Cuiaba', dateStyle: 'short', timeStyle: 'short' });
+    const cutoff = when.format(new Date(stage.cutoff)) + ' (Cuiabá)';
+    $('vrsEdition').textContent = 'ranking global usado no ' + phase.name;
+    $('formCutoff').textContent = cutoff;
+    $('hltvPhase').textContent = 'o ' + phase.name;
+    $('readingRanks').textContent = 'posições mundiais da edição desta fase';
+    for (const link of [$('hltvEdition'), $('readingRankingLink')]) {
+      link.href = stage.sources.hltv;
+      link.textContent = 'Ranking HLTV usado no ' + phase.name;
+    }
+    $('readingCutoff').textContent = 'Dados congelados em ' + cutoff + '. Estreia prevista para ' +
+      when.format(new Date(stage.startsAt)) + ' (Cuiabá). Confira o fechamento do cartão no CS2.';
+    const study = studyFor(phase.id);
+    $('catalog').dataset.studyPending = String(!study);
+    const guide = $('guide-study'), summary = guide.querySelector('summary');
+    const description = document.createElement('p');
+    description.textContent = study
+      ? 'O estudo do ' + phase.name + ' estima cada um dos 120 duelos em MD1 e MD3. A simulação e a busca de cartões usam as probabilidades da edição ' + study.version + ', com dados até ' + when.format(new Date(study.cutoff)) + ' (Cuiabá).'
+      : 'As probabilidades do ' + phase.name + ' aguardam o estudo desta fase. As previsões estarão disponíveis após a conferência dos 16 times e das matrizes de MD1 e MD3.';
+    guide.replaceChildren(summary, description);
+    if (study?.sourceUrl) {
+      const link = document.createElement('a');
+      link.className = 'study-link';
+      link.href = study.sourceUrl;
+      link.textContent = 'Leia o estudo do Modelo IA para o ' + phase.name;
+      guide.append(link);
+    }
+  }
   // Keep the clicked header under the pointer when another guide above it closes.
   $('modelGuides').addEventListener('click', (event) => {
     const header = event.target.closest('.model-guide > summary');
@@ -155,7 +186,7 @@ export function bindPages(stage, apply, onModels) {
     const id =
       path === '/modelos' && new URLSearchParams(location.search).get('modelo');
     for (const el of document.querySelectorAll('[data-page]'))
-      el.hidden = el.dataset.page !== path || (el.id === 'importPanel' && !id);
+      el.hidden = !el.dataset.page.split(' ').includes(path) || (el.id === 'importPanel' && !id);
     for (const a of document.querySelectorAll('header a')) {
       if (a.pathname === path) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');

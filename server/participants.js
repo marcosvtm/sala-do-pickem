@@ -2,6 +2,22 @@ const reply = (data, status = 200) => Response.json(data, {
   status, headers: { 'Cache-Control': 'no-store' },
 });
 
+// Older Stage 1 cards predate participant_id. Their own public ID is the stable identity.
+export const participantDisplayName = `SELECT nick FROM cards
+  WHERE coalesce(participant_id,id)=? AND removed_at IS NULL ORDER BY submitted,id LIMIT 1`;
+
+export async function participantDirectory(db, stageId) {
+  const { results } = await db.prepare(`WITH entries AS (
+    SELECT coalesce(participant_id,id) AS person,id,nick,stage,
+      row_number() OVER (PARTITION BY coalesce(participant_id,id) ORDER BY submitted,id) AS ordinal
+    FROM cards WHERE removed_at IS NULL
+  )
+  SELECT first.person AS id,first.nick,active.id AS cardId
+  FROM entries first LEFT JOIN entries active ON active.person=first.person AND active.stage=?
+  WHERE first.ordinal=1 ORDER BY first.nick COLLATE NOCASE,first.person`).bind(stageId).all();
+  return { participants: results };
+}
+
 async function recoveryHash(req) {
   const code = req.headers.get('X-Major-Code');
   if (!code || !/^[a-f0-9]{32}$/.test(code)) return null;

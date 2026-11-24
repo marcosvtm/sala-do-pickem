@@ -25,6 +25,8 @@ Faça um fork, crie uma branch e envie o pull request contra `main`. Conte o que
 
 Publique atualizações no mesmo projeto Sites, com o endereço público e o banco D1 existentes. Mantenha a versão atual disponível enquanto prepara a próxima. Mudanças de formato devem continuar lendo os cartões, modelos e rascunhos já salvos, inclusive seus links e as chaves do navegador.
 
+Se for preciso interromper o recebimento de cartões do Stage 2 durante a janela de picks, configure a variável do Worker `PAUSE_STAGE2_PICKS=1`. O servidor suspende o envio, a edição e a exclusão de cartões dessa fase. A agenda, o ranking, a consulta dos cartões e os modelos publicados continuam disponíveis. Remover a variável retoma os envios até o prazo oficial. Mantenha a edição de equipes já usada pelos cartões.
+
 ## Organização
 
 - `dist/` contém o frontend editável. `npm run build` empacota os recursos e a API em um Worker do Sites em `dist/server/`.
@@ -38,9 +40,11 @@ Publique atualizações no mesmo projeto Sites, com o endereço público e o ban
 
 ### Ranking Broxas
 
-Em `/ranking`, o Geral soma os acertos confirmados por participante. Empates dividem a posição antes da paginação. No Stage 1, o identificador do cartão identifica a participação. O primeiro recibo identifica a participação. Em **Minha participação**, o navegador original pode emitir um código privado mesmo depois do fechamento da fase. Em outro aparelho, o jogador recupera a participação com esse código antes de salvar o cartão seguinte. O servidor valida a prova, associa o novo cartão ao participante e limita cada participante a um cartão por fase. Os controles de edição continuam usando o recibo próprio de cada cartão. Sem recibo e sem código, a associação exige conferência do organizador.
+Em `/ranking`, o Geral soma os acertos confirmados por participante. Empates dividem a posição antes da paginação. Para os cartões antigos do Stage 1, o identificador público do cartão identifica a participação. Ao salvar em uma nova fase, o jogador escolhe seu nick em **Quem é você?** ou indica **É minha primeira participação**. O navegador conhecido pode sugerir a identificação já usada. Cada envio, inclusive uma edição, pede confirmação explícita do nick em um diálogo. A associação é autodeclarada e o banco limita cada participante a um cartão por fase. Os controles de edição e exclusão continuam usando o recibo próprio de cada cartão e o prazo da fase.
 
 O filtro de fase permite abrir vários cartões, consultar os dez picks e o modelo salvo e levar um cartão fechado ao simulador. Os links antigos em `/cartoes#ID` continuam a apontar para o Stage 1. Os modelos publicados e as cópias editáveis estão em **Modelos da galera**, na página Modelos.
+
+Se alguém confirmar o nick errado, o organizador deve conferir com os envolvidos o link do cartão, a fase e a identidade correta. A correção administrativa exige conferir se o participante de destino já tem cartão naquela fase e resolver o conflito com o grupo. Registrar o ID do cartão e os vínculos anterior e novo, preservar o horário, os picks e o modelo publicados e conferir a soma das fases no Geral. Escolher um nick na lista permite associar um cartão novo em fase aberta.
 
 ### Cartões por fase
 
@@ -96,12 +100,22 @@ O refinamento conserva o candidato mais bem pontuado na seleção, renova a amos
 
 Inicial, Modelos e Partidas compartilham o seletor `?fase=stage-1|stage-2|stage-3|playoffs`. A edição do Stage 1 mantém o elenco e os links originais. O Stage 2 apresenta os oito convidados e sua programação por rodada. Após 33 resultados oficiais, a inicial sem fase explícita abre na fase seguinte, com a agenda anterior recolhida. Acessos antigos de edição, simulação e modelos continuam associados ao Stage 1. A fase `sg26-s2-v1` tem programação e identidade próprias em `/api/stages` e `/api/results?stage=sg26-s2-v1`. Os cartões abrem em uma etapa posterior, após a confirmação dos participantes e da primeira rodada.
 
-O estudo IA do Stage 2 é produzido separadamente após a análise do Stage 1. Para obter as chaves PGL e os pontos Valve dos 24 candidatos, execute `node scripts/prepare-stage2-study.js --pool`. A entrega do estudo usa um JSON com estes campos:
+### Conferir e abrir a edição esportiva
+
+1. Gere o arquivo de trabalho com `node scripts/prepare-stage2-edition.js --pool > elenco-s2.json` em um diretório de trabalho ou copie a saída. Ele inclui IDs PGL, pontos Valve e posições HLTV dos 24 candidatos. Preencha uma versão identificável, o corte de dados ISO 8601 com fuso e a fonte da forma recente. Informe por equipe o Elo original, o Elo regional e a evidência dos últimos 120 dias (séries, adversários distintos, adversários de outras regiões e séries de região desconhecida). As equipes com vaga em aberto podem ficar na lista até a confirmação oficial. [Ranking HLTV de 23/11](https://www.hltv.org/ranking/teams/2026/november/23)
+2. Rode `node scripts/prepare-stage2-edition.js --check elenco-s2.json`. O comando confere as 33 séries encerradas do S1, ordena os oito classificados por campanha, Buchholz e seed inicial e os coloca depois dos oito convidados. Cruza os 16 nomes com os oito duelos de R1 e confere os formatos das cinco rodadas na PGL. Um modelo IA em preparação permite usar as demais previsões disponíveis. [Regra de seeds](https://github.com/ValveSoftware/counter-strike_rules_and_regs/blob/main/major-supplemental-rulebook.md#stage-seeding) · [Agenda do S2](https://news.pglesports.com/api/groupStageEndpoint?stage=2)
+3. Para ensaio com dados isolados, use `node --test tests/stage2-edition.test.js` ou `node scripts/prepare-stage2-edition.js --check elenco-s2.json agenda-s2.json agenda-s1.json` com os dois feeds no formato da PGL. O ensaio cobre as seeds, o bloqueio por divergência de adversários, a agenda e a apuração independente dos dois stages. Os testes usam um banco em memória.
+4. Durante a janela de picks, rode `node scripts/prepare-stage2-edition.js --install elenco-s2.json`. O instalador relê as duas agendas oficiais, exige os dados dos 16 classificados, verifica o corte e grava a edição congelada em `dist/data/edition-s2.json`. Publicar essa edição no projeto e no banco existentes ativa o S2. A edição contém a ordem dos times que dá significado aos índices salvos nos cartões. O comando preserva uma edição já instalada e recusa substituí-la por outra. Para a partida inaugural prevista às 00h de 28/11, o prazo é 27/11 às 23h de Cuiabá. Reconfira a hora oficial. A agenda inclui os 33 links individuais publicados pela [HLTV para o Stage 2](https://www.hltv.org/events/9304/matches).
+
+### Estudo IA do Stage 2
+
+O estudo é produzido separadamente após a análise do Stage 1. Para obter as chaves PGL e os pontos Valve dos 24 candidatos, execute `node scripts/prepare-stage2-study.js --pool`. A entrega do estudo usa um JSON com estes campos:
 
 | Campo | Conteúdo |
 |---|---|
 | `stage`, `version`, `cutoff` | Identificador `sg26-s2-v1`, versão do estudo e corte temporal dos dados em ISO 8601 com fuso. |
 | `teamIds` | As 16 chaves PGL que identificam as linhas e colunas, na ordem usada pelo estudo. |
+| `sourceUrl` | Endereço HTTPS opcional da publicação do estudo desta edição. |
 | `probabilities` | Matrizes `"1"` e `"3"`, cada uma 16 × 16. A célula [a][b] é a probabilidade integral de a vencer b na série, entre 0 e 1. Diagonal de 0,5 e sentidos opostos complementares. |
 
 Com as oito partidas de abertura confirmadas na PGL, `node scripts/prepare-stage2-study.js --check estudo.json` valida elenco, corte e matrizes. Para ensaio offline, o último argumento opcional é o JSON de uma agenda no formato da PGL. `--install estudo.json` consulta a agenda oficial e prepara o módulo local para a próxima publicação. Instalar a matriz e abrir a fase são operações independentes. O Stage 1 continua usando a matriz original. Enquanto o estudo S2 estiver pendente, a mistura que atribuir peso a ele fica indisponível e conserva os pesos escolhidos.

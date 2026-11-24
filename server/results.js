@@ -1,30 +1,27 @@
 import { availableGames, ROUND_SIZES } from '../dist/js/swiss.js';
-import { stageRows, parseSchedule, readScore, seriesWon } from './agenda.js';
-import { addRoundScores } from './round-scores.js';
+import { stageRows, parseSchedule, readScore, seriesWon, firstAgenda, agendaContext } from './agenda.js';
+import { addRoundScores, coverageContext } from './round-scores.js';
 import { SCORE_POLL_MS } from '../dist/js/schedule.js';
 import baseSchedule from '../dist/data/schedule.json' with { type: 'json' };
 import stage from '../dist/data/stage.json' with { type: 'json' };
 
 export const SOURCE =
   'https://news.pglesports.com/api/groupStageEndpoint?stage=1';
-const byKey = new Map(
-  stage.teams.map((team, i) => [team.logo.split('.')[0], i])
-);
 export const emptyLocks = () => Array(33).fill(-1);
 export const START = Date.parse(stage.startsAt);
 export const CLOSE = START - 60 * 60 * 1000;
 
 // Only completed PGL matches can settle the official bracket.
-export function parsePgl(source, previous) {
+export function parsePgl(source, previous, context = firstAgenda) {
   const rounds = [[], [], [], [], []],
     sizes = [0, 0, 0, 0, 0];
   const previousRounds = previous && availableGames(previous);
-  for (const { row: fields, round } of stageRows(source)) {
+  for (const { row: fields, round } of stageRows(source, context)) {
     const r = round - 1;
     sizes[r]++;
     if (fields.status !== 'end') continue;
-    const a = byKey.get(fields.leftTeamKey),
-      b = byKey.get(fields.rightTeamKey);
+    const a = context.teamIndex.get(fields.leftTeamKey),
+      b = context.teamIndex.get(fields.rightTeamKey);
     const bo = Number(fields.format?.slice(2));
     const score = readScore(fields.leftScore, fields.rightScore);
     if (
@@ -63,25 +60,35 @@ export function parsePgl(source, previous) {
   }
   return locks;
 }
-export async function retrieve(fetcher = fetch) {
-  const response = await fetcher(SOURCE, {
+export async function retrieve(fetcher = fetch, source = SOURCE) {
+  const response = await fetcher(source, {
     signal: AbortSignal.timeout(7000), cache: 'no-store',
   });
   if (!response.ok) throw new Error('PGL indisponível');
   return response.json();
 }
-export async function liveResults(
+export function createSwissResultReader(edition, source, calendar = edition) {
+  const context = agendaContext(edition.teams, calendar.games);
+  const coverage = coverageContext(edition.teams, calendar, Number(new URL(source).searchParams.get('stage')));
+  const config = { id: edition.id, start: Date.parse(edition.startsAt), context, coverage, calendar, source };
+  return (db, now = Date.now(), fetcher = fetch, includeSchedule = false) =>
+    readSwissResults(config, db, now, fetcher, includeSchedule);
+}
+export const liveResults = createSwissResultReader(stage, SOURCE, baseSchedule);
+
+async function readSwissResults(
+  config,
   db,
-  now = Date.now(),
-  fetcher = fetch,
-  includeSchedule = false
+  now,
+  fetcher,
+  includeSchedule
 ) {
-  if (now < START && !includeSchedule)
+  if (now < config.start && !includeSchedule)
     return { locks: emptyLocks(), checked: null, stale: false };
   const read = () =>
     db
       .prepare('SELECT * FROM stage_results WHERE stage=?')
-      .bind(stage.id)
+      .bind(config.id)
       .first();
   let row = await read();
   const output = (r) => ({
@@ -91,7 +98,7 @@ export async function liveResults(
       ? {
           schedule: r?.schedule
             ? JSON.parse(r.schedule).games
-            : baseSchedule.games,
+            : config.calendar.games,
           scheduleChecked: r?.schedule ? JSON.parse(r.schedule).checked : null,
         }
       : {}),
@@ -107,15 +114,15 @@ export async function liveResults(
       `INSERT INTO stage_results(stage,locks,checked,attempted) VALUES(?,?,0,?)
     ON CONFLICT(stage) DO UPDATE SET attempted=excluded.attempted WHERE stage_results.attempted<=?`
     )
-    .bind(stage.id, JSON.stringify(emptyLocks()), now, now - retryAfter)
+    .bind(config.id, JSON.stringify(emptyLocks()), now, now - retryAfter)
     .run();
   if (claim.meta.changes) {
     try {
-      const source = await retrieve(fetcher);
+      const source = await retrieve(fetcher, config.source);
       let verified, schedule;
       try {
         const old = row ? JSON.parse(row.locks) : emptyLocks();
-        const locks = parsePgl(source, old);
+        const locks = parsePgl(source, old, config.context);
         if (
           locks.filter((x) => x >= 0).length >= old.filter((x) => x >= 0).length
         )
@@ -124,13 +131,13 @@ export async function liveResults(
         /* The on-screen agenda can still be updated if pairing verification fails. */
       }
       try {
-        const games = parseSchedule(source);
+        const games = parseSchedule(source, config.context);
         const old = row?.schedule ? JSON.parse(row.schedule).games : [];
         if (
           games.filter((g) => g.status === 'end').length >=
           old.filter((g) => g.status === 'end').length
         ) {
-          await addRoundScores(games, old, fetcher, now);
+          await addRoundScores(games, old, fetcher, now, undefined, config.coverage);
           schedule = JSON.stringify({ games, checked: now });
         }
       } catch {
@@ -144,7 +151,7 @@ export async function liveResults(
           verified ?? null,
           schedule ?? null,
           verified ? now : null,
-          stage.id,
+          config.id,
           now
         )
         .run();

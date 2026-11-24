@@ -103,9 +103,9 @@ export function bindEditor(teams, current, onEdit) {
     if (!game || other == null || !personal?.[game.bo]) {
       box.textContent =
         record?.wins === 3
-          ? 'Classificado para o Stage 2.'
+          ? 'Classificado para a próxima fase.'
           : record?.losses === 3
-            ? 'Eliminado do Stage 1.'
+            ? 'Eliminado nesta fase.'
             : feed
               ? 'Aguardando adversário.'
               : 'Consultando a agenda…';

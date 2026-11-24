@@ -1,5 +1,5 @@
 import { phasePath } from './major-phases.js';
-import { MODELS, modelName, makeMatrix } from './models.js';
+import { MODELS, modelName, makeMatrix, modelAvailable } from './models.js';
 import { progress, fixtureBrier } from './progress.js';
 import { newDraft } from './state.js';
 import { shareButton } from './share.js';
@@ -100,14 +100,15 @@ export function bindCommunityModels(stage) {
     if (!comparison.open || !latest) return;
     const { finished } = progress(latest);
     $('modelScores').replaceChildren();
-    for (const model of Object.keys(MODELS).filter((id) => id !== 'custom')) {
+    const settings = newDraft(stage.id);
+    for (const model of Object.keys(MODELS).filter((id) => id !== 'custom' && modelAvailable(teams, id, settings))) {
       const row = node('div', undefined, 'duel-row');
       row.append(
         MODELS[model],
         node(
           'b',
           brier(
-            fixtureBrier(makeMatrix(teams, model, newDraft(stage.id)), finished)
+            fixtureBrier(makeMatrix(teams, model, settings), finished)
           )
         )
       );

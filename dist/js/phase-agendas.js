@@ -64,12 +64,13 @@ export function phaseAgenda(phase, { expanded = false, completed = false } = {})
     retry.hidden = true;
     status.textContent = 'Consultando a agenda…';
     try {
-      const first = phase.key === 'stage-1';
-      const [feed, roster, base] = await Promise.all([
-        get('/api/results?stage=' + phase.id),
-        first ? get('/data/stage.json') : null,
-        first ? get('/data/schedule.json') : null,
-      ]);
+      const feed = await get('/api/results?stage=' + phase.id);
+      let roster, base;
+      if (!feed.preview) {
+        roster = await get(phase.rosterUrl);
+        if (roster?.id !== phase.id) throw Error();
+        base = phase.scheduleUrl === phase.rosterUrl ? roster : await get(phase.scheduleUrl);
+      }
       const games = feed.schedule;
       if (!Array.isArray(games) || !games.length) throw Error();
       const ids = [...new Set(games.map(game => game.round))].sort((a, b) => a - b);

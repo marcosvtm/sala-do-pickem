@@ -7,17 +7,25 @@ import { broadcastChannel, broadcastMap, readBroadcast } from './cstv.js';
 
 const origin = 'https://draft5.gg';
 const normalize = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
-const aliases = new Map();
-stage.teams.forEach((team, i) => {
-  for (const name of [team.name, team.short, team.logo.split('.')[0]])
-    aliases.set(normalize(name), i);
-});
-for (const [alias, team] of Object.entries({
-  imperial: 'IMP', dendelecs: 'DEN', lynnvision: 'LVG', parivision: 'PVI', bcgame: 'GOSH',
-})) aliases.set(alias, aliases.get(normalize(team)));
-const resolveTeam = (name) => typeof name === 'string' ? aliases.get(normalize(name)) : undefined;
+export function coverageContext(teams, calendar, stageNumber) {
+  const aliases = new Map();
+  teams.forEach((team, i) => {
+    for (const name of [team.name, team.short, team.id ?? team.logo.split('.')[0]])
+      aliases.set(normalize(name), i);
+  });
+  for (const [alias, team] of Object.entries({
+    imperial: 'IMP', dendelecs: 'DEN', lynnvision: 'LVG', parivision: 'PVI', bcgame: 'GOSH',
+    navi: 'natus_vincere', g2: 'g2_esports', theone: '1win', mongolz: 'the_mongolz',
+  })) {
+    const index = aliases.get(normalize(team));
+    if (index !== undefined) aliases.set(alias, index);
+  }
+  const resolveTeam = name => typeof name === 'string' ? aliases.get(normalize(name)) : undefined;
+  return { aliases, resolveTeam, calendar, stageNumber };
+}
+const firstCoverage = coverageContext(stage.teams, schedule, 1);
 
-function findMatches(html) {
+function findMatches(html, aliases) {
   const matches = [];
   const links = /href="\/partida\/(\d+)-([^"/]+?)-vs-([^"/]+?)-PGL-Major-Singapore-2026"/gi;
   for (const [, id, left, right] of html.matchAll(links)) {
@@ -37,7 +45,7 @@ async function request(fetcher, path) {
 }
 
 // Some matches announce sides only in the first-half recap.
-function halftimeCT(events, game, mapName) {
+function halftimeCT(events, game, mapName, { resolveTeam, aliases }) {
   for (const event of events) {
     if (event.map?.name !== mapName || !Number.isFinite(event.eventDate) ||
         ![event.scoreA, event.scoreB].every((n) => Number.isInteger(n) && n >= 0) ||
@@ -65,7 +73,7 @@ function announcedMap(event) {
   return maps.size === 1 ? [...maps][0] : undefined;
 }
 
-function openingReport(events, game, name, before) {
+function openingReport(events, game, name, before, resolveTeam) {
   const evidence = new Set();
   let reportedAt = 0, mapName = name;
   for (const event of events) {
@@ -93,7 +101,7 @@ function openingReport(events, game, name, before) {
 
 // Use named, side-specific actions in scored rounds. The team that won a round
 // alone does not identify its side. Conflicting reports leave it undetermined.
-function reportedOpeningCT(rounds, game, mapName) {
+function reportedOpeningCT(rounds, game, mapName, resolveTeam) {
   const evidence = new Set();
   for (const event of rounds) {
     if (event.map.name !== mapName) continue;
@@ -150,7 +158,8 @@ function retainMapHistory(game, prior) {
   }
 }
 
-export async function addRoundScores(games, previous, fetcher, now = Date.now(), broadcast = readBroadcast) {
+export async function addRoundScores(games, previous, fetcher, now = Date.now(), broadcast = readBroadcast, coverage = firstCoverage) {
+  const { aliases, resolveTeam, calendar, stageNumber } = coverage;
   const previousGame = (g) => previous.find((p) => p.round === g.round && p.bo === g.bo &&
     p.slot === g.slot && p.a === g.a && p.b === g.b);
   for (const game of games) {
@@ -166,7 +175,7 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
   }
   await Promise.all(live.map(async (g) => {
     const prior = previousGame(g);
-    const scoreboard = readCitoScore(g, matchLink(g, schedule), resolveTeam, fetcher, now);
+    const scoreboard = readCitoScore(g, matchLink(g, calendar), resolveTeam, fetcher, now);
     const sameMap = prior?.map && isCurrentMap(g, prior.map.name);
     const lastRead = sameMap ? prior.broadcastChecked : null;
     let streams;
@@ -186,14 +195,14 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
     }
     try {
       if (!match) {
-        listing ??= request(fetcher, '/').then((r) => r.text()).then(findMatches);
+        listing ??= request(fetcher, '/').then((r) => r.text()).then(html => findMatches(html, aliases));
         const candidate = (await listing).find((m) =>
           (m.a === g.a && m.b === g.b) || (m.b === g.a && m.a === g.b));
         if (!candidate) return;
         const { data } = await (await request(fetcher, '/api/proxy/matches/' + candidate.id)).json();
         const a = aliases.get(normalize(data.teamA.teamName)), b = aliases.get(normalize(data.teamB.teamName));
         if (data.tournament?.tournamentId !== 1801 || data.bestOf !== g.bo ||
-            !/Stage 1\b/i.test(data.matchParticularity) ||
+            Number(/\bStage\s+(\d+)\b/i.exec(data.matchParticularity)?.[1]) !== stageNumber ||
             Number(/Rodada\s*#?(\d+)/i.exec(data.matchParticularity)?.[1]) !== g.round ||
             !((a === g.a && b === g.b) || (b === g.a && a === g.b))) return;
         match = { id: candidate.id, reversed: a !== g.a };
@@ -207,7 +216,7 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
       ).sort((a, b) => b.eventDate - a.eventDate || b.id - a.id);
       const event = rounds[0];
       const first = rounds.findLast((e) => e.map.name === event?.map.name);
-      const report = openingReport(data, g, event?.map.name.slice(3) ?? g.map?.name, first?.eventDate ?? now / 1000);
+      const report = openingReport(data, g, event?.map.name.slice(3) ?? g.map?.name, first?.eventDate ?? now / 1000, resolveTeam);
       if (!event) {
         if (report) {
           g.map ??= { name: report.name };
@@ -226,8 +235,8 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
           reportedAt: event.eventDate * 1000,
         };
       }
-      const startingCT = report?.startingCT ?? halftimeCT(data, g, event.map.name) ??
-        reportedOpeningCT(rounds, g, event.map.name);
+      const startingCT = report?.startingCT ?? halftimeCT(data, g, event.map.name, coverage) ??
+        reportedOpeningCT(rounds, g, event.map.name, resolveTeam);
       if (startingCT !== undefined) g.map.startingCT = startingCT;
     } catch {
       // The PGL status and last known round remain usable between coverage updates.

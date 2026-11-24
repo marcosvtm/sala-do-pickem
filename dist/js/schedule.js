@@ -2,6 +2,7 @@ import { phasePath } from './major-phases.js';
 import { ROUND_START } from './swiss.js';
 import { hltvMatchLink } from './hltv-link.js';
 export const SCORE_POLL_MS = 15000;
+export const SCHEDULE_FRESH_MS = 180000;
 const $ = (id) => document.getElementById(id);
 const time = new Intl.DateTimeFormat('pt-BR', {
   hour: '2-digit',
@@ -370,7 +371,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
           } catch {}
       }
       const stale =
-        !data.scheduleChecked || Date.now() - data.scheduleChecked > 180000;
+        !data.scheduleChecked || Date.now() - data.scheduleChecked > SCHEDULE_FRESH_MS;
       paint(data.schedule, stale, data.scheduleChecked);
       $('feedStatus').textContent = data.stale
         ? 'PGL temporariamente indisponível. Exibindo os últimos resultados confirmados.'

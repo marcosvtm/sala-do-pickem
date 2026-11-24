@@ -96,7 +96,8 @@ export function bindBracket(teams, getLocks, onChange) {
       const col = grid.children[i];
       const offset = col.getBoundingClientRect().left - grid.getBoundingClientRect().left;
       scroll.scrollTo({ left: offset, behavior: 'instant' });
-      col.querySelector('h3').focus({ preventScroll: true });
+      for (const jump of jumps.children) jump.setAttribute('aria-pressed', String(jump === button));
+      button.focus({ preventScroll: true });
     };
     jumps.append(button);
   }
@@ -288,5 +289,10 @@ export function bindBracket(teams, getLocks, onChange) {
     }
     draw();
   }
-  return { setOfficial, setSchedule };
+  function syncScenario() {
+    previews.clear();
+    previousTap = null;
+    setOfficial(official);
+  }
+  return { setOfficial, setSchedule, syncScenario };
 }

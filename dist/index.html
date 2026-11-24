@@ -38,10 +38,7 @@
           <span class="kicker"><i></i> PGL MAJOR · SINGAPURA 2026</span>
           <h1>Pick'em dos <em>Broxinhas</em></h1>
           <p>Monte seu cartão para o Major de despedida de FalleN.</p>
-          <nav class="phase-picker" data-phase-picker aria-label="Fase do cartão"></nav>
-          <div class="eventline" id="phaseEvent">
-            <span>24–27 de novembro</span><span>16 equipes</span>
-          </div>
+          <nav class="phase-picker" data-destination="/" aria-label="Fase do cartão"></nav>
         </div>
         <div class="deadline">
           <span>Prazo para salvar os picks</span>
@@ -83,6 +80,7 @@
             </div>
             <select id="followNick" disabled><option value="">Escolha seu nick</option></select>
             <p class="hint" role="status" id="followStatus"></p>
+            <button type="button" class="text-btn" id="restorePublished" hidden>Restaurar modelo do cartão</button>
             <button type="button" class="text-btn" id="retryFollow" hidden>Tentar novamente</button>
           </div>
           <div id="slots"></div>
@@ -94,16 +92,29 @@
               sem simular. Neste navegador, você pode editar ou excluir seu
               cartão até o fim do timer.
             </p>
-            <label for="nick">Seu nick</label>
-            <input
-              id="nick"
-              name="nick"
-              maxlength="32"
-              required
-              autocomplete="nickname"
-              placeholder="Seu usuário na GamersClub"
-            />
+            <div id="knownParticipant" hidden>
+              <span>Você vai salvar como <strong id="knownNick"></strong></span>
+              <button type="button" class="text-btn" id="changeParticipant">Trocar</button>
+            </div>
+            <div id="chooseParticipant">
+              <label for="participantChoice">Quem é você?</label>
+              <select id="participantChoice" disabled><option value="">Carregando participantes…</option></select>
+              <button type="button" class="text-btn" id="reloadParticipants" hidden>Tentar novamente</button>
+            </div>
+            <div id="newParticipant" hidden>
+              <label for="nick">Seu nick</label>
+              <input
+                id="nick"
+                name="nick"
+                maxlength="32"
+                required
+                autocomplete="nickname"
+                placeholder="Seu usuário na GamersClub"
+              />
+            </div>
+            <p class="hint" id="existingCard" role="status" hidden></p>
             <p id="saveModel" class="hint"></p>
+            <p id="saveModelUnavailable" class="hint" hidden>Este modelo ainda não tem previsões para esta fase. Escolha um modelo disponível para salvar o cartão.</p>
             <div class="save-actions">
               <button id="saveButton" class="primary" disabled>
                 Salvar cartão</button
@@ -115,6 +126,14 @@
               Usar outro nick neste aparelho
             </button>
           </form>
+          <dialog id="confirmCard" aria-labelledby="confirmNick" aria-describedby="confirmNickHint">
+            <h3><span aria-hidden="true">⚠️</span> <span id="confirmNick"></span></h3>
+            <p id="confirmNickHint">Confira se este é o seu nick. Cada pessoa pode salvar um cartão por fase. Se você usar o nick de um amigo, ele pode ficar sem conseguir salvar o dele, e os pontos vão contar para a pessoa errada no ranking do grupo.</p>
+            <div class="save-actions">
+              <button type="button" id="correctNick" class="outline" autofocus>Voltar e corrigir</button>
+              <button type="button" id="confirmSave" class="primary"></button>
+            </div>
+          </dialog>
         </section>
         <section class="panel evaluation" id="resultado" tabindex="-1">
           <div class="panel-title">
@@ -173,24 +192,7 @@
           </div>
         </section>
       </div>
-      <details class="panel participation" id="participation" data-page="/">
-        <summary id="participationTitle">Minha participação</summary>
-        <p id="participantLabel"></p>
-        <button type="button" class="outline" id="showCode" hidden>Mostrar meu código privado</button>
-        <div id="codeResult" hidden>
-          <label for="privateCode">Seu código de recuperação</label>
-          <input id="privateCode" readonly autocomplete="off" spellcheck="false" />
-          <button type="button" class="outline" id="copyCode">Copiar código</button>
-        </div>
-        <form id="recoverForm">
-          <label for="restoreCode">Recuperar com um código</label>
-          <input id="restoreCode" type="password" autocomplete="off" placeholder="Cole seu código privado" required />
-          <button class="outline" id="recoverParticipation">Recuperar participação</button>
-        </form>
-        <p class="hint">Gere o código no navegador em que salvou seu primeiro cartão. Se perdeu o recibo e o código, fale com o organizador.</p>
-        <p id="participantStatus" role="status"></p>
-      </details>
-      <section class="panel agenda" data-page="/">
+      <section class="panel agenda" data-page="/ /partidas">
         <div class="panel-title">
           <h2>Agenda do Stage 1</h2>
           <a class="hltv-button hltv-event" href="https://www.hltv.org/events/9303/matches"
@@ -214,13 +216,17 @@
         </div>
         <div id="agendaGames"></div>
       </section>
-      <div id="phaseAgendas" data-page="/"></div>
-      <nav class="phase-picker page-phases" data-page="/modelos" data-phase-picker aria-label="Fase dos modelos" hidden></nav>
-      <nav class="phase-picker page-phases" data-page="/partidas" data-phase-picker aria-label="Fase das partidas" hidden></nav>
-      <section data-page="/modelos" hidden class="page-intro">
-        <span class="kicker"><i></i> STAGE 1 · SINGAPURA</span>
-        <h1>Modelos</h1>
-        <p>Escolha como estimar a chance de cada equipe vencer um confronto.</p>
+      <div id="phaseAgendas" data-page="/ /partidas"></div>
+      <section data-page="/modelos" hidden class="hero models-hero">
+        <img class="hero-art" src="/assets/banner-modelos.webp" loading="lazy" alt="" />
+        <div class="hero-copy">
+          <span class="kicker"><i></i><span id="modelsPhaseLabel">Stage 1 · Singapura</span></span>
+          <h1>Modelos</h1>
+          <p>Escolha como estimar a chance de cada equipe vencer um confronto.</p>
+          <nav class="phase-picker" data-destination="/modelos" aria-label="Fase dos modelos"></nav>
+        </div>
+      </section>
+      <section data-page="/modelos" hidden aria-label="Modelos disponíveis">
         <div id="catalog" class="catalog"></div>
         <p id="legacyForm" class="hint" hidden>
           Esta cópia preserva a forma recente anterior.
@@ -259,8 +265,8 @@
         <details id="guide-vrs" name="model-guide" class="model-guide">
           <summary>Como os pontos da Valve viram chances de vitória</summary>
           <p>
-            O modelo compara os pontos das duas equipes no ranking global de 2
-            de novembro de 2026. Equipes empatadas em pontos têm 50% cada.
+            O modelo compara os pontos das duas equipes no <span id="vrsEdition">ranking global de 2
+            de novembro de 2026</span>. Equipes empatadas em pontos têm 50% cada.
             Quanto maior a diferença, maior a chance da equipe à frente.
           </p>
           <p>
@@ -297,8 +303,8 @@
               de 100 pontos de Elo dá cerca de 61% em MD1 e 64% em MD3.
             </p>
             <p>
-              O histórico abaixo cobre os 120 dias anteriores a 20/11/2026, às
-              14h de Cuiabá. A Valve agrupa as equipes em Europa, Américas e
+              O histórico abaixo cobre os 120 dias anteriores a <span id="formCutoff">20/11/2026, às
+              14h de Cuiabá</span>. A Valve agrupa as equipes em Europa, Américas e
               Ásia (incluindo a Oceania). Usamos a região na data da série. Uma
               série só conta como inter-regional se ambas as regiões eram
               conhecidas e diferentes.
@@ -345,8 +351,8 @@
             Apenas três dessas séries eram MD1.
           </p>
           <p>
-            Posições congeladas para o Stage 1.
-            <a target="_blank" rel="noopener noreferrer" href="https://www.hltv.org/ranking/teams/2026/november/16"
+            Posições congeladas para <span id="hltvPhase">o Stage 1</span>.
+            <a id="hltvEdition" target="_blank" rel="noopener noreferrer" href="https://www.hltv.org/ranking/teams/2026/november/16"
               >Ranking mundial de 16/11/2026</a
             >
           </p>
@@ -393,6 +399,14 @@
           <summary id="personalName">Modelo personalizado</summary>
           <div id="modelos" class="options">
             <p class="lead">Edite seu próprio modelo.</p>
+            <details id="previousModels" hidden>
+              <summary id="previousModelsTitle">Copiar modelo da fase anterior</summary>
+              <label for="previousModel">Modelo publicado</label>
+              <select id="previousModel"></select>
+              <button type="button" class="outline" id="copyPreviousModel" disabled>Copiar para esta fase</button>
+              <button type="button" class="text-btn" id="retryPreviousModels" hidden>Tentar novamente</button>
+              <p class="hint" role="status" id="previousModelResult"></p>
+            </details>
             <section class="base-settings" aria-labelledby="mixTitle">
               <div class="mix-heading">
                 <h3 id="mixTitle">Misture os modelos</h3>
@@ -530,8 +544,9 @@
         <div class="hero matches-hero">
           <img class="hero-art" src="/assets/banner-cartoes.webp" alt="Os Broxas reunidos no bar." />
           <div class="hero-copy">
-            <span class="kicker"><i></i> STAGE 1 · SISTEMA SUÍÇO</span>
+            <span class="kicker"><i></i><span id="matchesPhaseLabel">Stage 1 · Sistema suíço</span></span>
             <h1>Partidas</h1>
+            <nav class="phase-picker" data-destination="/partidas" aria-label="Fase das partidas"></nav>
           </div>
         </div>
         <div class="panel bracket-panel">
@@ -561,7 +576,7 @@
           </div>
           <div class="bracket-foot">
             <span id="locksCount"></span
-            ><a href="/"
+            ><a id="bracketResultLink" href="/#resultado"
               >Chance de 5+ no cartão <strong id="bracketProb">—</strong></a
             >
           </div>
@@ -579,7 +594,7 @@
             </p>
             <p>
               O modelo neutro usa 50/50. O Ranking Valve usa a diferença de
-              pontos. O Ranking HLTV compara as posições mundiais de 16/11. A
+              pontos. O Ranking HLTV compara as <span id="readingRanks">posições mundiais de 16/11</span>. A
               forma recente considera a força do adversário, os reencontros e a
               exposição inter-regional. A força acumulada tem meia-vida de 160
               dias. MD1 e MD3 têm curvas próprias. O modelo personalizado
@@ -592,7 +607,7 @@
               Mais simulações reduzem essa variação. A diferença entre modelos
               mostra quanto a conclusão depende das hipóteses.
             </p>
-            <p>
+            <p id="readingCutoff">
               Dados congelados em 20/11/2026 às 14h de Cuiabá. Resultados podem
               ser fixados manualmente. O primeiro jogo está previsto para 24/11
               à 0h de Cuiabá. Confira o fechamento do cartão no CS2.
@@ -607,7 +622,7 @@
                 >Ranking Valve</a
               >
               ·
-              <a target="_blank" rel="noopener noreferrer" href="https://www.hltv.org/ranking/teams/2026/november/16"
+              <a id="readingRankingLink" target="_blank" rel="noopener noreferrer" href="https://www.hltv.org/ranking/teams/2026/november/16"
                 >Ranking HLTV do Stage 1</a
               >
               ·

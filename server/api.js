@@ -1,4 +1,5 @@
-import { authenticatedParticipant, participantApi } from './participants.js';
+import { authenticatedParticipant, participantApi, participantDirectory, participantDisplayName } from './participants.js';
+import { modelAvailable, mixWeights, studyFor } from '../dist/js/models.js';
 import {
   defaults,
   validate,
@@ -38,10 +39,13 @@ async function changeCard(db, stage, now, id, hash, revision, update) {
   const result = update
     ? await db
         .prepare(
-          'UPDATE OR IGNORE cards SET nick=?,nick_key=?,settings=?,revision=revision+1' +
-            guard
+          'UPDATE OR IGNORE cards SET nick=?,nick_key=?,settings=?,revision=revision+1' + guard +
+            ` AND (nick_key=? OR NOT EXISTS (
+               SELECT 1 FROM cards AS other WHERE other.nick_key=? AND other.removed_at IS NULL
+                 AND coalesce(other.participant_id,other.id) <> coalesce(cards.participant_id,cards.id)
+             ))`
         )
-        .bind(update.nick, update.nickKey, update.settings, ...args)
+        .bind(update.nick, update.nickKey, update.settings, ...args, update.nickKey, update.nickKey)
         .run()
     : await db
         .prepare(
@@ -78,14 +82,14 @@ async function changeCard(db, stage, now, id, hash, revision, update) {
       'O cartão mudou em outra aba. Atualize o mural e abra a versão mais recente.',
       409
     );
-  return failure('Este nick já tem um cartão na fase.', 409);
+  return failure('Este nick já pertence a outro participante do Major.', 409);
 }
-export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
+export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer, pausedStage) {
   const url = new URL(req.url);
   if (url.pathname === '/api/participant') return participantApi(req, db, ownerHash);
   if (url.pathname === '/api/stages')
     return req.method === 'GET'
-      ? json({ serverTime: now, ...await navigationCatalog(db, now) })
+      ? json({ serverTime: now, ...await navigationCatalog(db, now, fetcher, defer, pausedStage) })
       : failure('Método indisponível.', 405);
   if (url.pathname === '/api/ranking/geral' && req.method === 'GET') {
     const raw = url.searchParams.get('page') ?? '0';
@@ -96,7 +100,9 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   if (requested.length > 1) return failure('Informe apenas uma fase.', 400);
   const stage = findStage(requested[0] ?? LEGACY_STAGE_ID);
   if (!stage) return failure('Fase não encontrada.', 404);
-  const info = stageInfo(stage, now);
+  const info = stageInfo(stage, now, pausedStage);
+  if (url.pathname === '/api/stage/participants' && req.method === 'GET')
+    return json(await participantDirectory(db, stage.id));
   if (url.pathname === '/api/stage' && req.method === 'GET')
     return json({ serverTime: now, ...info, invitedTeams: stage.invitedTeams });
   if (info.status === 'preparing') {
@@ -222,6 +228,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     return json({
       serverTime: now,
       closesAt: stage.closesAt,
+      writesPaused: info.writesPaused,
       page,
       hasMore: results.length > size,
       live,
@@ -232,6 +239,8 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   }
   if (single ? !['PUT', 'DELETE'].includes(req.method) : req.method !== 'POST')
     return failure('Método indisponível.', 405);
+  if (info.writesPaused && !modelOnly)
+    return failure('O envio de cartões está pausado. Seus picks continuam neste navegador.', 409);
   if (req.headers.get('origin') && req.headers.get('origin') !== url.origin)
     return failure('Origem inválida.', 403);
   if (!req.headers.get('content-type')?.startsWith('application/json'))
@@ -294,10 +303,15 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   if (!uuid.test(id) || !validate(body.state, { stageId: stage.id }))
     return failure('O cartão ou o modelo está incompleto.', 400);
   const { card, model } = body.state;
+  if (stage.id !== LEGACY_STAGE_ID && !modelAvailable(stage.teams ?? [], model, body.state))
+    return failure('O modelo escolhido ainda não está disponível nesta fase.', 409);
+  const usesStudy = model === 'study' || (model === 'custom' && mixWeights(body.state)?.study > 0);
   const settings = JSON.stringify({
     ...defaults(card, stage.id),
     model,
     ...personalSettings(body.state),
+    ...(stage.id !== LEGACY_STAGE_ID && { editionVersion: stage.editionVersion,
+      studyVersion: usesStudy ? studyFor(stage.id)?.version : undefined }),
     ...(!body.state.weights &&
     !body.state.base &&
     body.state.description?.trim()
@@ -316,7 +330,15 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   const linked = req.headers.has('X-Major-Code') ? await authenticatedParticipant(req, db) : null;
   if (req.headers.has('X-Major-Code') && !linked)
     return failure('Código de participação inválido. Recupere sua participação antes de salvar.', 403);
-  const participantId = linked?.id ?? id;
+  // New clients explicitly choose an existing participant or null for a first entry.
+  // Requests from earlier releases keep their receipt/code-based behavior.
+  const choosing = Object.hasOwn(body, 'participantId');
+  const selected = body.participantId;
+  if (choosing && selected !== null && (typeof selected !== 'string' || !uuid.test(selected)))
+    return failure('Escolha um participante da lista.', 400);
+  if (choosing && linked && selected !== linked.id)
+    return failure('Confira o participante escolhido antes de salvar.', 400);
+  const participantId = selected ?? linked?.id ?? id;
   const retry = async () => {
     const prior = await db
       .prepare(
@@ -332,25 +354,41 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     );
   };
   if (now >= stage.closesAt) return (await retry()) ? json({ id: body.id }) : closed();
+  let choiceGuard = '';
+  let choiceArgs = [];
+  if (choosing) {
+    if (selected) {
+      choiceGuard = ' AND (' + participantDisplayName + ')=?';
+      choiceArgs = [selected, nick];
+    } else {
+      choiceGuard = ' AND NOT EXISTS (SELECT 1 FROM cards WHERE nick_key=? AND removed_at IS NULL)';
+      choiceArgs = [nickKey];
+    }
+  }
   // The database clock guards the actual insert as well as the request-time gate.
   const result = await db
     .prepare(
       `INSERT INTO cards(id,stage,nick,nick_key,submitted,settings,edit_hash,participant_id)
     SELECT ?,?,?,?,unixepoch(),?,?,? WHERE unixepoch() < ? AND NOT EXISTS (
       SELECT 1 FROM cards WHERE stage=? AND id=? AND removed_at IS NULL
-    ) ON CONFLICT DO NOTHING`
+    ) ${choiceGuard} ON CONFLICT DO NOTHING`
     )
-    .bind(body.id, stage.id, nick, nickKey, settings, hash, participantId, stage.closesAt / 1000, stage.id, participantId)
+    .bind(body.id, stage.id, nick, nickKey, settings, hash, participantId, stage.closesAt / 1000, stage.id, participantId, ...choiceArgs)
     .run();
   if (result.meta.changes) return json({ id: body.id }, 201);
   if (await retry()) return json({ id: body.id });
-  if (linked && await db.prepare('SELECT id FROM cards WHERE stage=? AND coalesce(participant_id,id)=? AND removed_at IS NULL').bind(stage.id, participantId).first())
-    return failure('Este participante já salvou um cartão nesta fase.', 409);
+  if (linked || selected) {
+    const existing = await db.prepare('SELECT id FROM cards WHERE stage=? AND coalesce(participant_id,id)=? AND removed_at IS NULL').bind(stage.id, participantId).first();
+    if (existing) return json({ message: 'Este participante já salvou um cartão nesta fase.', cardId: existing.id }, 409);
+  }
   const clock = await db
     .prepare('SELECT unixepoch() >= ? AS closed')
     .bind(stage.closesAt / 1000)
     .first();
   if (clock.closed) return closed();
+  if (choosing) return json({ refreshParticipants: true, message: selected
+    ? 'Atualize a lista de participantes e confira o nick escolhido.'
+    : 'Este nick já foi usado no Major. Escolha a pessoa na lista ou use seu próprio nick.' }, 409);
   return failure(
     'Este nick já tem um cartão registrado nesta fase. Escolha outro se for uma pessoa diferente.',
     409

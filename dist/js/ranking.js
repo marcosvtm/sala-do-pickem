@@ -1,5 +1,6 @@
 import { majorPhases as phases } from './major-phases.js';
 import { modelName } from './models.js';
+import { bindPhasePickers, readStageCatalog } from './phase-picker.js';
 
 const $ = (id) => document.getElementById(id);
 function element(tag, text, cls) {
@@ -21,9 +22,6 @@ if (/^\/cartoes(?:\/|\.html)?$/.test(url.pathname)) {
   history.replaceState(history.state, '', url);
 }
 const phase = phases.find(p => p.key === url.searchParams.get('fase'));
-for (const tab of document.querySelectorAll('[data-phase]')) {
-  if (tab.dataset.phase === (phase?.key || '')) tab.setAttribute('aria-current', 'page');
-}
 
 function phaseState(stage, pick) {
   if (pick) return String(pick.hits);
@@ -129,16 +127,24 @@ function initOverall() {
   refresh();
 }
 
-if (!phase) initOverall();
-else if (phase.key === 'stage-1') {
-  $('stageBoard').hidden = false;
-  import('./wall.js').then(module => module.loadStageBoard()).catch(() => {
-    $('feed').textContent = 'Não foi possível abrir o Stage 1. Recarregue a página.';
-  });
-} else {
-  $('futureBoard').hidden = false;
-  $('futureName').textContent = phase.name;
-  $('futureStatus').textContent = phase.key === 'stage-2'
-    ? 'Em preparação. Os cartões aparecerão aqui quando a fase abrir.'
-    : 'Fase futura. A classificação estará disponível quando houver cartões.';
+async function start() {
+  if (!phase) initOverall();
+  const catalog = await readStageCatalog();
+  bindPhasePickers(phase, catalog);
+  if (!phase) return;
+  const info = catalog?.stages.find(item => item.id === phase.id);
+  if (phase.key === 'stage-1' || (phase.format === 'swiss' && info?.rosterConfirmed && info.status !== 'preparing')) {
+    $('stageBoard').querySelector('h2').textContent = 'Classificação do ' + phase.name;
+    $('stageBoard').hidden = false;
+    import('./wall.js').then(module => module.loadStageBoard(phase)).catch(() => {
+      $('feed').textContent = 'Não foi possível abrir ' + phase.name + '. Recarregue a página.';
+    });
+  } else {
+    $('futureBoard').hidden = false;
+    $('futureName').textContent = phase.name;
+    $('futureStatus').textContent = phase.key === 'stage-2'
+      ? 'Em preparação. Os cartões aparecerão aqui quando a fase abrir.'
+      : 'Fase futura. A classificação estará disponível quando houver cartões.';
+  }
 }
+start();

@@ -1,105 +1,116 @@
+import { majorPhases, phasePath } from './major-phases.js';
 import { editKey, readReceipt } from './card-access.js';
-import { majorPhases } from './major-phases.js';
 
-const storage = 'sg26:participation';
-let saved;
-try { saved = JSON.parse(localStorage.getItem(storage)); } catch {}
+const currentPerson = 'sg26:last-saved-participant';
+const newcomer = 'new';
 
-function receiptFor(stageId) {
-  const stage = { id: stageId };
-  const receipt = readReceipt(stage);
-  const key = receipt?.saved && editKey(stage, receipt.token);
-  return key ? { card: receipt.token, nick: receipt.nick, key } : null;
-}
-
-async function request(code, receipt) {
-  const headers = { 'X-Major-Code': code };
-  if (receipt) {
-    headers['X-Participant-Card'] = receipt.card;
-    headers['X-Card-Key'] = receipt.key;
+function familiarIds() {
+  const ids = [];
+  try {
+    ids.push(localStorage.getItem(currentPerson));
+    // Honor a participation already recovered on this device in an earlier release.
+    ids.push(JSON.parse(localStorage.getItem('sg26:participation'))?.id);
+  } catch {}
+  for (const phase of [...majorPhases].reverse()) {
+    const receipt = readReceipt(phase);
+    if (receipt?.saved && editKey(phase, receipt.token)) ids.push(receipt.participantId || receipt.token);
   }
-  const response = await fetch('/api/participant', {
-    method: receipt ? 'POST' : 'GET', cache: 'no-store', headers,
-  });
-  const data = await response.json();
-  if (!response.ok) throw Error(data.message || 'Não foi possível recuperar a participação.');
-  const next = { id: data.id, nick: data.nick, code };
-  localStorage.setItem(storage, JSON.stringify(next));
-  saved = next;
-  return next;
+  return ids.filter(Boolean);
 }
 
-async function issue(receipt) {
-  // Retrying from the original receipt always recovers the same independent code.
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('sg26:recovery:' + receipt.key));
-  const code = Array.from(new Uint8Array(hash, 0, 16), b => b.toString(16).padStart(2, '0')).join('');
-  return request(code, receipt);
+export function rememberParticipant(id) {
+  try { localStorage.setItem(currentPerson, id); } catch {}
 }
 
-export async function participationForCard(stageId) {
-  if (saved) return saved.code;
-  const index = majorPhases.findIndex(phase => phase.id === stageId);
-  const earlier = majorPhases.slice(0, index).map(phase => receiptFor(phase.id)).find(Boolean);
-  return earlier ? (await issue(earlier)).code : null;
-}
-
-export function bindParticipation(stageId) {
+export function bindParticipantChoice(stage, editing, receipt, onChange) {
   const $ = id => document.getElementById(id);
-  const panel = $('participation');
-  const output = $('privateCode');
-  const status = $('participantStatus');
-  const field = $('restoreCode');
-  let busy = false;
-  function refresh() {
-    const index = majorPhases.findIndex(phase => phase.id === stageId);
-    const receipt = majorPhases.slice(0, index + 1).map(phase => receiptFor(phase.id)).find(Boolean);
-    const nick = saved?.nick || receipt?.nick;
-    const caption = nick ? 'Minha participação · ' + nick : 'Minha participação';
-    $('participationTitle').textContent = caption;
-    $('participantLabel').textContent = nick
-      ? 'Os próximos cartões podem somar pontos para ' + nick + '.'
-      : 'Já fez um cartão em outro navegador? Recupere sua participação antes de salvar o próximo.';
-    $('showCode').hidden = !saved && !receipt;
-    $('showCode').disabled = $('recoverParticipation').disabled = busy;
-    return receipt;
+  const select = $('participantChoice'), input = $('nick'), retry = $('reloadParticipants');
+  let people = [], ready = false, busy = false, disabled = false, compact = false;
+  if (editing) input.value = editing.nick;
+
+  function selected() { return people.find(person => person.id === select.value); }
+  function render() {
+    const person = selected();
+    const entering = select.value === newcomer || Boolean(editing);
+    $('chooseParticipant').hidden = Boolean(editing) || compact;
+    $('knownParticipant').hidden = !compact || !person;
+    $('knownNick').textContent = person?.nick || '';
+    $('changeParticipant').disabled = disabled;
+    $('newParticipant').hidden = !entering;
+    input.disabled = !entering || disabled;
+    select.disabled = disabled || !ready;
+    retry.disabled = busy || disabled;
   }
-  async function run(action) {
-    if (busy) return;
-    busy = true; refresh();
-    try { await action(); }
-    catch (error) { status.textContent = error.message || 'Tente novamente.'; }
-    finally { busy = false; refresh(); }
+  function choose() {
+    compact = false;
+    render();
+    if (editing) input.focus();
+    else select.focus();
   }
-  $('showCode').onclick = () => run(async () => {
-    const person = saved || await issue(refresh());
-    output.value = person.code.match(/.{4}/g).join('-');
-    $('codeResult').hidden = false;
-    output.focus(); output.select();
-    status.textContent = 'Guarde este código para usar em outro navegador.';
-  });
-  $('copyCode').onclick = async () => {
-    try { await navigator.clipboard.writeText(output.value); status.textContent = 'Código copiado.'; }
-    catch { output.focus(); output.select(); status.textContent = 'Copie o código selecionado.'; }
-  };
-  $('recoverForm').onsubmit = event => {
-    event.preventDefault();
-    run(async () => {
-      const code = field.value.trim().toLowerCase().replace(/[\s-]/g, '');
-      if (!/^[a-f0-9]{32}$/.test(code)) throw Error('Confira os oito grupos de quatro caracteres.');
-      await request(code);
-      field.value = output.value = '';
-      $('codeResult').hidden = true;
-      status.textContent = 'Participação de ' + (saved.nick || 'jogador') + ' recuperada neste navegador.';
-    });
-  };
-  panel.addEventListener('toggle', () => {
-    if (!panel.open) {
-      $('codeResult').hidden = true;
-      field.value = output.value = '';
-      status.textContent = '';
+  async function load({ recognize = true } = {}) {
+    if (editing || busy) return;
+    busy = true;
+    ready = false;
+    retry.hidden = true;
+    select.replaceChildren(new Option('Carregando participantes…', ''));
+    render();
+    onChange();
+    try {
+      const res = await fetch(phasePath('/api/stage/participants', stage.id), { cache: 'no-store' });
+      if (!res.ok) throw Error();
+      const data = await res.json();
+      if (!Array.isArray(data.participants) || !data.participants.every(
+        p => p && typeof p.id === 'string' && typeof p.nick === 'string'
+      )) throw Error();
+      people = data.participants;
+      select.replaceChildren(new Option('Escolha seu nick', ''),
+        ...people.map(p => new Option(p.nick, p.id)), new Option('É minha primeira participação', newcomer));
+      const knownIds = recognize ? [receipt?.participantId, receipt?.saved && receipt.token, ...familiarIds()] : [];
+      const known = knownIds.find(id => people.some(person => person.id === id));
+      if (known) select.value = known;
+      else if (!people.length || (recognize && receipt?.nick && !receipt.saved)) select.value = newcomer;
+      compact = Boolean(known);
+      ready = true;
+    } catch {
+      select.replaceChildren(new Option('Lista indisponível', ''));
+      compact = false;
+      retry.hidden = false;
+    } finally {
+      busy = false;
+      render();
+      onChange();
     }
-    refresh();
-  });
-  document.addEventListener('card-receipt-changed', refresh);
-  refresh();
+  }
+  $('changeParticipant').onclick = choose;
+  select.onchange = () => {
+    render();
+    onChange();
+    if (select.value === newcomer) input.focus();
+  };
+  retry.onclick = () => load({ recognize: false });
+  render();
+  return {
+    load, choose,
+    offerRefresh() {
+      choose();
+      retry.textContent = 'Atualizar participantes';
+      retry.hidden = false;
+    },
+    markExisting(cardId) {
+      const person = selected();
+      if (person) person.cardId = cardId;
+    },
+    setDisabled(value) { disabled = value; render(); },
+    choice() {
+      if (editing || (ready && select.value === newcomer))
+        return { nick: input.value.normalize('NFKC').trim().replace(/\s+/g, ' '), id: null };
+      return ready ? selected() : null;
+    },
+    reset() {
+      compact = false;
+      select.value = '';
+      input.value = '';
+      load({ recognize: false }).then(choose);
+    },
+  };
 }
