@@ -148,6 +148,8 @@ test('card owners can revise and remove cards before closing, including concurre
     assert.equal((await write('DELETE', { revision: 2 })).status, 200);
     assert.equal((await write('POST', body)).status, 409);
     assert.equal((await cardsApi(get('/' + body.id), db)).status, 404);
+    const choices = await cardsApi(new Request('https://example.org/api/stage/cards'), db, CLOSE);
+    assert.deepEqual(await choices.json(), { cards: [{ id: legacy.id, nick: legacy.nick }] });
     const shared = new Request('https://example.org/api/models/' + body.id);
     assert.equal((await cardsApi(shared, db)).status, 404);
     const saved = await (await cardsApi(get(''), db, CLOSE - 1)).json();

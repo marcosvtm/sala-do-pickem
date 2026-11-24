@@ -8,6 +8,7 @@ import { bindEditor } from './model-editor.js';
 import { bindModelSaving } from './save-model.js';
 import { wilson } from './simulation.js';
 import { bindSaving, readReceipt } from './save-card.js';
+import { bindFollowCard } from './follow-card.js';
 import { editKey } from './card-access.js';
 
 const $ = (id) => document.getElementById(id);
@@ -34,6 +35,13 @@ let owner,
   activeRun,
   refreshSaving,
   refreshSuggestion;
+let picksClosed = false, followedCard, localDraft;
+const needsCard = () => (picksClosed && !followedCard) || state.card.includes(-1);
+function personalNick() {
+  if (!followedCard) return publishedName || owner;
+  return JSON.stringify(personalSettings(state)) === JSON.stringify(personalSettings(followedCard.settings))
+    ? followedCard.nick : publishedName;
+}
 
 async function init() {
   const response = await fetch('data/stage.json');
@@ -114,8 +122,9 @@ async function init() {
   refreshSuggestion = bindSuggestions(
     stage.teams,
     () => state,
-    () => modelName(state.model, publishedName || owner, state.formVersion),
+    () => modelName(state.model, personalNick(), state.formVersion),
     (card) => {
+      if (picksClosed) return;
       state.card = [...card];
       renderCard();
       invalidate();
@@ -129,15 +138,10 @@ async function init() {
       const changed = state.model !== 'custom';
       state.model = 'custom';
       $('activeModel').value = 'custom';
-      if (changed || !editing)
-        renderCatalog(
-          'custom',
-          publishedName || owner,
-          chooseModel,
-          state.formVersion
-        );
       modelSaving?.refresh();
-      renderDuel();
+      if (changed || !editing || $('personalName').textContent !== modelName('custom', personalNick()))
+        refreshNames();
+      else renderDuel();
       invalidate({ editing });
     }
   );
@@ -150,6 +154,26 @@ async function init() {
       model: 'custom',
       formVersion: settings.formVersion ?? 1,
     });
+    renderSettings();
+    refreshNames();
+    invalidate();
+  });
+  const follow = bindFollowCard(stage, () => readReceipt(stage), (card, resume) => {
+    if (!card && !followedCard) return;
+    const locks = state.locks;
+    if (!followedCard) localDraft = state;
+    followedCard = card;
+    $('jumpSimulation').hidden = !card;
+    if (card) {
+      let working;
+      if (resume) {
+        try { working = JSON.parse(localStorage.getItem('card-simulation:' + STAGE + ':' + card.id)); } catch {}
+      }
+      const settings = validate(working) && working.card.every((team, i) => team === card.settings.card[i])
+        ? working : structuredClone(card.settings);
+      state = { ...settings, card: [...card.settings.card], locks, formVersion: settings.formVersion ?? 1 };
+    } else state = { ...localDraft, locks };
+    renderCard();
     renderSettings();
     refreshNames();
     invalidate();
@@ -170,7 +194,19 @@ async function init() {
       }
       refreshNames();
     },
-    editingCard
+    editingCard,
+    (closed) => {
+      picksClosed = closed;
+      $('closedBadge').hidden = $('followCard').hidden = !closed;
+      $('pickInstructions').hidden = $('restore').hidden = $('suggest').hidden = closed;
+      if (closed) {
+        if ($('picker').open) $('picker').close();
+        if ($('suggestion').open) $('suggestion').close();
+      }
+      follow(closed);
+      renderCard();
+      invalidate();
+    }
   );
   modelSaving = bindModelSaving(
     stage,
@@ -206,16 +242,20 @@ function toast(text) {
 function persist() {
   if (editingCard) return;
   try {
-    localStorage.setItem(STAGE, JSON.stringify(state));
+    if (followedCard) {
+      const key = 'card-simulation:' + STAGE + ':' + followedCard.id;
+      localStorage.setItem(key, JSON.stringify({ ...state, locks: followedCard.settings.locks }));
+      localStorage.setItem(STAGE, JSON.stringify({ ...localDraft, locks: state.locks }));
+    } else localStorage.setItem(STAGE, JSON.stringify(state));
   } catch {
     /* Storage may be disabled. */
   }
   if (location.hash.startsWith('#c='))
     history.replaceState(null, '', location.pathname + location.search);
 }
-function makeTile(teamId, cls, caption = '') {
+function makeTile(teamId, cls, caption = '', tag = 'button') {
   const team = stage.teams[teamId];
-  const button = document.createElement('button');
+  const button = document.createElement(tag);
   button.className = cls;
   const img = new Image();
   img.src = 'assets/' + team.logo;
@@ -232,6 +272,7 @@ function makeTile(teamId, cls, caption = '') {
 }
 function renderCard() {
   $('slots').replaceChildren();
+  if (picksClosed && !followedCard) return;
   const count = state.card.filter((team) => team >= 0).length;
   $('pickCount').textContent = count + ' de 10 picks.';
   $('restore').disabled = count === 0;
@@ -253,6 +294,10 @@ function renderCard() {
     tiles.className = 'tiles';
     state.card.forEach((team, slot) => {
       if (category(slot) !== c) return;
+      if (picksClosed) {
+        tiles.append(makeTile(team, 'tile saved-pick', '', 'div'));
+        return;
+      }
       const empty = team === -1;
       const b = empty
         ? document.createElement('button')
@@ -315,6 +360,7 @@ function renderDuel() {
     $('duel').textContent = 'Escolha duas equipes diferentes.';
     return;
   }
+  const nick = personalNick();
   for (const key of Object.keys(MODELS)) {
     const p = makeMatrix(stage.teams, key, state)[bo][a][b];
     const line = document.createElement('div');
@@ -323,30 +369,31 @@ function renderDuel() {
     strong.textContent = stage.teams[a].short + ' ' + percent(p);
     const label =
       key === 'hltv'
-        ? modelName(key, publishedName || owner, state.formVersion) +
+        ? modelName(key, nick, state.formVersion) +
           ' (#' +
           stage.teams[a].hltvRank +
           ' × #' +
           stage.teams[b].hltvRank +
           ')'
-        : modelName(key, publishedName || owner, state.formVersion);
+        : modelName(key, nick, state.formVersion);
     line.append(label, strong);
     $('duel').append(line);
   }
 }
 function refreshNames() {
+  const nick = personalNick();
   $('legacyForm').hidden = $('legacyFormHome').hidden = state.formVersion !== 1;
   for (const opt of $('activeModel').options)
     opt.textContent = modelName(
       opt.value,
-      publishedName || owner,
+      nick,
       state.formVersion
     );
   $('activeModel').value = state.model;
-  $('personalName').textContent = modelName('custom', publishedName || owner);
+  $('personalName').textContent = modelName('custom', nick);
   renderCatalog(
     state.model,
-    publishedName || owner,
+    nick,
     chooseModel,
     state.formVersion
   );
@@ -367,11 +414,12 @@ function runHint() {
         : 'A mesma sequência de sorteios permite comparar os modelos.';
 }
 function renderEstimate() {
-  const incomplete = state.card.includes(-1);
+  const incomplete = needsCard();
+  const nick = personalNick();
   $('run').disabled = incomplete;
   $('saveModel').textContent =
     'Modelo em uso: ' +
-    modelName(state.model, publishedName || owner, state.formVersion);
+    modelName(state.model, nick, state.formVersion);
   const model = state.model;
   const histograms = last?.histograms || {};
   const pass = (h) => h.slice(5).reduce((a, b) => a + b, 0);
@@ -391,7 +439,7 @@ function renderEstimate() {
   } else {
     $('prob').textContent = '—';
     $('uncertainty').textContent = incomplete
-      ? 'Complete os dez picks para simular.'
+      ? (picksClosed ? 'Escolha um cartão salvo para simular.' : 'Complete os dez picks para simular.')
       : 'Calculando a prévia…';
   }
   $('bracketProb').textContent = $('prob').textContent;
@@ -406,7 +454,7 @@ function renderEstimate() {
     }
     row.firstChild.textContent = modelName(
       key,
-      publishedName || owner,
+      nick,
       state.formVersion
     );
     row.classList.toggle('active', key === model);
@@ -424,7 +472,7 @@ function chooseModel(key) {
   persist();
   renderCatalog(
     key,
-    publishedName || owner,
+    personalNick(),
     chooseModel,
     state.formVersion,
     true
@@ -442,7 +490,7 @@ function cancelWorker() {
 }
 function queuePreview() {
   clearTimeout(delay);
-  if (!state.card.includes(-1)) delay = setTimeout(() => start('preview'), 180);
+  if (!needsCard()) delay = setTimeout(() => start('preview'), 180);
 }
 function invalidate({ editing = false } = {}) {
   refreshSuggestion?.();
@@ -450,7 +498,7 @@ function invalidate({ editing = false } = {}) {
   cancelWorker();
   last = null;
   renderEstimate();
-  $('status').textContent = state.card.includes(-1)
+  $('status').textContent = needsCard()
     ? ''
     : editing
       ? 'Ajustando hipóteses…'
@@ -462,7 +510,7 @@ function invalidate({ editing = false } = {}) {
 }
 function start(mode) {
   clearTimeout(delay);
-  if (state.card.includes(-1)) {
+  if (needsCard()) {
     renderEstimate();
     return;
   }

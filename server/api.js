@@ -99,6 +99,12 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   const ranking = url.pathname === '/api/ranking' && req.method === 'GET';
   if (url.pathname === '/api/stage' && req.method === 'GET')
     return json({ serverTime: now, closesAt: CLOSE });
+  if (url.pathname === '/api/stage/cards' && req.method === 'GET') {
+    const { results } = await db.prepare(
+      'SELECT id,nick FROM cards WHERE stage=? AND removed_at IS NULL ORDER BY nick COLLATE NOCASE,id'
+    ).bind(stage.id).all();
+    return json({ cards: results });
+  }
   if (url.pathname === '/api/results' && req.method === 'GET')
     return json(await liveResults(db, now, fetcher, true));
   if (req.method === 'GET' && url.pathname.startsWith('/api/models/')) {

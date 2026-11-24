@@ -22,8 +22,8 @@
         >
         <nav aria-label="Navegação principal">
           <a href="/modelos">Modelos</a><a href="/partidas">Partidas</a
-          ><a href="/cartoes">Cartões dos Broxas</a>
-          <a href="/ranking">Ranking dos Broxas</a>
+          ><a href="/cartoes">Cartões<span class="nav-suffix"> dos Broxas</span></a>
+          <a href="/ranking">Ranking<span class="nav-suffix"> dos Broxas</span></a>
         </nav>
       </div>
     </header>
@@ -66,11 +66,21 @@
               <h2>Seu cartão</h2>
             </div>
             <button class="text-btn" id="restore" disabled>Limpar picks</button>
+            <span id="closedBadge" class="closed-badge" hidden>Prazo encerrado</span>
           </div>
-          <p class="lead">
+          <p class="lead" id="pickInstructions">
             Toque em uma vaga para escolher a equipe.
             <span id="pickCount"></span>
           </p>
+          <div id="followCard" hidden>
+            <div class="follow-label">
+              <label for="followNick">Acompanhar cartão</label>
+              <a href="#resultado" class="mobile-only" id="jumpSimulation" hidden>Ver simulação</a>
+            </div>
+            <select id="followNick" disabled><option value="">Escolha seu nick</option></select>
+            <p class="hint" role="status" id="followStatus"></p>
+            <button type="button" class="text-btn" id="retryFollow" hidden>Tentar novamente</button>
+          </div>
           <div id="slots"></div>
           <form id="saveCard" class="save-card">
             <h3>Fechar meu cartão</h3>
@@ -478,6 +488,7 @@
             <span>Projeção por seed</span><span>Escolha provisória</span
             ><span>Fixado</span><span>Oficial</span>
           </div>
+          <div id="roundJumps" class="round-jumps" role="group" aria-label="Ir para uma rodada"></div>
           <div
             class="bracket-scroll"
             tabindex="0"

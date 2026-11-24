@@ -85,6 +85,21 @@ const labels = {
 };
 export function bindBracket(teams, getLocks, onChange) {
   const grid = document.getElementById('matches');
+  const scroll = grid.parentElement;
+  const jumps = document.getElementById('roundJumps');
+  for (let i = 0; i <= 5; i++) {
+    const button = el('button', 'outline', i === 5 ? 'Final' : 'R' + (i + 1));
+    button.type = 'button';
+    button.setAttribute('aria-label', i === 5 ? 'Resultados finais' : 'Rodada ' + (i + 1));
+    button.setAttribute('aria-controls', 'bracket-round-' + i);
+    button.onclick = () => {
+      const col = grid.children[i];
+      const offset = col.getBoundingClientRect().left - grid.getBoundingClientRect().left;
+      scroll.scrollTo({ left: offset, behavior: 'instant' });
+      col.querySelector('h3').focus({ preventScroll: true });
+    };
+    jumps.append(button);
+  }
   const previews = new Map();
   const schedule = new Map();
   let official = Array(33).fill(-1),
@@ -175,10 +190,10 @@ export function bindBracket(teams, getLocks, onChange) {
     for (let r = 0; r <= 5; r++) {
       const col = el('section', 'round'),
         stack = el('div', 'round-stack');
-      col.append(
-        el('h3', '', r === 5 ? 'Resultados finais' : 'Rodada ' + (r + 1)),
-        stack
-      );
+      col.id = 'bracket-round-' + r;
+      const heading = el('h3', '', r === 5 ? 'Resultados finais' : 'Rodada ' + (r + 1));
+      heading.tabIndex = -1;
+      col.append(heading, stack);
       if (r >= 3) stack.append(pool(3, r - 3));
       for (const g of projection.games.filter((g) => g.round === r)) {
         const game = el('div', 'fixture ' + g.source);

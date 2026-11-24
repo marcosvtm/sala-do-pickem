@@ -9,7 +9,7 @@ export function readReceipt(stage) {
   }
 }
 
-export function bindSaving(current, stage, receipt, onOwner, editing) {
+export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline) {
   const form = document.querySelector('#saveCard'),
     input = form.elements.nick;
   const submit = document.querySelector('#saveButton'),
@@ -21,7 +21,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing) {
     closeAt = Date.parse(stage.startsAt) - 3600000;
   // Also close an already-open tab. The authoritative check is inside the database insert.
   let offset = 0,
-    timer;
+    timer, wasClosed;
   if (editing) {
     token = editing.id;
     input.value = editing.nick;
@@ -90,6 +90,12 @@ export function bindSaving(current, stage, receipt, onOwner, editing) {
   function refresh() {
     clearTimeout(timer);
     const remaining = closeAt - (Date.now() + offset);
+    const closed = remaining <= 0;
+    if (closed !== wasClosed) {
+      wasClosed = closed;
+      form.hidden = closed;
+      onDeadline(closed);
+    }
     submit.disabled =
       Boolean(saved) ||
       pending ||
