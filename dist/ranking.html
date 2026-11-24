@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Ranking dos Broxas · Pick'em dos Broxinhas</title>
+    <title>Ranking Broxas · Pick'em dos Broxinhas</title>
     <!-- share-preview -->
     <link rel="icon" href="/assets/singapore-lion-tab.svg" type="image/svg+xml" sizes="any" />
     <link rel="stylesheet" href="/style.css" />
@@ -16,8 +16,7 @@
         >
         <nav aria-label="Navegação principal">
           <a href="/modelos">Modelos</a><a href="/partidas">Partidas</a>
-          <a href="/cartoes">Cartões<span class="nav-suffix"> dos Broxas</span></a
-          ><a href="/ranking" aria-current="page">Ranking<span class="nav-suffix"> dos Broxas</span></a>
+          <a href="/ranking" aria-current="page">Ranking Broxas</a>
         </nav>
       </div>
     </header>
@@ -26,29 +25,38 @@
         <img class="hero-art" src="/assets/banner-ranking.webp" fetchpriority="high"
           alt="Os Broxas reunidos na pista sob luzes azuis e violetas." />
         <div class="hero-copy">
-          <span class="kicker"><i></i>PGL MAJOR · STAGE 1</span>
-          <h1>Ranking <em>dos Broxas</em></h1>
+          <span class="kicker"><i></i>PGL MAJOR · SINGAPURA 2026</span>
+          <h1>Ranking <em>Broxas</em></h1>
           <p>
-            Cada pick confirmado vale um ponto. Quem tem o mesmo total divide a
-            posição.
+            Cada pick confirmado vale um ponto no geral. Abra um nick para ver o cartão de cada fase.
           </p>
         </div>
       </section>
-      <section class="panel">
+      <nav class="rank-phases" aria-label="Classificação por fase">
+          <a href="/ranking" data-phase="">Geral</a>
+          <a href="/ranking?fase=stage-1" data-phase="stage-1">Stage 1</a>
+          <a href="/ranking?fase=stage-2" data-phase="stage-2">Stage 2</a>
+          <a href="/ranking?fase=stage-3" data-phase="stage-3">Stage 3</a>
+          <a href="/ranking?fase=playoffs" data-phase="playoffs">Playoffs</a>
+      </nav>
+      <section class="panel" id="overallBoard" hidden>
         <div class="panel-title">
-          <h2>Classificação por acertos</h2>
+          <h2>Geral do Major</h2>
           <button id="reloadRanking" class="outline">Atualizar</button>
         </div>
         <p id="rankingStatus" class="hint" role="status">
           Consultando os cartões…
         </p>
-        <table class="broxas-table" aria-label="Classificação do Stage 1">
+        <table class="broxas-table" aria-label="Acertos confirmados no Major">
           <thead>
             <tr>
               <th scope="col" aria-label="Posição"><span class="desktop-only">Posição</span><span class="mobile-only">Pos.</span></th>
               <th scope="col">Nick</th>
-              <th scope="col">Pick'em</th>
-              <th scope="col">Acertos</th>
+              <th class="stage-score" scope="col">Stage 1</th>
+              <th class="stage-score" scope="col">Stage 2</th>
+              <th class="stage-score" scope="col">Stage 3</th>
+              <th class="stage-score" scope="col">Playoffs</th>
+              <th scope="col">Total</th>
             </tr>
           </thead>
           <tbody id="standings"></tbody>
@@ -58,10 +66,50 @@
           <button id="nextRank" class="outline" hidden>Próxima página</button>
         </div>
       </section>
+      <section id="stageBoard" class="panel" hidden>
+        <div class="panel-title">
+          <h2>Classificação do Stage 1</h2>
+          <button id="reload" class="outline">Atualizar</button>
+        </div>
+        <p id="feed" class="lead" aria-live="polite">Consultando a fase…</p>
+        <p id="wallDeadline" class="hint"></p>
+        <div id="cardActionMessage" role="status"></div>
+        <div id="entries"></div>
+        <div class="wall-pager">
+          <button id="prev" class="outline" hidden>Anterior</button
+          ><button id="next" class="outline" hidden>Próxima página</button>
+        </div>
+        <p id="boardNote" class="hint">
+          Classificação por acertos confirmados. A chance de chegar a cinco usa
+          o modelo salvo e os resultados publicados pela PGL.
+        </p>
+      </section>
+      <section class="panel" id="futureBoard" hidden>
+        <h2 id="futureName"></h2><p id="futureStatus" class="lead"></p>
+      </section>
     </main>
+    <dialog id="removeCard" aria-labelledby="removeTitle">
+      <h2 id="removeTitle">Excluir cartão?</h2>
+      <p id="removeInfo"></p>
+      <p id="removeError" role="status"></p>
+      <div class="save-actions">
+        <button type="button" id="cancelRemove" class="outline" autofocus>
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="confirmRemove"
+          class="outline"
+          data-card-mutation
+        >
+          Excluir cartão
+        </button>
+      </div>
+    </dialog>
+
     <footer class="wrap">
       <span>Pick'em dos Broxinhas · Singapura 2026</span
-      ><a href="/cartoes">Cartões dos Broxas</a>
+      ><a href="/modelos">Modelos da galera</a>
     </footer>
     <script type="module" src="/js/ranking.js"></script>
   </body>

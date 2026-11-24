@@ -36,21 +36,21 @@ Publique atualizações no mesmo projeto Sites, com o endereço público e o ban
 
 ## Modelos e dados
 
-### Ranking dos Broxas
+### Ranking Broxas
 
-Em `/ranking`, cada participante aparece com os acertos confirmados do cartão do Stage 1. Empates dividem posição, e as três primeiras posições com pontos recebem destaque. O placar usa a mesma pontuação do mural e consulta os resultados oficiais a cada minuto enquanto a página está visível.
+Em `/ranking`, o Geral soma os acertos confirmados por participante. Empates dividem a posição antes da paginação. No Stage 1, o identificador do cartão identifica a participação. Na abertura de fases posteriores, o vínculo entre cartões de um mesmo jogador deverá ser verificado. Nicks iguais por si só não vinculam pessoas.
 
-Ao abrir um nick, o servidor procura uma correspondência única nas estatísticas públicas do [Ranking Broxas](https://rankingbroxas.duckdns.org/). A comparação tolera maiúsculas, acentos e pontuação. O painel mostra a nota e os jogos do mês vigente em Cuiabá e o nível GC da última partida com esse dado. Somente cartões registrados têm um perfil consultável. Uma indisponibilidade da fonte externa afeta apenas os dados complementares.
+O filtro de fase permite abrir vários cartões, consultar os dez picks e o modelo salvo e levar um cartão fechado ao simulador. Os links antigos em `/cartoes#ID` continuam a apontar para o Stage 1. Os modelos publicados e as cópias editáveis estão em **Modelos da galera**, na página Modelos.
 
-### Cartões dos Broxas
+### Cartões por fase
 
-O mural em `/cartoes` aceita um cartão por nick e fase, mesmo sem simulação anterior. Até o contador zerar, o visitante pode editar ou excluir os cartões que salvou nesse navegador. Uma chave aleatória local autoriza as mudanças e o banco guarda apenas seu hash. O mural confere a revisão do registro a cada alteração. A exclusão libera o nick, remove os dados do cartão e retira do mural a cópia do modelo vinculada a ele. O identificador fica reservado para que uma requisição antiga não restaure o cartão. Cartões criados antes da emissão dessas chaves permanecem disponíveis para consulta e compartilhamento. O nick é público e autodeclarado. A regra de fechamento usa o horário da estreia em `dist/data/stage.json` menos uma hora. O servidor e a escrita no banco verificam o prazo. O cartão registra os dez times, a versão dos dados, o modelo e seus ajustes. Os resultados hipotéticos do simulador ficam fora da disputa.
+O site aceita um cartão por nick e fase, mesmo sem simulação anterior. Até o contador zerar, o visitante pode editar ou excluir os cartões que salvou nesse navegador. Uma chave aleatória local autoriza as mudanças e o banco guarda apenas seu hash. O mural confere a revisão do registro a cada alteração. A exclusão libera o nick, remove os dados do cartão e retira do mural a cópia do modelo vinculada a ele. O identificador fica reservado para que uma requisição antiga não restaure o cartão. Cartões criados antes da emissão dessas chaves permanecem disponíveis para consulta e compartilhamento. O nick é público e autodeclarado. A regra de fechamento usa o horário da estreia em `dist/data/stage.json` menos uma hora. O servidor e a escrita no banco verificam o prazo. O cartão registra os dez times, a versão dos dados, o modelo e seus ajustes. Os resultados hipotéticos do simulador ficam fora da disputa.
 
 Durante a fase, o mural consulta o servidor a cada minuto enquanto estiver aberto. O servidor limita consultas à PGL e guarda em D1 a última chave validada. Só entram séries encerradas, pareadas por adversários, rodada e formato. Se a fonte mudar ou ficar indisponível, o mural sinaliza a última leitura. Cada expansão mostra acerto, erro ou vaga em aberto. As probabilidades inicial e condicional usam os parâmetros congelados, 12 mil fases por estimativa e enumeração exata quando restam até nove jogos. O índice de Brier compara as probabilidades de vitória por confronto com os vencedores publicados. O ranking de cartões conta os acertos das dez vagas.
 
 A fase usa o quadro de participantes e seeds da PGL. Os dados de força têm corte em **20 de novembro de 2026, 18h UTC**. Os pontos VRS vêm do ranking de 2 de novembro. A forma recente é calculada com resultados anteriores à fase, ajuste por adversário, meia-vida de 160 dias e redução da influência de elencos antigos. A extração histórica do projeto incluiu 14.148 séries. As forças estão congeladas durante a etapa.
 
-As fotos de Cartões e Ranking são do grupo dos Broxas. A capa de FalleN é uma montagem criada com IA, com uma interpretação artística da taça. O emblema é da PGL e as marcas das equipes pertencem aos respectivos titulares. [Emblema do Major na Liquipedia](https://liquipedia.net/counterstrike/File:PGL_Major_Singapore_2026_darkmode.png)
+As fotos de Partidas e Ranking são do grupo dos Broxas. A capa de FalleN é uma montagem criada com IA, com uma interpretação artística da taça. O emblema é da PGL e as marcas das equipes pertencem aos respectivos titulares. [Emblema do Major na Liquipedia](https://liquipedia.net/counterstrike/File:PGL_Major_Singapore_2026_darkmode.png)
 
 [Evento e equipes da PGL](https://www.pglesports.com/cs2/pgl-major-singapore-2026/) · [Regras de pareamento](https://github.com/ValveSoftware/counter-strike_rules_and_regs/blob/745a40758ed7877483d5544605cda6c6e1a1cd65/major-supplemental-rulebook.md) · [Rankings Valve](https://github.com/ValveSoftware/counter-strike_regional_standings) · [Arquivo de resultados de partidas](https://bo3.gg/matches/finished)
 

@@ -2,6 +2,7 @@ import { makeMatrix, fieldStrength, modelAvailable } from './models.js';
 import { bindMixer } from './mixer.js';
 import { newDraft } from './state.js';
 import { matchLink } from './schedule.js';
+import { hltvMatchLink } from './hltv-link.js';
 import { progress } from './progress.js';
 
 const $ = (id) => document.getElementById(id);
@@ -136,11 +137,7 @@ export function bindEditor(teams, current, onEdit) {
     );
     box.replaceChildren(heading, chance, details);
     const url = matchLink(game, feed.base);
-    if (url) {
-      const a = element('a', null, 'Partida na HLTV');
-      a.href = url;
-      box.append(a);
-    }
+    if (url) box.append(hltvMatchLink(url, teams[id].name + ' × ' + teams[other].name + ' na HLTV'));
   }
   function expand(id) {
     if (openTeam !== null) {

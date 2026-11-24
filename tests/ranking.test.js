@@ -2,59 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { cardsApi } from '../server/api.js';
-import { matchProfile, monthProfiles } from '../server/broxas.js';
+import { overallStandings } from '../server/standings.js';
 import { openDb } from '../scripts/local-db.js';
 import { START } from '../server/results.js';
 import { defaults } from '../dist/js/state.js';
 import { progress } from '../dist/js/progress.js';
 import stage from '../dist/data/stage.json' with { type: 'json' };
 
-const months = [
-  {
-    year: 2026,
-    month: 11,
-    monthStats: {
-      players: [
-        { name: 'mr.K', ratingColumn: 'D', notaTotal: 24, jogos: 66, participates: true },
-        { name: 'Vitox', ratingColumn: 'E', notaTotal: 0, jogos: 12, participates: false },
-        { name: 'LighT.', ratingColumn: 'F', notaTotal: 27, jogos: 60, participates: true },
-        { name: 'Empate', ratingColumn: 'G', notaTotal: 24, jogos: 40, participates: true },
-        { name: 'Reserva', ratingColumn: 'H', notaTotal: 30, jogos: 4, participates: false },
-      ],
-    },
-    matches: [
-      {
-        gameFinishedAt: '2026-11-14T09:00Z',
-        statsByColumn: { D: { gcLevel: 19 } },
-      },
-      {
-        gameFinishedAt: '2026-11-01T09:00Z',
-        statsByColumn: { D: { gcLevel: 18 } },
-      },
-    ],
-  },
-];
-test('monthly profiles match unique nicks and use the latest observed level independently of the monthly score', () => {
-  const november = monthProfiles(months, 2026, 11);
-  assert.deepEqual(matchProfile(november, 'mrk'), {
-    name: 'mr.K',
-    level: 19,
-    choppPlace: 2,
-    score: 24,
-    games: 66,
-  });
-  assert.equal(matchProfile(november, 'Vitox').score, 0);
-  assert.equal(matchProfile(november, 'Vitox').choppPlace, null);
-  assert.equal(matchProfile(november, 'Empate').choppPlace, 3);
-  assert.equal(matchProfile(november, 'mr'), null);
-  assert.equal(matchProfile([...november, { name: 'M-rK' }], 'mrk'), null);
-  const next = matchProfile(monthProfiles(months, 2026, 12), 'MRK');
-  assert.equal(next.level, 19);
-  assert.equal(next.score, null);
-  assert.equal(next.choppPlace, null);
+test('overall sums by participant identity, distinguishes zero from absence and keeps unlinked names separate', () => {
+  const cards = [
+    { id: 'first', nick: 'A', stage: 's1', hits: 2 },
+    { id: 'second', participantId: 'first', nick: 'New nick', stage: 's2', hits: 3 },
+    { id: 'third', nick: 'A', stage: 's2', hits: 0 },
+  ];
+  const [leader, other] = overallStandings(cards);
+  assert.equal(leader.hits, 5);
+  assert.equal(leader.phases.s2.id, 'second');
+  assert.equal(other.hits, 0);
+  assert.equal(other.phases.s1, undefined);
 });
 
-test('leaderboard ranks confirmed picks, shares places on ties and exposes group stats only through a saved card', async () => {
+test('leaderboard ranks confirmed picks, shares places on ties across the overall and phase views', async () => {
   const db = openDb(),
     locks = Array(33).fill(0),
     now = START + 3600000;
@@ -96,7 +64,7 @@ test('leaderboard ranks confirmed picks, shares places on ties and exposes group
     }
     const query = async (path) =>
       cardsApi(new Request('https://example.org' + path), db, now, async () =>
-        Response.json(months)
+        Response.json({})
       );
     const board = await (await query('/api/ranking')).json();
     assert.deepEqual(
@@ -108,29 +76,30 @@ test('leaderboard ranks confirmed picks, shares places on ties and exposes group
         [4, 8],
       ]
     );
-    const profile = await (
-      await query('/api/ranking/' + ids.mrk + '/perfil')
-    ).json();
-    assert.equal(profile.member.name, 'mr.K');
-    assert.equal(profile.member.level, 19);
-    assert.equal(
-      (await (await query('/api/ranking/' + ids.Quarto + '/perfil')).json())
-        .member,
-      null
-    );
-    assert.equal(
-      (await query('/api/ranking/' + randomUUID() + '/perfil')).status,
-      404
-    );
+    const overall = await (await query('/api/ranking/geral')).json();
+    assert.deepEqual(overall.rows.map(r => r.place), [1, 1, 3, 4]);
+    assert.equal(overall.rows[0].phases[stage.id].hits, 10);
+    assert.equal(overall.rows[0].phases[stage.id].model, defaults([]).model);
+    assert.equal((await query('/api/ranking/geral?page=invalid')).status, 400);
+    const byStage = await (await query('/api/cards?focus=' + ids.Terceiro)).json();
+    assert.equal(byStage.cards.find(c => c.id === ids.Terceiro).place, 3);
     db.sqlite.prepare('UPDATE cards SET removed_at=1 WHERE id=?').run(ids.mrk);
-    assert.equal(
-      (await query('/api/ranking/' + ids.mrk + '/perfil')).status,
-      404
-    );
     assert.deepEqual(
       (await (await query('/api/ranking')).json()).rows.map((r) => r.place),
       [1, 2, 3]
     );
+    const insert = db.sqlite.prepare(
+      'INSERT INTO cards(id,stage,nick,nick_key,submitted,settings) VALUES(?,?,?,?,?,?)'
+    );
+    for (let i = 0; i < 30; i++) {
+      const nick = 'Participante ' + i;
+      insert.run(randomUUID(), stage.id, nick, nick, i, JSON.stringify(defaults(perfect)));
+    }
+    const focused = await (await query('/api/cards?focus=' + ids.Quarto)).json();
+    assert.equal(focused.page, 1);
+    assert.equal(focused.cards.find(c => c.id === ids.Quarto).place, 33);
+    const secondPage = await (await query('/api/ranking/geral?page=1')).json();
+    assert.deepEqual(secondPage.rows.map(r => r.place), [1, 32, 33]);
   } finally {
     db.sqlite.close();
   }

@@ -1,8 +1,7 @@
-import { MODELS, modelName, makeMatrix, describeBase } from './models.js';
+import { modelName, makeMatrix, describeBase } from './models.js';
 import { progress, pickStatus, fixtureBrier } from './progress.js';
 import { shareButton } from './share.js';
 import { editKey, forgetCard } from './card-access.js';
-import { newDraft } from './state.js';
 const $ = (id) => document.getElementById(id);
 const node = (tag, text, cls) => {
   const el = document.createElement(tag);
@@ -93,7 +92,7 @@ async function confirmRemove() {
     $('cardActionMessage').textContent =
       'Cartão de ' + card.nick + ' excluído.';
     if (location.hash.slice(1) === card.id)
-      history.replaceState(null, '', '/cartoes');
+      history.replaceState(null, '', '/ranking?fase=stage-1');
     if (page > 0 && $('entries').childElementCount === 1) page--;
     await refresh();
   } catch (error) {
@@ -122,7 +121,7 @@ function render(data) {
         : '');
   const signature = JSON.stringify([page, data.cards, data.live.locks]);
   if (version === signature) return;
-  const firstRender = !version;
+  const firstRender = !polled;
   version = signature;
   job?.terminate();
   const expanded = new Set(
@@ -134,22 +133,42 @@ function render(data) {
   );
   const container = $('entries');
   container.replaceChildren();
-  const waiting = [],
-    outputs = new Map();
+  const outputs = new Map();
+  job = null;
+  function compute(card) {
+    if (!job) {
+      job = new Worker(new URL('./wall-worker.js', import.meta.url), { type: 'module' });
+      job.onmessage = ({ data: result }) => {
+        const out = outputs.get(result.id);
+        if (!out) return;
+        if (cache.size > 500) cache.clear();
+        cache.set(out.key, result);
+        out.paint(result);
+      };
+      job.onerror = () => {
+        for (const out of outputs.values()) out.failed();
+        version = null;
+      };
+    }
+    job.postMessage({ cards: [card], teams: stage.teams, locks: data.live.locks });
+  }
   for (const c of data.cards) {
     const item = node('div', undefined, 'wall-card');
     item.id = c.id;
     const head = node('button', undefined, 'wall-summary');
     head.type = 'button';
     head.dataset.card = c.id;
-    const who = node('strong', c.nick);
+    const who = node('span', undefined, 'stage-player');
+    const place = node('b', c.place + 'º', 'rank-place');
+    if (c.place <= 3 && c.hits > 0) place.classList.add('podium-' + c.place);
+    who.append(place, node('strong', c.nick));
     const label = node(
       'span',
       modelName(c.settings.model, c.nick, c.settings.formVersion ?? 1),
       'wall-model'
     );
     const hits = node('b', c.hits + '/10', 'wall-hits'),
-      chance = node('span', 'Calculando…', 'wall-chance');
+      chance = node('span', '', 'wall-chance');
     head.append(who, label, hits, chance);
     const initial = node('b', '…'),
       current = node('b', '…');
@@ -171,76 +190,103 @@ function render(data) {
         )
       );
     }
-    for (const [i, id] of c.settings.card.entries()) {
-      if ([0, 2, 8].includes(i))
-        details.append(
-          node('h3', i === 0 ? '3–0' : i === 2 ? '3–1 / 3–2' : '0–3')
+    const picks = node('div');
+    details.append(picks);
+    function buildPickRows() {
+      for (const [i, id] of c.settings.card.entries()) {
+        if ([0, 2, 8].includes(i))
+          picks.append(
+            node('h3', i === 0 ? '3–0' : i === 2 ? '3–1 / 3–2' : '0–3')
+          );
+        const status = pickStatus(i, teams[id]),
+          row = node('div', undefined, 'pick-outcome');
+        const img = new Image();
+        img.alt = '';
+        img.src = '/assets/' + stage.teams[id].logo;
+        row.append(
+          img,
+          node('span', stage.teams[id].name),
+          node(
+            'b',
+            { hit: 'Acertou', miss: 'Errou', open: 'Em aberto' }[status],
+            status
+          )
         );
-      const status = pickStatus(i, teams[id]),
-        row = node('div', undefined, 'pick-outcome');
-      const img = new Image();
-      img.alt = '';
-      img.src = '/assets/' + stage.teams[id].logo;
-      row.append(
-        img,
-        node('span', stage.teams[id].name),
-        node(
-          'b',
-          { hit: 'Acertou', miss: 'Errou', open: 'Em aberto' }[status],
-          status
-        )
-      );
-      details.append(row);
+        picks.append(row);
+      }
     }
-    const matrix = makeMatrix(stage.teams, c.settings.model, c.settings);
-    details.append(
-      node(
-        'p',
-        'Brier do modelo deste cartão: ' +
-          brier(fixtureBrier(matrix, finished)),
-        'hint'
-      )
-    );
-    if (c.settings.description && c.settings.model === 'custom')
-      details.append(node('p', c.settings.description));
-    if (c.settings.model === 'custom') {
-      const tweaks = c.settings.trust
-        .map((t, i) =>
-          t !== 100 || c.settings.bonus[i] !== 0
-            ? stage.teams[i].name +
-              ' (confiança ' +
-              t +
-              '%, ajuste ' +
-              c.settings.bonus[i] +
-              ' p.p.)'
-            : null
-        )
-        .filter(Boolean);
-      details.append(
+    const openPicks = c.settings.card.some((id, i) => pickStatus(i, teams[id]) === 'open');
+    if (openPicks) chance.textContent = 'Ver chance';
+    function buildModelDetails() {
+      const matrix = makeMatrix(stage.teams, c.settings.model, c.settings);
+      modelInfo.append(
         node(
           'p',
-          describeBase(c.settings) +
-            (c.settings.formVersion === 2
-              ? '. Forma recente revisada.'
-              : '. Forma recente da edição anterior.') +
-            (tweaks.length ? ' ' + tweaks.join(' · ') : ''),
+          'Brier do modelo deste cartão: ' +
+            brier(fixtureBrier(matrix, finished)),
           'hint'
         )
       );
+      if (c.settings.description && c.settings.model === 'custom')
+        modelInfo.append(node('p', c.settings.description));
+      if (c.settings.model === 'custom') {
+        const tweaks = c.settings.trust
+          .map((t, i) =>
+            t !== 100 || c.settings.bonus[i] !== 0
+              ? stage.teams[i].name +
+                ' (confiança ' +
+                t +
+                '%, ajuste ' +
+                c.settings.bonus[i] +
+                ' p.p.)'
+              : null
+          )
+          .filter(Boolean);
+        modelInfo.append(
+          node(
+            'p',
+            describeBase(c.settings) +
+              (c.settings.formVersion === 2
+                ? '. Forma recente revisada.'
+                : '. Forma recente da edição anterior.') +
+              (tweaks.length ? ' ' + tweaks.join(' · ') : ''),
+            'hint'
+          )
+        );
+      }
+      if (c.settings.model === 'custom') {
+        const link = node('a', 'Abrir uma cópia em Modelos');
+        link.href = '/modelos?modelo=' + c.id;
+        modelInfo.append(link);
+      }
     }
+    const modelInfo = node('details', undefined, 'card-model-info');
+    const modelTitle = node('summary', 'Ver modelo · ' + label.textContent);
+    modelInfo.append(modelTitle);
+    modelInfo.ontoggle = () => {
+      if (modelInfo.open && modelInfo.childElementCount === 1) buildModelDetails();
+    };
+    const simulate = node('a', 'Simular este cartão', 'simulation-link');
+    simulate.href = '/?simular=' + c.id + '#resultado';
+    if (isLocked()) details.append(simulate);
+    details.append(modelInfo);
     details.id = 'picks-' + c.id;
     head.setAttribute('aria-controls', details.id);
     function expand(open) {
       head.setAttribute('aria-expanded', String(open));
       details.hidden = !open;
+      if (open && !picks.childElementCount) buildPickRows();
+      if (open && !requested && !cache.has(key)) {
+        requested = true;
+        chance.textContent = 'Calculando…';
+        compute(c);
+      }
     }
-    expand(
-      expanded.has(c.id) || (firstRender && location.hash.slice(1) === c.id)
-    );
+    let requested = false;
     head.onclick = () => expand(details.hidden);
     const bar = node('div', undefined, 'wall-card-head');
     const actions = node('div', undefined, 'wall-actions');
-    if (c.hasEditKey && editKey(stage, c.id)) {
+    if (!isLocked() && c.hasEditKey && editKey(stage, c.id)) {
       for (const label of ['Editar', 'Excluir']) {
         const button = node('button', label, 'card-action');
         button.type = 'button';
@@ -256,7 +302,7 @@ function render(data) {
       }
     }
     actions.append(
-      shareButton('/cartoes#' + c.id, 'Compartilhar cartão de ' + c.nick)
+      shareButton('/ranking?fase=stage-1#' + c.id, 'Compartilhar cartão de ' + c.nick)
     );
     bar.append(head, actions);
     item.append(bar, details);
@@ -265,13 +311,16 @@ function render(data) {
     const paint = ({ initial: p, current: q }) => {
       initial.textContent = pct(p);
       current.textContent = pct(q);
-      chance.textContent = pct(q) + ' de 5+';
+      chance.textContent = openPicks ? pct(q) + ' de 5+' : '';
     };
     if (cache.has(key)) paint(cache.get(key));
-    else {
-      waiting.push(c);
-      outputs.set(c.id, { paint, key });
-    }
+    outputs.set(c.id, { paint, key, failed() {
+      if (initial.textContent === '…') {
+        chance.textContent = '';
+        initial.textContent = current.textContent = 'Indisponível';
+      }
+    } });
+    expand(expanded.has(c.id) || (firstRender && location.hash.slice(1) === c.id));
   }
   if (!data.cards.length) {
     const empty = node(
@@ -285,100 +334,8 @@ function render(data) {
     empty.append(link);
     container.append(empty);
   }
-  if (waiting.length) {
-    job = new Worker(new URL('./wall-worker.js', import.meta.url), {
-      type: 'module',
-    });
-    job.onmessage = ({ data: result }) => {
-      const out = outputs.get(result.id);
-      if (!out) return;
-      if (cache.size > 500) cache.clear();
-      cache.set(out.key, result);
-      out.paint(result);
-    };
-    job.onerror = () => {
-      for (const e of document.querySelectorAll('.wall-chance'))
-        if (e.textContent === 'Calculando…')
-          e.textContent = 'Estimativa indisponível';
-      version = null;
-    };
-    job.postMessage({
-      cards: waiting,
-      teams: stage.teams,
-      locks: data.live.locks,
-    });
-  }
   $('prev').hidden = page === 0;
   $('next').hidden = !data.hasMore;
-  $('modelScores').replaceChildren();
-  for (const model of Object.keys(MODELS).filter((id) => id !== 'custom')) {
-    const row = node('div', undefined, 'duel-row');
-    row.append(
-      MODELS[model],
-      node(
-        'b',
-        brier(
-          fixtureBrier(makeMatrix(stage.teams, model, newDraft()), finished)
-        )
-      )
-    );
-    $('modelScores').append(row);
-  }
-}
-
-let modelsPage = 0,
-  loadingModels = false,
-  modelsVersion;
-async function refreshModels() {
-  if (loadingModels) return;
-  loadingModels = true;
-  try {
-    const res = await fetch('/api/models?page=' + modelsPage, {
-      cache: 'no-store',
-    });
-    if (!res.ok) throw Error();
-    const data = await res.json(),
-      sig = JSON.stringify([modelsPage, data]);
-    if (sig !== modelsVersion) {
-      const rows = data.models.map((m) => {
-        const row = node('div', undefined, 'saved-model-row'),
-          link = node('a', modelName('custom', m.nick));
-        link.href = '/modelos?modelo=' + encodeURIComponent(m.id);
-        const info = node(
-          'span',
-          m.source === 'card' ? 'Salvo com o cartão' : 'Modelo publicado',
-          'hint'
-        );
-        info.append(' · ' + date(m.submitted * 1000) + ' (Cuiabá)');
-        const entry = node('div');
-        entry.append(link, info);
-        row.append(
-          entry,
-          shareButton(link.href, 'Compartilhar modelo de ' + m.nick)
-        );
-        return row;
-      });
-      $('savedModels').replaceChildren(
-        ...(rows.length
-          ? rows
-          : [
-              node(
-                'p',
-                'Os modelos aparecem aqui quando alguém salva um modelo ou um cartão.',
-                'hint'
-              ),
-            ])
-      );
-      $('modelsPrev').hidden = !modelsPage;
-      $('modelsNext').hidden = !data.hasMore;
-      modelsVersion = sig;
-    }
-  } catch {
-    if (!modelsVersion)
-      $('savedModels').textContent = 'Não foi possível carregar os modelos.';
-  } finally {
-    loadingModels = false;
-  }
 }
 
 async function refresh() {
@@ -386,7 +343,6 @@ async function refresh() {
     refreshAgain = true;
     return;
   }
-  refreshModels();
   busy = true;
   $('reload').disabled = true;
   const target = location.hash.slice(1);
@@ -399,10 +355,14 @@ async function refresh() {
     if (!res.ok) throw new Error();
     const data = await res.json();
     page = data.page;
-    polled = true;
     render(data);
+    polled = true;
+    if (target && !document.getElementById(target) && !window.wallScrolled)
+      $('cardActionMessage').textContent = 'Cartão não encontrado nesta fase.';
     if (target && !window.wallScrolled && document.getElementById(target)) {
-      document.getElementById(target).scrollIntoView({ block: 'center' });
+      const targetButton = document.getElementById(target).querySelector('.wall-summary');
+      targetButton.focus({ preventScroll: true });
+      targetButton.scrollIntoView({ block: 'center' });
       window.wallScrolled = true;
     }
   } catch {
@@ -426,17 +386,15 @@ async function init() {
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) refresh();
   });
+  window.addEventListener('hashchange', () => {
+    if (!location.hash) return;
+    polled = false;
+    version = null;
+    window.wallScrolled = false;
+    $('cardActionMessage').textContent = '';
+    refresh();
+  });
   $('reload').onclick = refresh;
-  for (const [id, d] of [
-    ['modelsPrev', -1],
-    ['modelsNext', 1],
-  ])
-    $(id).onclick = () => {
-      if (!loadingModels) {
-        modelsPage += d;
-        refreshModels();
-      }
-    };
   for (const [id, d] of [
     ['prev', -1],
     ['next', 1],
@@ -455,7 +413,7 @@ async function init() {
     if (!document.hidden) refresh();
   });
 }
-init().catch(
+export const loadStageBoard = () => init().catch(
   () =>
     ($('feed').textContent = 'Falha ao carregar a fase. Recarregue a página.')
 );

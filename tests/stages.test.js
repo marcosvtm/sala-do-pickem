@@ -76,7 +76,7 @@ test('stage-scoped drafts and the server keep mismatched, unconfirmed and legacy
     for (const [route, method, body] of [
       ['cards', 'POST', card], ['cards/' + id, 'PUT', card], ['cards/' + id, 'DELETE', { revision: 1 }],
       ['models', 'POST', model], ['stage/cards', 'GET'], ['cards', 'GET'], ['ranking', 'GET'],
-      ['cards/' + id, 'GET'], ['models/m-' + modelId, 'GET'], ['ranking/' + id + '/perfil', 'GET'],
+      ['cards/' + id, 'GET'], ['models/m-' + modelId, 'GET'],
     ]) {
       assert.equal(await send(route + '?stage=' + secondId, method, body), 409, method + ' ' + route);
     }

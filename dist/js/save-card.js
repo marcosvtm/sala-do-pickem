@@ -42,7 +42,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     share.replaceChildren();
     if (saved)
       share.append(
-        shareButton('/cartoes#' + token, 'Compartilhar cartão de ' + saved)
+        shareButton('/ranking?fase=stage-1#' + token, 'Compartilhar cartão de ' + saved)
       );
     onOwner(editing?.nick || saved);
   }
@@ -82,7 +82,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     message.textContent = text;
     if (link) {
       const anchor = document.createElement('a');
-      anchor.href = '/cartoes#' + token;
+      anchor.href = '/ranking?fase=stage-1#' + token;
       anchor.textContent = 'Ver meu cartão';
       message.append(' ', anchor);
     }
@@ -174,7 +174,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
           );
           localStorage.setItem(stage.id, JSON.stringify(state));
         }
-        location.assign('/cartoes#' + token);
+        location.assign('/ranking?fase=stage-1#' + token);
         return;
       }
       remember();

@@ -4,9 +4,8 @@ import {
   validPersonal,
   personalSettings,
 } from '../dist/js/state.js';
-import { progress } from '../dist/js/progress.js';
+import { scoredCardsSql, swissBuckets, majorRanking } from './standings.js';
 import { LEGACY_STAGE_ID, calendarPreview, findStage, stageCatalog, stageInfo } from './stages.js';
-import { broxasProfile } from './broxas.js';
 
 const json = (body, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -86,6 +85,11 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     return req.method === 'GET'
       ? json({ serverTime: now, ...stageCatalog(now) })
       : failure('Método indisponível.', 405);
+  if (url.pathname === '/api/ranking/geral' && req.method === 'GET') {
+    const raw = url.searchParams.get('page') ?? '0';
+    if (!/^\d{1,5}$/.test(raw)) return failure('Página inválida.', 400);
+    return json(await majorRanking(db, now, fetcher, Number(raw), 30));
+  }
   const requested = url.searchParams.getAll('stage');
   if (requested.length > 1) return failure('Informe apenas uma fase.', 400);
   const stage = findStage(requested[0] ?? LEGACY_STAGE_ID);
@@ -97,19 +101,6 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     if (url.pathname === '/api/results' && req.method === 'GET')
       return json(calendarPreview(stage));
     return failure(stage.name + ' em preparação. Aguarde a confirmação das equipes.', 409);
-  }
-  const profileId = url.pathname.match(
-    /^\/api\/ranking\/([^/]+)\/perfil$/
-  )?.[1];
-  if (req.method === 'GET' && profileId && uuid.test(profileId)) {
-    const row = await db
-      .prepare(
-        'SELECT nick FROM cards WHERE stage=? AND id=? AND removed_at IS NULL'
-      )
-      .bind(stage.id, profileId)
-      .first();
-    if (!row) return failure('Cartão não encontrado.', 404);
-    return json(await broxasProfile(row.nick, now, fetcher));
   }
   const ranking = url.pathname === '/api/ranking' && req.method === 'GET';
   if (url.pathname === '/api/stage/cards' && req.method === 'GET') {
@@ -186,18 +177,12 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   }
   if (req.method === 'GET') {
     const live = await stage.readResults(db, now, fetcher);
-    const { teams } = progress(live.locks);
-    const bucket = teams.map(({ wins: w, losses: l }) =>
-      w === 3 ? (l === 0 ? 0 : 1) : l === 3 && w === 0 ? 2 : -1
-    );
+    const bucket = swissBuckets(live.locks);
     const raw = url.searchParams.get('page') ?? '0';
     if (!/^\d{1,5}$/.test(raw)) return failure('Página inválida.', 400);
     let page = Number(raw);
     const size = 30;
-    const ranked = `SELECT id,nick,submitted,revision,settings,edit_hash IS NOT NULL AS hasEditKey,
-      (SELECT count(*) FROM json_each(cards.settings,'$.card') p
-       WHERE json_extract(?, '$[' || p.value || ']')= CASE WHEN p.key<2 THEN 0 WHEN p.key<8 THEN 1 ELSE 2 END) hits
-      FROM cards WHERE stage=? AND removed_at IS NULL`;
+    const ranked = scoredCardsSql;
     const ordering = 'ORDER BY hits DESC,submitted ASC,id ASC';
     if (ranking) {
       const { results } = await db
@@ -208,7 +193,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
             ordering +
             ' LIMIT ? OFFSET ?'
         )
-        .bind(JSON.stringify(bucket), stage.id, size + 1, page * size)
+        .bind(bucket, stage.id, size + 1, page * size)
         .all();
       return json({
         page,
@@ -224,13 +209,13 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
         .prepare(
           `WITH ranked AS (${ranked}), numbered AS (SELECT id,row_number() OVER (${ordering}) AS n FROM ranked) SELECT n FROM numbered WHERE id=?`
         )
-        .bind(JSON.stringify(bucket), stage.id, focus)
+        .bind(bucket, stage.id, focus)
         .first();
       if (pos) page = Math.floor((pos.n - 1) / size);
     }
     const { results } = await db
-      .prepare(ranked + ' ' + ordering + ' LIMIT ? OFFSET ?')
-      .bind(JSON.stringify(bucket), stage.id, size + 1, page * size)
+      .prepare('WITH scored AS (' + ranked + ') SELECT *,RANK() OVER (ORDER BY hits DESC) AS place FROM scored ' + ordering + ' LIMIT ? OFFSET ?')
+      .bind(bucket, stage.id, size + 1, page * size)
       .all();
     return json({
       serverTime: now,

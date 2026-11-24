@@ -1,4 +1,5 @@
 import { ROUND_START } from './swiss.js';
+import { hltvMatchLink } from './hltv-link.js';
 export const SCORE_POLL_MS = 15000;
 const $ = (id) => document.getElementById(id);
 const time = new Intl.DateTimeFormat('pt-BR', {
@@ -269,10 +270,11 @@ function renderGame(game, games, teams, base, stale, expanded) {
   }
   const href = matchLink(game, base);
   if (href) {
-    const link = el('a', 'match-link', 'HLTV');
+    const matchup = game.a != null && game.b != null
+      ? teams[game.a].name + ' × ' + teams[game.b].name
+      : 'Partida ' + game.slot + ' da rodada ' + game.round;
+    const link = hltvMatchLink(href, matchup + ' na HLTV');
     link.id = 'agenda-link-' + key;
-    link.href = href;
-    link.setAttribute('aria-label', 'Partida ' + game.slot + ' da rodada ' + game.round + ' na HLTV');
     actions.append(link);
   }
   return row;

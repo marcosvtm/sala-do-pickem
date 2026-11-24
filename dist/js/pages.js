@@ -48,7 +48,7 @@ export function renderCatalog(
     catalog.dataset.selected = selected;
   }
 }
-export function bindPages(teams, apply) {
+export function bindPages(teams, apply, onModels) {
   const $ = (id) => document.getElementById(id);
   // Keep the clicked header under the pointer when another guide above it closes.
   $('modelGuides').addEventListener('click', (event) => {
@@ -164,6 +164,7 @@ export function bindPages(teams, apply) {
         '/partidas': 'Partidas',
         '/modelos': 'Modelos',
       }[path] || "Pick'em dos Broxinhas") + ' · Singapura 2026';
+    if (path === '/modelos') onModels();
     if (id && id !== requested) {
       showPublic(id);
       $('importPanel').scrollIntoView({ block: 'start' });

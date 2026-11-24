@@ -1,3 +1,4 @@
+import { bindCommunityModels } from './community-models.js';
 import { MODELS, makeMatrix, modelName, modelAvailable, FORM_VERSION } from './models.js';
 import { bindSuggestions } from './suggestion-dialog.js';
 import { bindBracket } from './bracket.js';
@@ -35,6 +36,7 @@ let owner,
   activeRun,
   refreshSaving,
   refreshSuggestion;
+let sharedSimulation = new URLSearchParams(location.search).has('simular');
 let picksClosed = false, followedCard, localDraft;
 const needsCard = () => (picksClosed && !followedCard) || state.card.includes(-1);
 function personalNick() {
@@ -80,11 +82,11 @@ async function init() {
       }));
     if (res?.ok) editingCard = await res.json();
     if (!editingCard || editingCard.serverTime >= editingCard.closesAt) {
-      location.replace('/cartoes#' + encodeURIComponent(editId));
+      location.replace('/ranking?fase=stage-1#' + encodeURIComponent(editId));
       return;
     }
     $('editingTitle').textContent = 'Editando o cartão de ' + editingCard.nick;
-    $('cancelEdit').href = '/cartoes#' + encodeURIComponent(editId);
+    $('cancelEdit').href = '/ranking?fase=stage-1#' + encodeURIComponent(editId);
     $('editingBanner').hidden = false;
   }
   let saved;
@@ -167,6 +169,7 @@ async function init() {
       invalidate({ editing });
     }
   );
+  const community = bindCommunityModels(stage.teams);
   bindPages(stage.teams, (settings) => {
     delete state.weights;
     delete state.base;
@@ -179,8 +182,9 @@ async function init() {
     renderSettings();
     refreshNames();
     invalidate();
-  });
-  const follow = bindFollowCard(stage, () => readReceipt(stage), (card, resume) => {
+  }, community.show);
+  const follow = bindFollowCard(stage, () => readReceipt(stage), (card, resume, temporary) => {
+    if (temporary !== undefined) sharedSimulation = temporary;
     if (!card && !followedCard) return;
     const locks = state.locks;
     if (!followedCard) localDraft = state;
@@ -251,6 +255,7 @@ async function init() {
   bindFeed(stage, bracket.setOfficial, (feed) => {
     bracket.setSchedule(feed);
     editor.setSchedule(feed);
+    if (feed.locks) community.setLocks(feed.locks);
   });
   runHint();
   start('preview');
@@ -262,7 +267,7 @@ function toast(text) {
   toastTimer = setTimeout(() => ($('toast').textContent = ''), 3200);
 }
 function persist() {
-  if (editingCard) return;
+  if (editingCard || sharedSimulation) return;
   try {
     if (followedCard) {
       const key = 'card-simulation:' + STAGE + ':' + followedCard.id;

@@ -6,12 +6,12 @@ const pages = {
     description: 'Monte seu cartão, simule a chance de fazer cinco acertos e dispute o Pick’em dos Broxas no Major de despedida de FalleN.',
   },
   '/cartoes': {
-    title: 'Cartões dos Broxas · ' + siteName,
+    title: 'Ranking Broxas · ' + siteName,
     description: 'Veja os picks e os modelos da galera para o Major de Singapura e acompanhe os acertos do Stage 1.',
   },
   '/ranking': {
-    title: 'Ranking dos Broxas · ' + siteName,
-    description: 'Acompanhe quem acertou mais picks no Stage 1 do Major de Singapura.',
+    title: 'Ranking Broxas · ' + siteName,
+    description: 'Compare os acertos no Major de Singapura e veja os cartões e modelos de cada participante por fase.',
   },
   '/modelos': {
     title: 'Modelos · ' + siteName,

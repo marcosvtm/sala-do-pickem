@@ -22,11 +22,9 @@ export default {
       '/modelos/',
     ].includes(url.pathname)
       ? '/index.html'
-      : url.pathname === '/cartoes' || url.pathname === '/cartoes/'
-        ? '/cartoes.html'
-        : ['/ranking', '/ranking/'].includes(url.pathname)
-          ? '/ranking.html'
-          : url.pathname;
+      : ['/cartoes', '/cartoes/', '/cartoes.html', '/ranking', '/ranking/'].includes(url.pathname)
+        ? '/ranking.html'
+        : url.pathname;
     const file = PUBLIC_FILES[path];
     if (!file || !['GET', 'HEAD'].includes(request.method))
       return new Response(null, { status: 404 });

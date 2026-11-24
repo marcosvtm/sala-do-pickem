@@ -21,16 +21,15 @@
           ><img src="/assets/singapore-lion.svg?v=2" alt="" />Pick'em dos Broxinhas</a
         >
         <nav aria-label="Navegação principal">
-          <a href="/modelos">Modelos</a><a href="/partidas">Partidas</a
-          ><a href="/cartoes">Cartões<span class="nav-suffix"> dos Broxas</span></a>
-          <a href="/ranking">Ranking<span class="nav-suffix"> dos Broxas</span></a>
+          <a href="/modelos">Modelos</a><a href="/partidas">Partidas</a>
+          <a href="/ranking">Ranking Broxas</a>
         </nav>
       </div>
     </header>
     <main class="wrap">
       <aside id="editingBanner" class="panel" hidden>
         <strong id="editingTitle"></strong>
-        <a id="cancelEdit" href="/cartoes">Cancelar e voltar ao mural</a>
+        <a id="cancelEdit" href="/ranking?fase=stage-1">Cancelar e voltar ao ranking</a>
       </aside>
       <section class="hero hero-home" data-page="/">
         <img class="hero-art" src="/assets/fallen-farewell.webp" fetchpriority="high"
@@ -86,7 +85,7 @@
             <h3>Fechar meu cartão</h3>
             <p>
               Seu nick, seus dez picks e o modelo escolhido ficam públicos em
-              <a href="/cartoes">Cartões dos Broxas</a>. Você pode salvar mesmo
+              <a href="/ranking?fase=stage-1">Ranking Broxas</a>. Você pode salvar mesmo
               sem simular. Neste navegador, você pode editar ou excluir seu
               cartão até o fim do timer.
             </p>
@@ -112,7 +111,7 @@
             </button>
           </form>
         </section>
-        <section class="panel evaluation" id="resultado">
+        <section class="panel evaluation" id="resultado" tabindex="-1">
           <div class="panel-title">
             <div>
               <span class="eyebrow">SIMULAÇÃO</span>
@@ -172,7 +171,9 @@
       <section class="panel agenda" data-page="/">
         <div class="panel-title">
           <h2>Agenda do Stage 1</h2>
-          <a href="https://www.hltv.org/events/9303/matches">Ver na HLTV</a>
+          <a class="hltv-button hltv-event" href="https://www.hltv.org/events/9303/matches"
+             target="_blank" rel="noopener noreferrer" title="Agenda na HLTV (abre em nova aba)"
+             aria-label="Agenda na HLTV (abre em nova aba)">HLTV</a>
         </div>
         <div class="agenda-toolbar">
           <p id="agendaStatus" class="hint" role="status">
@@ -326,7 +327,7 @@
           </p>
           <p>
             Posições congeladas para o Stage 1.
-            <a href="https://www.hltv.org/ranking/teams/2026/november/16"
+            <a target="_blank" rel="noopener noreferrer" href="https://www.hltv.org/ranking/teams/2026/november/16"
               >Ranking mundial de 16/11/2026</a
             >
           </p>
@@ -460,7 +461,7 @@
             <form id="publishModel" class="publish-model">
               <h3>Salvar modelo</h3>
               <p class="hint">
-                Publique uma cópia dos ajustes em Cartões dos Broxas. Você pode
+                Publique uma cópia dos ajustes em Modelos da galera. Você pode
                 salvar o modelo antes de montar seu cartão.
               </p>
               <label for="modelNick">Seu nick</label
@@ -480,15 +481,39 @@
           </div>
         </details>
       </section>
-      <section id="jogos" data-page="/partidas" hidden>
-        <div class="page-intro">
-          <span class="kicker"><i></i> STAGE 1 · SISTEMA SUÍÇO</span>
-          <h1>Partidas</h1>
-          <p>
-            Um clique escolhe o vencedor para explorar as próximas rodadas. Dois
-            cliques no mesmo time fixam o resultado em todos os modelos e
-            recalculam sua chance de passar.
+      <section class="panel community-models" data-page="/modelos" hidden>
+        <h2>Modelos da galera</h2>
+        <p class="lead">
+          Aqui ficam os modelos publicados no editor e as cópias salvas com os
+          cartões. Abra um modelo para consultar os pesos ou editar uma cópia
+          sua.
+        </p>
+        <div id="savedModels" aria-live="polite">Carregando modelos…</div>
+        <div class="wall-pager">
+          <button class="outline" id="modelsPrev" hidden>Anterior</button
+          ><button class="outline" id="modelsNext" hidden>
+            Próxima página
+          </button>
+        </div>
+      </section>
+      <section class="panel community-models" data-page="/modelos" hidden>
+        <details id="modelComparison">
+          <summary>Comparação dos modelos</summary>
+          <p class="lead">
+            O índice de Brier compara a previsão de cada confronto com o
+            vencedor real. Quanto menor, mais perto o modelo chegou. Cada cartão
+            também mostra a nota do seu modelo personalizado.
           </p>
+          <div id="modelScores"></div>
+        </details>
+      </section>
+      <section id="jogos" data-page="/partidas" hidden>
+        <div class="hero matches-hero">
+          <img class="hero-art" src="/assets/banner-cartoes.webp" alt="Os Broxas reunidos no bar." />
+          <div class="hero-copy">
+            <span class="kicker"><i></i> STAGE 1 · SISTEMA SUÍÇO</span>
+            <h1>Partidas</h1>
+          </div>
         </div>
         <div class="panel bracket-panel">
           <div class="panel-title">
@@ -496,6 +521,7 @@
             <button class="text-btn" id="clearLocks">Limpar cenário</button>
           </div>
           <p class="hint">
+            Um clique explora um resultado. Dois cliques no vencedor fixam a escolha na simulação.
             Os jogos em aberto projetam o melhor seed. Os classificados e
             eliminados refletem a chave exibida. Fixar um jogo de uma rodada
             futura também fixa o caminho das rodadas anteriores exibidas. Para
@@ -562,7 +588,7 @@
                 >Ranking Valve</a
               >
               ·
-              <a href="https://www.hltv.org/ranking/teams/2026/november/16"
+              <a target="_blank" rel="noopener noreferrer" href="https://www.hltv.org/ranking/teams/2026/november/16"
                 >Ranking HLTV do Stage 1</a
               >
               ·

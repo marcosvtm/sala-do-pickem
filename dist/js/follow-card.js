@@ -8,6 +8,7 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
   const retry = document.getElementById('retryFollow');
   const key = 'follow-card:' + stage.id;
   let generation = 0, listReady = false;
+  let shared = new URLSearchParams(location.search).get('simular');
   let preferred;
   try { preferred = localStorage.getItem(key); } catch {}
 
@@ -15,7 +16,7 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
     const request = ++generation;
     retry.hidden = true;
     status.textContent = id ? 'Carregando cartão…' : '';
-    onSelect(null);
+    onSelect(null, false, Boolean(shared));
     if (!id) return;
     try {
       const res = await fetch('/api/cards/' + encodeURIComponent(id), { cache: 'no-store' });
@@ -23,7 +24,7 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
       const card = await res.json();
       if (request !== generation) return;
       if (card.id !== id || !validate(card.settings)) throw Error();
-      onSelect(card, resume);
+      onSelect(card, resume, Boolean(shared));
       status.textContent = '';
     } catch {
       if (request !== generation) return;
@@ -48,11 +49,16 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
       select.disabled = !cards.length;
       status.textContent = cards.length ? '' : 'Nenhum cartão salvo nesta fase.';
       const receipt = readReceipt();
-      const id = preferred ?? (receipt?.saved ? receipt.token : null);
+      const id = shared ?? preferred ?? (receipt?.saved ? receipt.token : null);
       if (id && cards.some((card) => card.id === id)) {
         select.value = id;
-        await loadCard(id, true);
-      }
+        await loadCard(id, !shared);
+        if (shared && select.value === id && !status.textContent) {
+          const result = document.getElementById('resultado');
+          result.focus({ preventScroll: true });
+          result.scrollIntoView({ block: 'start' });
+        }
+      } else if (shared) status.textContent = 'Cartão compartilhado não encontrado.';
     } catch {
       if (request !== generation) return;
       status.textContent = 'Não foi possível carregar a lista de cartões.';
@@ -60,6 +66,12 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
     }
   }
   select.onchange = () => {
+    if (shared) {
+      shared = null;
+      const url = new URL(location.href);
+      url.searchParams.delete('simular');
+      history.replaceState(history.state, '', url);
+    }
     preferred = select.value;
     try { localStorage.setItem(key, preferred); } catch {}
     loadCard(preferred);

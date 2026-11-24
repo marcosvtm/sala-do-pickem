@@ -69,6 +69,7 @@ export function bindModelSaving(stage, current, onName) {
         localStorage.setItem(key, JSON.stringify(receipt));
       } catch {}
       displayed = undefined;
+      document.dispatchEvent(new Event('model-published'));
     } catch (err) {
       message.textContent = err.message || 'Tente novamente.';
     } finally {
