@@ -34,3 +34,31 @@ test('round coverage follows both opponents, map and publication time, including
     assert.equal(other.map.score, null);
   }
 });
+
+test('opening sides belong to the named teams and map, even when PGL has the newer score', async () => {
+  const game = { round: 1, status: 'live', bo: 1, a: 7, b: 15, map: { name: 'inferno', score: [12, 8] } };
+  const previous = [{ ...game, coverage: { id: 'test', reversed: true } }];
+  const kickoff = {
+    eventDate: 2, map: { name: null }, scoreA: null, scoreB: null,
+    description: 'Inferno na telinha!\n\n9z vem de CT, Lynn Vision de TR.',
+  };
+  const round = { eventDate: 3, map: { name: 'de_inferno' }, scoreA: 7, scoreB: 11 };
+  async function loadWith(announcement, bo = 1, score = [12, 8]) {
+    const fresh = { ...game, bo, map: { name: 'inferno', score } };
+    await addRoundScores([fresh], previous, async () => Response.json({ data: [round, announcement] }));
+    return fresh.map;
+  }
+  assert.deepEqual(await loadWith(kickoff), { name: 'inferno', score: [12, 8], startingCT: 7 });
+  const updated = await loadWith(kickoff, 1, [10, 7]);
+  assert.deepEqual(updated, { name: 'inferno', score: [11, 7], reportedAt: 3000, startingCT: 7 });
+  assert.equal((await loadWith({ ...kickoff, description: 'Lynn Vision de CT e 9z de TR.' })).startingCT, 15);
+  for (const invalid of [
+    { eventDate: 4 }, { map: { name: 'de_nuke' } }, { scoreA: 1 },
+    { description: '9z de CT.' }, { description: '9z de CT e Lynn Vision de CT.' },
+  ]) assert.equal((await loadWith({ ...kickoff, ...invalid })).startingCT, undefined);
+  assert.equal((await loadWith(kickoff, 3)).startingCT, undefined);
+  assert.equal((await loadWith({ ...kickoff, map: round.map }, 3)).startingCT, 7);
+  const advanced = { ...game, map: { name: 'inferno', score: [12, 9] } };
+  await addRoundScores([advanced], [{ ...previous[0], map: updated }], async () => { throw Error('offline'); });
+  assert.deepEqual(advanced.map, { name: 'inferno', score: [12, 9], startingCT: 7 });
+});

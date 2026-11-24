@@ -1866,6 +1866,35 @@ nav a {
   width: 21px;
   height: 21px;
   object-fit: contain;
+  flex: none;
+}
+.scheduled-teams.has-score {
+  flex-wrap: nowrap;
+}
+.live-map-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28em;
+  flex: none;
+  padding-inline: 0.2em;
+  color: var(--text);
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.live-map-score b {
+  font-weight: inherit;
+}
+.live-map-score small {
+  color: var(--muted);
+  font-size: 0.75em;
+}
+.live-map-score [data-side='CT'] {
+  color: #84c6ff;
+}
+.live-map-score [data-side='TR'] {
+  color: #ffb165;
 }
 @media (max-width: 1120px) {
   .catalog {
@@ -1937,6 +1966,25 @@ nav a {
   }
   .catalog {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 540px) {
+  .agenda-row:has(.live-map-score) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 4px;
+  }
+  .agenda-row:has(.live-map-score) .game-time {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .agenda-row:has(.live-map-score) .scheduled-info {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .agenda-row:has(.live-map-score) .match-link {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 @media (max-width: 660px) {

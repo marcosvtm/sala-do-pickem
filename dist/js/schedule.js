@@ -42,6 +42,26 @@ export function matchLink(game, base) {
     ROUND_START[game.round - 1] + (opening?.slot ?? game.slot) - 1
   ];
 }
+function liveMapScore(game, teams, stale) {
+  const { score, startingCT } = game.map;
+  const rounds = score[0] + score[1];
+  // Opening sides identify the two regulation halves. Overtime needs its own confirmation.
+  const knownSides = !stale && [game.a, game.b].includes(startingCT) &&
+    Math.max(...score) < 13 && rounds < 24;
+  const board = el('strong', 'live-map-score');
+  const labels = [game.a, game.b].map((id, i) => {
+    const side = knownSides ? ((id === startingCT) === (rounds < 12) ? 'CT' : 'TR') : '';
+    const value = el('b', '', score[i]);
+    if (side) value.dataset.side = side;
+    if (i) board.append(el('small', '', '×'));
+    board.append(value);
+    return teams[id].name + ' ' + score[i] + (side ? ' (' + side + ')' : '');
+  });
+  board.title = labels.join(' × ');
+  board.setAttribute('role', 'img');
+  board.setAttribute('aria-label', 'Placar do mapa: ' + board.title);
+  return board;
+}
 export async function bindFeed(stage, applyOfficial, onSchedule) {
   const localKey = 'official:' + stage.id;
   let lastOfficial,
@@ -97,12 +117,13 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
         ),
         el('small', '', day.format(g.at))
       );
-      const names = el('div', 'scheduled-teams');
+      const inlineScore = live && g.map?.score && g.a !== null && g.b !== null;
+      const names = el('div', 'scheduled-teams' + (inlineScore ? ' has-score' : ''));
       if (g.a === null || g.b === null)
         names.append(el('strong', '', 'Adversários a definir'));
       else
         for (const [i, id] of [g.a, g.b].entries()) {
-          if (i) names.append(el('small', '', '×'));
+          if (i) names.append(inlineScore ? liveMapScore(g, stage.teams, stale) : el('small', '', '×'));
           const team = stage.teams[id],
             span = el('span', '', team.name),
             img = new Image();
@@ -114,8 +135,8 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
       const info = el('div', 'scheduled-info');
       info.append(names);
       let score = g.map ? ' · ' + g.map.name[0].toUpperCase() + g.map.name.slice(1) : '';
-      if (g.map?.score) score += ' ' + g.map.score.join('–');
-      else if (live) score += ' · Aguardando placar';
+      if (g.map?.score && !inlineScore) score += ' ' + g.map.score.join('–');
+      if (live && !g.map?.score) score += ' · Aguardando placar';
       if (g.map?.reportedAt) score += ' · DRAFT5 ' + time.format(g.map.reportedAt);
       info.append(
         el(
