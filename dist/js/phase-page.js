@@ -79,9 +79,9 @@ async function start() {
       if (info?.closesAt) text.append(' Prazo previsto para salvar: ' + formatTime(info.closesAt) + ' (UTC−4).');
       agendas.hidden = false;
     } else if (path === '/modelos') {
-      const hero = document.querySelector('.models-hero');
-      hero.hidden = false;
-      hero.after(panel);
+      const heading = document.querySelector('.models-heading');
+      heading.hidden = false;
+      heading.after(panel);
       title.textContent = 'Previsões em preparação';
       text.textContent = swiss
         ? 'As previsões e os ajustes pessoais desta fase abrem com o elenco confirmado. O Modelo IA terá um estudo próprio.'

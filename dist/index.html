@@ -217,18 +217,14 @@
         <div id="agendaGames"></div>
       </section>
       <div id="phaseAgendas" data-page="/ /partidas"></div>
-      <section data-page="/modelos" hidden class="hero models-hero">
-        <picture class="models-scene">
-          <source media="(max-width: 600px)" srcset="/assets/banner-modelos-mobile.webp" width="990" height="543" />
-          <img class="hero-art" src="/assets/banner-modelos.webp" width="1960" height="653" loading="lazy" alt="Maquete da Mirage sobre uma mesa de desenho, iluminada por uma luminária de latão." />
-        </picture>
-        <div class="hero-copy">
+      <header data-page="/modelos" hidden class="models-heading">
+        <div>
           <span class="kicker"><i></i><span id="modelsPhaseLabel">Stage 1 · Singapura</span></span>
           <h1>Modelos</h1>
           <p>Escolha como estimar a chance de cada equipe vencer um confronto.</p>
-          <nav class="phase-picker" data-destination="/modelos" aria-label="Fase dos modelos"></nav>
         </div>
-      </section>
+        <nav class="phase-picker" data-destination="/modelos" aria-label="Fase dos modelos"></nav>
+      </header>
       <section data-page="/modelos" hidden aria-label="Modelos disponíveis">
         <div id="catalog" class="catalog"></div>
         <p id="legacyForm" class="hint" hidden>
