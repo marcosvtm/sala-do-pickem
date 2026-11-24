@@ -11,10 +11,7 @@ function link(text, href) {
   return a;
 }
 async function showProfile(card, cell) {
-  const info = element('div', undefined, 'rank-profile');
-  const status = element('span', 'Consultando o Ranking Broxas…');
-  const cardLink = link('Ver cartão de ' + card.nick, '/cartoes#' + card.id);
-  info.append(cardLink, status);
+  const info = element('div', 'Consultando o Ranking Broxas…', 'rank-profile');
   cell.replaceChildren(info);
   try {
     const res = await fetch('/api/ranking/' + card.id + '/perfil');
@@ -23,7 +20,7 @@ async function showProfile(card, cell) {
     if (data.unavailable) throw Error();
     const p = data.member;
     if (!p) {
-      status.textContent = 'Sem correspondência de nick no Ranking Broxas.';
+      info.textContent = 'Sem correspondência de nick no Ranking Broxas.';
       return;
     }
     const month = new Intl.DateTimeFormat('pt-BR', {
@@ -45,9 +42,7 @@ async function showProfile(card, cell) {
       badge.setAttribute('aria-label', 'Nível GC ' + p.level);
       player.append(badge);
     }
-    cardLink.textContent = p.name;
-    cardLink.setAttribute('aria-label', 'Ver cartão de ' + p.name);
-    player.append(cardLink);
+    player.append(p.name);
     const parts = [
       link('Ranking Broxas (chopp)', 'https://rankingbroxas.duckdns.org/'),
       player,
@@ -71,7 +66,7 @@ async function showProfile(card, cell) {
     if (data.stale)
       info.append(element('small', 'Exibindo a última consulta disponível.'));
   } catch {
-    status.textContent =
+    info.textContent =
       'As estatísticas do grupo estão temporariamente indisponíveis.';
   }
 }
@@ -86,7 +81,7 @@ function render(data) {
         ? data.finished + ' de 33 partidas encerradas.'
         : 'Aguardando o primeiro resultado.') +
       (data.stale ? ' Última chave disponível.' : '') +
-      ' Clique em um nick para ver o cartão e os dados do grupo.'
+      ' Clique em um nick para ver os dados do Chopp.'
     : 'Ainda não há cartões nesta página.';
   $('prevRank').hidden = !page;
   $('nextRank').hidden = !data.hasMore;
@@ -108,12 +103,15 @@ function render(data) {
     const name = element('button', card.nick, 'rank-nick');
     name.type = 'button';
     row.insertCell().append(name);
+    const cardLink = link('Ver cartão', '/cartoes#' + card.id);
+    cardLink.setAttribute('aria-label', 'Ver cartão de ' + card.nick);
+    row.insertCell().append(cardLink);
     row.insertCell().textContent = card.hits + ' / 10';
     const detail = body.insertRow();
     detail.id = 'profile-' + card.id;
     name.setAttribute('aria-controls', detail.id);
     const cell = detail.insertCell();
-    cell.colSpan = 3;
+    cell.colSpan = 4;
     const toggle = (open) => {
       detail.hidden = !open;
       name.setAttribute('aria-expanded', String(open));

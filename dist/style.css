@@ -1045,6 +1045,12 @@ dialog::backdrop {
 .broxas-table th:first-child {
   width: 6rem;
 }
+.broxas-table th:nth-last-child(-n + 2) {
+  width: 1%;
+}
+.broxas-table td:nth-child(n + 3) {
+  white-space: nowrap;
+}
 .broxas-table th:last-child,
 .broxas-table td:last-child:not([colspan]) {
   text-align: right;
