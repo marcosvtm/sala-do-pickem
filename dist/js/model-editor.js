@@ -1,4 +1,4 @@
-import { makeMatrix, fieldStrength } from './models.js';
+import { makeMatrix, fieldStrength, modelAvailable } from './models.js';
 import { bindMixer } from './mixer.js';
 import { newDraft } from './state.js';
 import { matchLink } from './schedule.js';
@@ -44,8 +44,9 @@ export function bindEditor(teams, current, onEdit) {
   const formatControl = $('strengthFormat');
   const strengthFormat = () =>
     Number(formatControl.querySelector(':checked').value);
-  for (const key of ['neutral', 'vrs', 'hltv', 'study'])
-    fixed[key] = makeMatrix(teams, key, current());
+  for (const key of ['neutral', 'vrs', 'hltv', 'study']) {
+    if (modelAvailable(teams, key, current())) fixed[key] = makeMatrix(teams, key, current());
+  }
   let fixedVersion;
   let personal,
     feed,
@@ -258,13 +259,13 @@ export function bindEditor(teams, current, onEdit) {
       fixedVersion = version;
     }
     renderMixer();
-    personal = makeMatrix(teams, 'custom', s);
+    personal = modelAvailable(teams, 'custom', s) ? makeMatrix(teams, 'custom', s) : null;
     const matrices = { ...fixed, custom: personal };
     for (const key of Object.keys(columns)) {
-      const values = fieldStrength(matrices[key][bo]);
+      const values = matrices[key] ? fieldStrength(matrices[key][bo]) : teams.map(() => null);
       strengths[key] = values;
       rows.forEach(
-        (row, i) => (row.values[key].textContent = percent.format(values[i]))
+        (row, i) => (row.values[key].textContent = values[i] === null ? '—' : percent.format(values[i]))
       );
     }
     rows.forEach((row, i) => {

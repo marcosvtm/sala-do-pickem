@@ -1,5 +1,5 @@
 import { tournament, score } from './swiss.js';
-import { makeMatrix, MODELS } from './models.js';
+import { makeMatrix, MODELS, modelAvailable } from './models.js';
 
 // sfc32 with fixed independent state words. Reusing the stream pairs scenarios
 // across models and cards. Every path consumes 33 uniforms, even for locked games.
@@ -20,7 +20,7 @@ export function randomStream(seed = 0) {
   return next;
 }
 
-export function sampleRun(teams, state, models = Object.keys(MODELS)) {
+export function sampleRun(teams, state, models = Object.keys(MODELS).filter(id => modelAvailable(teams, id, state))) {
   const rand = randomStream(),
     uniforms = new Float64Array(33);
   const entries = models.map((id) => ({

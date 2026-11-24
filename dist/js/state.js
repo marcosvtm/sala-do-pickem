@@ -3,9 +3,9 @@ import { ROUND_SIZES, ROUND_START } from './swiss.js';
 
 export const STAGE = 'sg26-s1-v1';
 const zeros = (n, v) => Array(n).fill(v);
-export function defaults(card) {
+export function defaults(card, stageId = STAGE) {
   return {
-    stage: STAGE,
+    stage: stageId,
     card: [...card],
     model: 'neutral',
     form: 50,
@@ -14,9 +14,9 @@ export function defaults(card) {
     locks: zeros(33, -1),
   };
 }
-export function newDraft() {
+export function newDraft(stageId = STAGE) {
   return {
-    ...defaults(zeros(10, -1)),
+    ...defaults(zeros(10, -1), stageId),
     model: 'custom',
     formVersion: FORM_VERSION,
     weights: { neutral: 20, vrs: 20, hltv: 20, elo: 20, study: 20 },
@@ -74,8 +74,8 @@ export function personalSettings(s) {
     bonus: [...s.bonus],
   };
 }
-export function validate(value, { draft = false } = {}) {
-  if (!value || value.stage !== STAGE || !Object.hasOwn(MODELS, value.model))
+export function validate(value, { draft = false, stageId = STAGE } = {}) {
+  if (!value || value.stage !== stageId || !Object.hasOwn(MODELS, value.model))
     return false;
   if (!intArray(value.card, 10, draft ? -1 : 0, 15)) return false;
   const picks = value.card.filter((team) => team !== -1);

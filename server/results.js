@@ -1,5 +1,5 @@
 import { availableGames, ROUND_SIZES } from '../dist/js/swiss.js';
-import { stageRows, parseSchedule } from './agenda.js';
+import { stageRows, parseSchedule, readScore, seriesWon } from './agenda.js';
 import { addRoundScores } from './round-scores.js';
 import { SCORE_POLL_MS } from '../dist/js/schedule.js';
 import baseSchedule from '../dist/data/schedule.json' with { type: 'json' };
@@ -15,30 +15,35 @@ export const START = Date.parse(stage.startsAt);
 export const CLOSE = START - 60 * 60 * 1000;
 
 // Only completed PGL matches can settle the official bracket.
-export function parsePgl(source) {
+export function parsePgl(source, previous) {
   const rounds = [[], [], [], [], []],
     sizes = [0, 0, 0, 0, 0];
+  const previousRounds = previous && availableGames(previous);
   for (const { row: fields, round } of stageRows(source)) {
     const r = round - 1;
     sizes[r]++;
     if (fields.status !== 'end') continue;
     const a = byKey.get(fields.leftTeamKey),
       b = byKey.get(fields.rightTeamKey);
-    const bo = Number(fields.format?.slice(2)),
-      x = Number(fields.leftScore),
-      y = Number(fields.rightScore);
+    const bo = Number(fields.format?.slice(2));
+    const score = readScore(fields.leftScore, fields.rightScore);
     if (
       a === undefined ||
       b === undefined ||
       a === b ||
-      ![1, 3].includes(bo) ||
-      !Number.isInteger(x) ||
-      !Number.isInteger(y) ||
-      x === y ||
-      Math.min(x, y) < 0
+      ![1, 3].includes(bo)
     )
       throw new Error('Resultado incompleto');
-    rounds[r].push({ a, b, bo, winner: x > y ? a : b });
+    if (seriesWon(bo, score)) {
+      rounds[r].push({ a, b, bo, winner: score[0] > score[1] ? a : b });
+    } else if (previousRounds) {
+      // A partial update can coincide with another match finishing. Keep an
+      // already verified winner only for these same opponents, round and format.
+      const known = previousRounds[r]?.find((g) => g.bo === bo &&
+        ((g.a === a && g.b === b) || (g.a === b && g.b === a)));
+      if (known && previous[known.match] >= 0)
+        rounds[r].push({ a, b, bo, winner: previous[known.match] ? known.b : known.a });
+    }
   }
   if (sizes.some((n, r) => n !== ROUND_SIZES[r]))
     throw new Error('Formato da fonte mudou');
@@ -109,8 +114,8 @@ export async function liveResults(
       const source = await retrieve(fetcher);
       let verified, schedule;
       try {
-        const locks = parsePgl(source);
         const old = row ? JSON.parse(row.locks) : emptyLocks();
+        const locks = parsePgl(source, old);
         if (
           locks.filter((x) => x >= 0).length >= old.filter((x) => x >= 0).length
         )

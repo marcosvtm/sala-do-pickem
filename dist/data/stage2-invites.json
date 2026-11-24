@@ -1,0 +1,16 @@
+{
+  "sources": {
+    "participants": "https://news.pglesports.com/news/1794212657579-32-teams-one-trophy-meet-the-field-at-pgl-major-singapore-2026",
+    "vrs": "https://github.com/ValveSoftware/counter-strike_regional_standings/blob/main/invitation/2026/standings_global_2026_11_02.md"
+  },
+  "teams": [
+    { "id": "fut_esports", "name": "FUT Esports", "vrs": 1721 },
+    { "id": "nemiga", "name": "Nemiga Gaming", "vrs": 1650 },
+    { "id": "g2_esports", "name": "G2 Esports", "vrs": 1616 },
+    { "id": "1win", "name": "The One", "vrs": 1598 },
+    { "id": "natus_vincere", "name": "Natus Vincere", "vrs": 1589 },
+    { "id": "astralis", "name": "Astralis", "vrs": 1572 },
+    { "id": "the_mongolz", "name": "The MongolZ", "vrs": 1554 },
+    { "id": "mibr", "name": "MIBR", "vrs": 1546 }
+  ]
+}

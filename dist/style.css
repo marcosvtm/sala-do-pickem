@@ -1922,6 +1922,78 @@ nav a {
   color: var(--blue);
   font-size: 0.85rem;
 }
+.agenda-toolbar,
+.agenda-actions,
+.agenda-round {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.agenda-toolbar {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin: 0.45rem 0 0.8rem;
+}
+.agenda-toolbar .hint {
+  margin: 0;
+}
+.agenda-round {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.agenda-round select {
+  width: auto;
+  padding-block: 0.3rem;
+  margin: 0;
+}
+.agenda-actions {
+  justify-content: flex-end;
+}
+.map-toggle {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.875rem;
+  padding: 0.32rem 0.6rem;
+  white-space: nowrap;
+}
+.map-toggle[aria-expanded='true'],
+.map-toggle:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.map-history {
+  grid-column: 2 / -1;
+  overflow-x: auto;
+}
+.agenda-maps {
+  width: min(100%, 42rem);
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+}
+.agenda-maps :is(th, td) {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+.agenda-maps thead th {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.agenda-maps :is(th, td):is(:nth-child(2), :nth-child(3)) {
+  text-align: center;
+}
+.agenda-maps td {
+  color: var(--muted);
+}
+.agenda-maps td.live {
+  color: var(--acid);
+}
 .agenda-row {
   display: grid;
   grid-template-columns: 5.75rem minmax(0, 1fr) auto;
@@ -1986,14 +2058,18 @@ nav a {
   color: var(--muted);
   font-size: 0.75em;
 }
-.live-map-score [data-side='CT'] {
+.live-map-score [data-side='CT'],
+.agenda-maps [data-side='CT'] {
   color: #84c6ff;
 }
-.live-map-score [data-side='TR'] {
+.live-map-score [data-side='TR'],
+.agenda-maps [data-side='TR'] {
   color: #ffb165;
 }
-.live-map-score .winning-score {
+.live-map-score .winning-score,
+.agenda-maps .winning-score {
   color: #72df9a;
+  font-weight: 700;
 }
 @media (max-width: 1120px) {
   .catalog {
@@ -2094,22 +2170,28 @@ nav a {
   }
 }
 @media (max-width: 540px) {
-  .agenda-row:has(.live-map-score) {
+  .agenda-row:has(.live-map-score, .map-toggle) {
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 8px;
   }
-  .agenda-row:has(.live-map-score) .game-time {
+  .agenda-row:has(.live-map-score, .map-toggle) .game-time {
     display: flex;
     align-items: baseline;
     gap: 6px;
   }
-  .agenda-row:has(.live-map-score) .scheduled-info {
+  .agenda-row:has(.live-map-score, .map-toggle) .scheduled-info {
     grid-column: 1 / -1;
     grid-row: 2;
   }
-  .agenda-row:has(.live-map-score) .match-link {
+  .agenda-row:has(.live-map-score, .map-toggle) .agenda-actions {
     grid-column: 2;
     grid-row: 1;
+  }
+  .map-history {
+    grid-column: 1 / -1;
+  }
+  .agenda-maps :is(th, td) {
+    padding: 0.45rem 0.35rem;
   }
 }
 @media (max-width: 660px) {

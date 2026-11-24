@@ -92,6 +92,20 @@ Na página inicial, a busca usa o modelo ativo, seus ajustes e os resultados fix
 
 O refinamento conserva o candidato mais bem pontuado na seleção, renova a amostra de busca a cada oito pontos de partida e continua por 10, 30 ou 60 segundos, ou até a pessoa parar. Cada refinamento concluído acrescenta 32.768 cenários de validação até 131.072. Com a chave inteira fixada, o resultado é calculado diretamente. Aplicar altera apenas o rascunho.
 
+## Preparação do Stage 2
+
+O cartão ativo continua no Stage 1. A inicial permite consultar os oito convidados e o prazo previsto do Stage 2. A fase `sg26-s2-v1` tem programação e identidade próprias em `/api/stages` e `/api/results?stage=sg26-s2-v1`. Os cartões abrem em uma etapa posterior, após a confirmação dos participantes e da primeira rodada.
+
+O estudo IA do Stage 2 é produzido separadamente após a análise do Stage 1. Para obter as chaves PGL e os pontos Valve dos 24 candidatos, execute `node scripts/prepare-stage2-study.js --pool`. A entrega do estudo usa um JSON com estes campos:
+
+| Campo | Conteúdo |
+|---|---|
+| `stage`, `version`, `cutoff` | Identificador `sg26-s2-v1`, versão do estudo e corte temporal dos dados em ISO 8601 com fuso. |
+| `teamIds` | As 16 chaves PGL que identificam as linhas e colunas, na ordem usada pelo estudo. |
+| `probabilities` | Matrizes `"1"` e `"3"`, cada uma 16 × 16. A célula [a][b] é a probabilidade integral de a vencer b na série, entre 0 e 1. Diagonal de 0,5 e sentidos opostos complementares. |
+
+Com as oito partidas de abertura confirmadas na PGL, `node scripts/prepare-stage2-study.js --check estudo.json` valida elenco, corte e matrizes. Para ensaio offline, o último argumento opcional é o JSON de uma agenda no formato da PGL. `--install estudo.json` consulta a agenda oficial e prepara o módulo local para a próxima publicação. Instalar a matriz e abrir a fase são operações independentes. O Stage 1 continua usando a matriz original. Enquanto o estudo S2 estiver pendente, a mistura que atribuir peso a ele fica indisponível e conserva os pesos escolhidos.
+
 ## Interpretação
 
 A prévia usa 12 mil fases por modelo e uma semente fixa. Todos os modelos recebem a mesma sequência de sorteios por posição na chave, mesmo após divergirem nos adversários. Para um cartão completo, conta-se a proporção com cinco ou mais acertos. A faixa de Wilson é nominal de 95% para uma amostra fixa. Parar seletivamente ao observar os resultados pode afetar a cobertura. A simulação contínua dura enquanto a aba puder executar. O navegador pode suspender abas em segundo plano.

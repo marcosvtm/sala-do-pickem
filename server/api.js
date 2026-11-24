@@ -1,4 +1,3 @@
-import stage from '../dist/data/stage.json' with { type: 'json' };
 import {
   defaults,
   validate,
@@ -6,7 +5,7 @@ import {
   personalSettings,
 } from '../dist/js/state.js';
 import { progress } from '../dist/js/progress.js';
-import { CLOSE, liveResults } from './results.js';
+import { LEGACY_STAGE_ID, calendarPreview, findStage, stageCatalog, stageInfo } from './stages.js';
 import { broxasProfile } from './broxas.js';
 
 const json = (body, status = 200) =>
@@ -26,15 +25,15 @@ async function ownerHash(req) {
     b.toString(16).padStart(2, '0')
   ).join('');
 }
-async function changeCard(db, now, id, hash, revision, update) {
-  if (now >= CLOSE) return closed();
+async function changeCard(db, stage, now, id, hash, revision, update) {
+  if (now >= stage.closesAt) return closed();
   if (!hash)
     return failure('Use o navegador em que você salvou o cartão.', 403);
   if (!Number.isSafeInteger(revision) || revision < 1)
     return failure('Versão de cartão inválida.', 400);
   const guard =
     ' WHERE stage=? AND id=? AND edit_hash=? AND revision=? AND removed_at IS NULL AND unixepoch() < ?';
-  const args = [stage.id, id, hash, revision, CLOSE / 1000];
+  const args = [stage.id, id, hash, revision, stage.closesAt / 1000];
   // Keep a scrubbed tombstone so a delayed create request cannot restore a deleted card.
   const result = update
     ? await db
@@ -54,7 +53,7 @@ async function changeCard(db, now, id, hash, revision, update) {
   if (result.meta.changes) return json({ id, revision: revision + 1 });
   const clock = await db
     .prepare('SELECT unixepoch() >= ? AS closed')
-    .bind(CLOSE / 1000)
+    .bind(stage.closesAt / 1000)
     .first();
   if (clock.closed) return closed();
   const prior = await db
@@ -83,6 +82,22 @@ async function changeCard(db, now, id, hash, revision, update) {
 }
 export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   const url = new URL(req.url);
+  if (url.pathname === '/api/stages')
+    return req.method === 'GET'
+      ? json({ serverTime: now, ...stageCatalog(now) })
+      : failure('Método indisponível.', 405);
+  const requested = url.searchParams.getAll('stage');
+  if (requested.length > 1) return failure('Informe apenas uma fase.', 400);
+  const stage = findStage(requested[0] ?? LEGACY_STAGE_ID);
+  if (!stage) return failure('Fase não encontrada.', 404);
+  const info = stageInfo(stage, now);
+  if (url.pathname === '/api/stage' && req.method === 'GET')
+    return json({ serverTime: now, ...info, invitedTeams: stage.invitedTeams });
+  if (info.status === 'preparing') {
+    if (url.pathname === '/api/results' && req.method === 'GET')
+      return json(calendarPreview(stage));
+    return failure(stage.name + ' em preparação. Aguarde a confirmação das equipes.', 409);
+  }
   const profileId = url.pathname.match(
     /^\/api\/ranking\/([^/]+)\/perfil$/
   )?.[1];
@@ -97,8 +112,6 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     return json(await broxasProfile(row.nick, now, fetcher));
   }
   const ranking = url.pathname === '/api/ranking' && req.method === 'GET';
-  if (url.pathname === '/api/stage' && req.method === 'GET')
-    return json({ serverTime: now, closesAt: CLOSE });
   if (url.pathname === '/api/stage/cards' && req.method === 'GET') {
     const { results } = await db.prepare(
       'SELECT id,nick FROM cards WHERE stage=? AND removed_at IS NULL ORDER BY nick COLLATE NOCASE,id'
@@ -106,7 +119,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     return json({ cards: results });
   }
   if (url.pathname === '/api/results' && req.method === 'GET')
-    return json(await liveResults(db, now, fetcher, true));
+    return json(await stage.readResults(db, now, fetcher, true));
   if (req.method === 'GET' && url.pathname.startsWith('/api/models/')) {
     const publicId = url.pathname.slice('/api/models/'.length);
     const standalone = publicId.startsWith('m-');
@@ -167,12 +180,12 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
           ...card,
           settings: JSON.parse(card.settings),
           serverTime: now,
-          closesAt: CLOSE,
+          closesAt: stage.closesAt,
         })
       : failure('Cartão não encontrado.', 404);
   }
   if (req.method === 'GET') {
-    const live = await liveResults(db, now, fetcher);
+    const live = await stage.readResults(db, now, fetcher);
     const { teams } = progress(live.locks);
     const bucket = teams.map(({ wins: w, losses: l }) =>
       w === 3 ? (l === 0 ? 0 : 1) : l === 3 && w === 0 ? 2 : -1
@@ -221,7 +234,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
       .all();
     return json({
       serverTime: now,
-      closesAt: CLOSE,
+      closesAt: stage.closesAt,
       page,
       hasMore: results.length > size,
       live,
@@ -246,9 +259,13 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   } catch {
     return failure('Cartão ilegível.', 400);
   }
+  if ([body?.stage, body?.state?.stage, body?.settings?.stage].some(
+    (id) => id !== undefined && id !== stage.id
+  )) return failure('A fase informada difere da fase do pedido.', 400);
   if (single && req.method === 'DELETE')
     return changeCard(
       db,
+      stage,
       now,
       cardId,
       await ownerHash(req),
@@ -287,11 +304,11 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
       : failure('Identificador de modelo já utilizado.', 409);
   }
   const id = single ? cardId : body.id;
-  if (!uuid.test(id) || !validate(body.state))
+  if (!uuid.test(id) || !validate(body.state, { stageId: stage.id }))
     return failure('O cartão ou o modelo está incompleto.', 400);
   const { card, model } = body.state;
   const settings = JSON.stringify({
-    ...defaults(card),
+    ...defaults(card, stage.id),
     model,
     ...personalSettings(body.state),
     ...(!body.state.weights &&
@@ -302,7 +319,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   });
   const hash = await ownerHash(req);
   if (single)
-    return changeCard(db, now, id, hash, body.revision, {
+    return changeCard(db, stage, now, id, hash, body.revision, {
       nick,
       nickKey,
       settings,
@@ -322,20 +339,20 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
       prior.edit_hash === hash
     );
   };
-  if (now >= CLOSE) return (await retry()) ? json({ id: body.id }) : closed();
+  if (now >= stage.closesAt) return (await retry()) ? json({ id: body.id }) : closed();
   // The database clock guards the actual insert as well as the request-time gate.
   const result = await db
     .prepare(
       `INSERT INTO cards(id,stage,nick,nick_key,submitted,settings,edit_hash)
     SELECT ?,?,?,?,unixepoch(),?,? WHERE unixepoch() < ? ON CONFLICT DO NOTHING`
     )
-    .bind(body.id, stage.id, nick, nickKey, settings, hash, CLOSE / 1000)
+    .bind(body.id, stage.id, nick, nickKey, settings, hash, stage.closesAt / 1000)
     .run();
   if (result.meta.changes) return json({ id: body.id }, 201);
   if (await retry()) return json({ id: body.id });
   const clock = await db
     .prepare('SELECT unixepoch() >= ? AS closed')
-    .bind(CLOSE / 1000)
+    .bind(stage.closesAt / 1000)
     .first();
   if (clock.closed) return closed();
   return failure(

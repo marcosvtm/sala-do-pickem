@@ -1,4 +1,4 @@
-import { MODELS, makeMatrix, modelName, FORM_VERSION } from './models.js';
+import { MODELS, makeMatrix, modelName, modelAvailable, FORM_VERSION } from './models.js';
 import { bindSuggestions } from './suggestion-dialog.js';
 import { bindBracket } from './bracket.js';
 import { bindPages, renderCatalog } from './pages.js';
@@ -44,6 +44,28 @@ function personalNick() {
 }
 
 async function init() {
+  const preview = $('nextStage');
+  let previewLoaded = false;
+  preview.addEventListener('toggle', async () => {
+    if (!preview.open || previewLoaded) return;
+    previewLoaded = true;
+    const detail = $('nextStageInfo');
+    detail.textContent = 'Consultando os convidados…';
+    try {
+      const response = await fetch('/api/stage?stage=sg26-s2-v1');
+      if (!response.ok) throw Error();
+      const next = await response.json();
+      const date = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Cuiaba', day: '2-digit', month: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      });
+      detail.textContent = next.invitedTeams.map(team => team.name).join(' · ') +
+        '. Prazo previsto para os picks em ' + date.format(next.closesAt) + ' (Cuiabá).';
+    } catch {
+      previewLoaded = false;
+      detail.textContent = 'A consulta aos convidados está indisponível. Consulte a programação da PGL.';
+    }
+  });
   const response = await fetch('data/stage.json');
   if (!response.ok) throw new Error('Dados da fase indisponíveis');
   stage = await response.json();
@@ -362,11 +384,12 @@ function renderDuel() {
   }
   const nick = personalNick();
   for (const key of Object.keys(MODELS)) {
-    const p = makeMatrix(stage.teams, key, state)[bo][a][b];
     const line = document.createElement('div');
     line.className = 'duel-row';
     const strong = document.createElement('b');
-    strong.textContent = stage.teams[a].short + ' ' + percent(p);
+    strong.textContent = modelAvailable(stage.teams, key, state)
+      ? stage.teams[a].short + ' ' + percent(makeMatrix(stage.teams, key, state)[bo][a][b])
+      : 'Aguardando estudo da fase';
     const label =
       key === 'hltv'
         ? modelName(key, nick, state.formVersion) +
@@ -416,7 +439,9 @@ function runHint() {
 function renderEstimate() {
   const incomplete = needsCard();
   const nick = personalNick();
-  $('run').disabled = incomplete;
+  const available = modelAvailable(stage.teams, state.model, state);
+  $('run').disabled = incomplete || !available;
+  $('suggest').disabled = !available;
   $('saveModel').textContent =
     'Modelo em uso: ' +
     modelName(state.model, nick, state.formVersion);
@@ -438,7 +463,7 @@ function renderEstimate() {
           wilson(p, last.count).map(percent).join(' a ');
   } else {
     $('prob').textContent = '—';
-    $('uncertainty').textContent = incomplete
+    $('uncertainty').textContent = !available ? 'Este modelo depende do estudo de IA da fase.' : incomplete
       ? (picksClosed ? 'Escolha um cartão salvo para simular.' : 'Complete os dez picks para simular.')
       : 'Calculando a prévia…';
   }
@@ -452,6 +477,7 @@ function renderEstimate() {
       row.onclick = () => chooseModel(key);
       $('comparison').append(row);
     }
+    row.disabled = !modelAvailable(stage.teams, key, state);
     row.firstChild.textContent = modelName(
       key,
       nick,
@@ -465,6 +491,11 @@ function renderEstimate() {
   }
 }
 function chooseModel(key) {
+  if (key === 'study' && !modelAvailable(stage.teams, key, state)) {
+    $('activeModel').value = state.model;
+    toast('O estudo do Modelo IA desta fase está em preparação.');
+    return;
+  }
   const changed = state.model !== key;
   state.model = key;
   if (changed) refreshSuggestion?.();

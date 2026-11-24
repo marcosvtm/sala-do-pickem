@@ -1,4 +1,22 @@
 import { studyTeams, studyProbabilities } from '../data/study-v1.js';
+import stage2Study from '../data/study-s2.js';
+
+const stage1Study = { teamIds: studyTeams, probabilities: studyProbabilities };
+function studyFor(stage) {
+  if (stage === undefined || stage === 'sg26-s1-v1') return stage1Study;
+  return stage2Study && stage === stage2Study.stage ? stage2Study : null;
+}
+
+function studyIndices(study, teams) {
+  return teams.map(team => study.teamIds.indexOf(study === stage1Study ? team.name : team.id));
+}
+
+export function modelAvailable(teams, model, settings) {
+  if (model !== 'study' && !(model === 'custom' && mixWeights(settings)?.study > 0))
+    return true;
+  const study = studyFor(settings?.stage);
+  return Boolean(study && studyIndices(study, teams).every(index => index >= 0));
+}
 
 export const MODELS = {
   neutral: 'Neutro 50/50',
@@ -82,7 +100,7 @@ export function hltvWinChance(rankA, rankB, bo, slope = 0.306262) {
 // The study has a probability per matchup, including map effects, instead of a single rating.
 // At zero trust, substitute the field's average chance against that opponent.
 function studyWithConfidence(teams, config) {
-  const matrix = makeMatrix(teams, 'study');
+  const matrix = makeMatrix(teams, 'study', config);
   if (config.trust.every((value) => value === 100)) return matrix;
   const trust = config.trust.map((value) => value / 100);
   for (const bo of [1, 3]) {
@@ -164,13 +182,14 @@ export function makeMatrix(
   config = { formVersion: FORM_VERSION }
 ) {
   if (model === 'study') {
-    const indices = teams.map((team) => studyTeams.indexOf(team.name));
-    if (indices.includes(-1))
-      throw new Error('Equipe fora do estudo de Singapura');
+    const study = studyFor(config.stage);
+    const indices = study && studyIndices(study, teams);
+    if (!indices || indices.includes(-1))
+      throw new Error('Modelo IA indisponível para o elenco desta fase.');
     return Object.fromEntries(
       [1, 3].map((bo) => [
         bo,
-        indices.map((a) => indices.map((b) => studyProbabilities[bo][a][b])),
+        indices.map((a) => indices.map((b) => study.probabilities[bo][a][b])),
       ])
     );
   }

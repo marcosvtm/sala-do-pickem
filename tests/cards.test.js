@@ -211,6 +211,28 @@ test('PGL stages map by opponent, retain pending games and settle every pick at 
     0.25
   );
 });
+
+test('an official best-of-three needs two map wins before it can settle the Swiss draw', () => {
+  const rows = fixture(16);
+  const thirdRound = rows.find((row) => row.round === 'round 3' && row.format === 'BO3');
+  const base = parsePgl(rows);
+  thirdRound.status = 'end';
+  for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1], [2, null], [null, 2]]) {
+    Object.assign(thirdRound, { leftScore: a, rightScore: b });
+    assert.deepEqual(parsePgl(rows), base);
+  }
+  for (const [a, b] of [[2, 0], [0, 2], [2, 1], [1, 2]]) {
+    Object.assign(thirdRound, { leftScore: a, rightScore: b });
+    assert.equal(parsePgl(rows).filter((lock) => lock >= 0).length, 17);
+  }
+  const verified = parsePgl(rows);
+  Object.assign(thirdRound, { leftScore: 0, rightScore: 1 });
+  const another = rows.find((row) => row !== thirdRound && row.round === 'round 3' && row.format === 'BO3');
+  Object.assign(another, { leftScore: 2, rightScore: 0, status: 'end' });
+  const updated = parsePgl(rows, verified);
+  assert.equal(updated.filter((lock) => lock >= 0).length, 18);
+  assert.ok(verified.every((old, i) => old < 0 || updated[i] === old));
+});
 test('feed retains verified results during a source outage and marks them stale', async () => {
   const db = openDb();
   const fetcher = async (url) => {

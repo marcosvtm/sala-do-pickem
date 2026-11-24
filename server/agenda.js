@@ -3,12 +3,46 @@ import { ROUND_SIZES } from '../dist/js/swiss.js';
 
 const teamIndex = new Map(stage.teams.map((t, i) => [t.logo.split('.')[0], i]));
 export function isCurrentMap(game, name) {
+  if (!name || game.status === 'end') return false;
+  if (game.maps && !game.maps.some((map) => map.status === 'upcoming' || map.status === 'live'))
+    return false;
   if (game.map?.name) return game.map.name === name;
   if (game.bo === 1) return true;
   const completed = game.completedMaps ?? [];
-  return game.bo === 3 && game.series && completed.length === game.series[0] + game.series[1] &&
-    !completed.includes(name);
+  return game.bo > 1 && game.series && completed.length === game.series[0] + game.series[1] &&
+    !completed.includes(name) && !game.maps?.slice(completed.length + 1).some((map) => map.name === name);
 }
+
+export function readScore(left, right) {
+  const values = [left, right].map((n) => typeof n === 'string' && /^\d+$/.test(n) ? Number(n) : n);
+  return values.every((n) => Number.isSafeInteger(n) && n >= 0) ? values : null;
+}
+
+export function seriesWon(bo, score) {
+  const target = Math.floor(bo / 2) + 1;
+  return Boolean(score && Math.max(...score) === target && Math.min(...score) < target);
+}
+
+function readMap(raw, row) {
+  const name = /^de_[a-z0-9_]+$/i.test(raw?.map) ? raw.map.slice(3).toLowerCase() : null;
+  if (!raw) return { name, score: null };
+  let score = readScore(raw.leftScore, raw.rightScore);
+  if (raw.leftTeamKey || raw.rightTeamKey) {
+    if (raw.leftTeamKey === row.rightTeamKey && raw.rightTeamKey === row.leftTeamKey) score?.reverse();
+    else if (raw.leftTeamKey !== row.leftTeamKey || raw.rightTeamKey !== row.rightTeamKey) score = null;
+  }
+  return { name, score: score?.some((n) => n > 0) ? score : null };
+}
+
+function mapHistory(boards, completed, decided, status) {
+  return boards.map(({ name, score }, index) => {
+    if (index < completed) return { name, score, status: 'end' };
+    if (decided) return { name, score: null, status: 'unplayed' };
+    if (index === completed && status === 'live' && score) return { name, score, status: 'live' };
+    return { name, score: null, status: 'upcoming' };
+  });
+}
+
 export function* stageRows(source) {
   if (!Array.isArray(source)) throw Error('Agenda inválida');
   for (const row of source) {
@@ -37,47 +71,35 @@ export function parseSchedule(source) {
       throw Error('Horário desconhecido');
     const a = teamIndex.get(row.leftTeamKey) ?? null,
       b = teamIndex.get(row.rightTeamKey) ?? null;
-    const sa = Number(row.leftScore),
-      sb = Number(row.rightScore);
-    const played = maps
-      .filter((m) => m.leftScore + m.rightScore > 0)
-      .at(-1);
+    const bo = Number(row.format.slice(2));
+    if (![1, 3, 5].includes(bo)) throw Error('Formato de série desconhecido');
+    const series = readScore(row.leftScore, row.rightScore);
+    const completed = series ? series[0] + series[1] : 0;
+    const boards = Array.from({ length: bo }, (_, index) => readMap(maps[index], row));
+    const decided = seriesWon(bo, series);
     const status =
-      row.status === 'end'
+      row.status === 'end' && decided
         ? 'end'
         : row.status === 'live' ||
-            (a !== null && b !== null && (sa + sb > 0 || played))
+            (a !== null && b !== null && (completed > 0 || boards.some((board) => board.score)))
           ? 'live'
           : 'upcoming';
-    const map = status === 'end' ? played : maps[sa + sb];
-    const knownMap = /^de_[a-z0-9_]+$/i.test(map?.map);
+    const board = status === 'end' ? boards[completed - 1] : boards[completed];
+    const map = board?.name ? { ...board } : null;
     games.push({
       round,
       slot,
       at,
       a,
       b,
-      bo: Number(row.format.slice(2)),
+      bo,
       status,
       ...(status === 'live' ? { stream: row.stream ?? null } : {}),
-      ...(status === 'live' && row.format === 'BO3' ? {
-        completedMaps: maps.slice(0, sa + sb).map((m) => m.map)
-          .filter((name) => /^de_[a-z0-9_]+$/i.test(name)).map((name) => name.slice(3)),
+      ...(bo > 1 ? { maps: mapHistory(boards, completed, decided, status) } : {}),
+      ...(status === 'live' && bo > 1 ? {
+        completedMaps: boards.slice(0, completed).map((m) => m.name).filter(Boolean),
       } : {}),
-      ...(status !== 'upcoming'
-        ? {
-            series:
-              Number.isInteger(sa) && Number.isInteger(sb) ? [sa, sb] : null,
-            map: knownMap
-              ? {
-                  name: map.map.replace(/^de_/, ''),
-                  score: Number.isInteger(map.leftScore) && Number.isInteger(map.rightScore) &&
-                    map.leftScore >= 0 && map.rightScore >= 0 && map.leftScore + map.rightScore > 0
-                    ? [map.leftScore, map.rightScore] : null,
-                }
-              : null,
-          }
-        : {}),
+      ...(status !== 'upcoming' ? { series, map: status === 'live' && decided ? null : map } : {}),
     });
   }
   if (counts.some((v, i) => v !== ROUND_SIZES[i]))

@@ -116,7 +116,46 @@ function reportedOpeningCT(rounds, game, mapName) {
   if (evidence.size === 1) return [...evidence][0];
 }
 
+function finalRounds(score) {
+  if (!score) return false;
+  const loser = Math.min(...score);
+  const target = loser < 12 ? 13 : 16 + 3 * Math.floor((loser - 12) / 3);
+  return Math.max(...score) === target;
+}
+
+// A later PGL response can temporarily contain an earlier series or blank map slots.
+// Completed rounds stay attached to the same fixture and map. Official finals take precedence.
+function retainMapHistory(game, prior) {
+  if (!prior?.maps || !game.maps) return;
+  const played = (series) => series ? series[0] + series[1] : 0;
+  if (game.status !== 'end' && (prior.status === 'end' ||
+      (prior.status === 'live' && game.status === 'upcoming') || played(prior.series) > played(game.series))) {
+    Object.assign(game, structuredClone(prior));
+    return;
+  }
+  for (const [index, entry] of game.maps.entries()) {
+    const old = prior.maps[index];
+    if (!old || (entry.name && old.name !== entry.name)) continue;
+    entry.name ??= old.name;
+    if (entry.status === 'end' && !entry.score && (old.status === 'end' || finalRounds(old.score)))
+      entry.score = old.score;
+  }
+  if (game.status === 'live') {
+    game.completedMaps = game.maps.filter((entry) => entry.status === 'end' && entry.name).map((entry) => entry.name);
+    const next = game.maps[played(game.series)];
+    if (!game.map && next?.name && next.status !== 'unplayed') game.map = { name: next.name, score: next.score };
+  } else if (game.status === 'end' && !game.map?.score) {
+    const last = game.maps[played(game.series) - 1];
+    if (last?.name) game.map = { name: last.name, score: last.score };
+  }
+}
+
 export async function addRoundScores(games, previous, fetcher, now = Date.now(), broadcast = readBroadcast) {
+  const previousGame = (g) => previous.find((p) => p.round === g.round && p.bo === g.bo &&
+    p.slot === g.slot && p.a === g.a && p.b === g.b);
+  for (const game of games) {
+    if (game.bo > 1 && game.a != null && game.b != null) retainMapHistory(game, previousGame(game));
+  }
   const live = games.filter((g) => g.status === 'live' && g.a !== null && g.b !== null);
   if (!live.length) return;
   let listing;
@@ -126,7 +165,7 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
     return broadcasts.get(channel);
   }
   await Promise.all(live.map(async (g) => {
-    const prior = previous.find((p) => p.round === g.round && p.bo === g.bo && p.a === g.a && p.b === g.b);
+    const prior = previousGame(g);
     const scoreboard = readCitoScore(g, matchLink(g, schedule), resolveTeam, fetcher, now);
     const sameMap = prior?.map && isCurrentMap(g, prior.map.name);
     const lastRead = sameMap ? prior.broadcastChecked : null;
@@ -137,9 +176,13 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
       g.broadcastChecked = now;
     } else if (lastRead) g.broadcastChecked = lastRead;
     let match = prior?.coverage;
-    if (prior?.map?.reportedAt && isCurrentMap(g, prior.map.name) &&
+    if (prior?.map?.score && prior.map.reportedAt && isCurrentMap(g, prior.map.name) &&
         (!g.map?.score || prior.map.score.every((n, i) => n >= g.map.score[i]))) {
       g.map = { ...prior.map };
+    } else if (g.maps && g.map?.score) {
+      // PGL provides rounds without a last-update time; use the first observation of this score.
+      g.map.reportedAt = now;
+      g.map.source = 'PGL';
     }
     try {
       if (!match) {
@@ -159,7 +202,8 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
       const { data } = await (await request(fetcher, '/api/proxy/matches/' + match.id + '/live')).json();
       const rounds = data.filter((e) =>
         /^de_[a-z0-9_]+$/i.test(e.map?.name) && isCurrentMap(g, e.map.name.slice(3)) && Number.isFinite(e.eventDate) &&
-        [e.scoreA, e.scoreB].every((n) => Number.isSafeInteger(n) && n >= 0)
+        [e.scoreA, e.scoreB].every((n) => Number.isSafeInteger(n) && n >= 0) &&
+        (g.bo === 1 || e.scoreA + e.scoreB > 0 || /começ(?:a|ou) (?:o (?:jogo|mapa)|a partida)/i.test(e.title ?? ''))
       ).sort((a, b) => b.eventDate - a.eventDate || b.id - a.id);
       const event = rounds[0];
       const first = rounds.findLast((e) => e.map.name === event?.map.name);
@@ -168,7 +212,8 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
         if (report) {
           g.map ??= { name: report.name };
           g.map.startingCT = report.startingCT;
-          if (!g.map.score) Object.assign(g.map, { score: [0, 0], reportedAt: report.reportedAt, source: 'DRAFT5' });
+          if (g.bo === 1 && !g.map.score)
+            Object.assign(g.map, { score: [0, 0], reportedAt: report.reportedAt, source: 'DRAFT5' });
         }
         return;
       }
@@ -217,6 +262,16 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
         if (map.startingCT != null) {
           g.map.startingCT = map.startingCT;
           g.map.sideSource = 'CSTV PGL';
+        }
+      }
+      if (g.maps && g.series && g.map) {
+        const entry = g.maps[g.series[0] + g.series[1]];
+        if (entry && entry.status !== 'unplayed' && (!entry.name || entry.name === g.map.name)) {
+          entry.name = g.map.name;
+          if (g.map.score) {
+            entry.score = g.map.score;
+            entry.status = 'live';
+          }
         }
       }
     }
