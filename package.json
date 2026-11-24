@@ -16,5 +16,9 @@
     "drizzle-kit": "0.31.8",
     "drizzle-orm": "0.45.1",
     "esbuild": "0.25.12"
+  },
+  "dependencies": {
+    "cs2parser": "2.8.0",
+    "snappyjs": "0.7.0"
   }
 }

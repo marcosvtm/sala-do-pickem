@@ -3,6 +3,7 @@ import schedule from '../dist/data/schedule.json' with { type: 'json' };
 import { ctAtRound, matchLink } from '../dist/js/schedule.js';
 import { isCurrentMap } from './agenda.js';
 import { readCitoScore } from './cito-score.js';
+import { broadcastChannel, broadcastMap, readBroadcast } from './cstv.js';
 
 const origin = 'https://draft5.gg';
 const normalize = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -54,24 +55,40 @@ function halftimeCT(events, game, mapName) {
   }
 }
 
-function openingCT(events, game, mapName, firstRoundAt) {
+// DRAFT5 may put the map and a single starting side only in the pre-game text.
+function announcedMap(event) {
+  const structured = event.map?.name;
+  if (structured) return /^de_[a-z0-9_]+$/i.test(structured) ? structured.slice(3).toLowerCase() : undefined;
+  const maps = new Set((event.description ?? '').toLowerCase()
+    .match(/\b(?:ancient|anubis|cache|cobblestone|dust\s?2|inferno|mirage|nuke|overpass|train|vertigo)\b/g)
+    ?.map((name) => name.replace(/\s/g, '')));
+  return maps.size === 1 ? [...maps][0] : undefined;
+}
+
+function openingReport(events, game, name, before) {
+  const evidence = new Set();
+  let reportedAt = 0, mapName = name;
   for (const event of events) {
-    if (!Number.isFinite(event.eventDate) || event.eventDate > firstRoundAt ||
+    if (!Number.isFinite(event.eventDate) || event.eventDate > before ||
         (event.scoreA ?? 0) !== 0 || (event.scoreB ?? 0) !== 0) continue;
-    if (event.map?.name ? event.map.name !== mapName : game.bo !== 1) continue;
-    const sides = new Map();
+    const named = announcedMap(event);
+    if ((!named && game.bo !== 1) || (named && (name && named !== name || !isCurrentMap(game, named)))) continue;
     const announcement = (event.description ?? '').replace(/\*/g, '');
-    for (const clause of announcement.split(/[,;:.!?\n]|\s+e\s+/i)) {
-      const parts = /^(?:[ao]\s+)?(.+?)\s+(?:(?:vem|começa|inicia)\s+)?(?:de|como)\s+(CT|TR|T)$/i.exec(clause.trim());
+    for (let clause of announcement.split(/[,;:.!?\n]|\s+e\s+/i)) {
+      // "Teremos Ancient com a PVISION começando de CT!"
+      clause = clause.trim().replace(/^(?:teremos|vamos (?:de|ter))\s+[\w -]+?\s+com\s+/i, '');
+      const parts = /^(?:[ao]\s+)?(.+?)\s+(?:(?:vem|começa|começou|começará|começando|inicia|iniciou|iniciando|vai começar)\s+)?(?:de|como|do lado)\s+(?:de\s+)?(CT|TR|T)$/i.exec(clause);
       if (!parts) continue;
-      const team = aliases.get(normalize(parts[1]));
-      if (team === game.a || team === game.b)
-        sides.set(team, parts[2].toUpperCase() === 'CT' ? 'CT' : 'TR');
+      const team = resolveTeam(parts[1]);
+      if (team !== game.a && team !== game.b) continue;
+      const ct = parts[2].toUpperCase() === 'CT' ? team : (team === game.a ? game.b : game.a);
+      evidence.add(ct);
+      if (named && mapName && named !== mapName) return null;
+      mapName ??= named;
+      reportedAt = Math.max(reportedAt, event.eventDate * 1000);
     }
-    if (sides.size === 2 && sides.get(game.a) !== sides.get(game.b))
-      return sides.get(game.a) === 'CT' ? game.a : game.b;
   }
-  return halftimeCT(events, game, mapName);
+  return mapName && evidence.size === 1 ? { name: mapName, startingCT: [...evidence][0], reportedAt } : null;
 }
 
 // Use named, side-specific actions in scored rounds. The team that won a round
@@ -99,13 +116,26 @@ function reportedOpeningCT(rounds, game, mapName) {
   if (evidence.size === 1) return [...evidence][0];
 }
 
-export async function addRoundScores(games, previous, fetcher, now = Date.now()) {
+export async function addRoundScores(games, previous, fetcher, now = Date.now(), broadcast = readBroadcast) {
   const live = games.filter((g) => g.status === 'live' && g.a !== null && g.b !== null);
   if (!live.length) return;
   let listing;
+  const broadcasts = new Map();
+  function channelFrame(channel) {
+    if (!broadcasts.has(channel)) broadcasts.set(channel, broadcast(channel, fetcher));
+    return broadcasts.get(channel);
+  }
   await Promise.all(live.map(async (g) => {
     const prior = previous.find((p) => p.round === g.round && p.bo === g.bo && p.a === g.a && p.b === g.b);
     const scoreboard = readCitoScore(g, matchLink(g, schedule), resolveTeam, fetcher, now);
+    const sameMap = prior?.map && isCurrentMap(g, prior.map.name);
+    const lastRead = sameMap ? prior.broadcastChecked : null;
+    let streams;
+    if ('stream' in g && (!lastRead || now - lastRead >= 45000)) {
+      const channel = broadcastChannel(g.stream);
+      streams = Promise.all((channel ? [channel] : ['a', 'b']).map(channelFrame));
+      g.broadcastChecked = now;
+    } else if (lastRead) g.broadcastChecked = lastRead;
     let match = prior?.coverage;
     if (prior?.map?.reportedAt && isCurrentMap(g, prior.map.name) &&
         (!g.map?.score || prior.map.score.every((n, i) => n >= g.map.score[i]))) {
@@ -132,7 +162,16 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now())
         [e.scoreA, e.scoreB].every((n) => Number.isSafeInteger(n) && n >= 0)
       ).sort((a, b) => b.eventDate - a.eventDate || b.id - a.id);
       const event = rounds[0];
-      if (!event) return;
+      const first = rounds.findLast((e) => e.map.name === event?.map.name);
+      const report = openingReport(data, g, event?.map.name.slice(3) ?? g.map?.name, first?.eventDate ?? now / 1000);
+      if (!event) {
+        if (report) {
+          g.map ??= { name: report.name };
+          g.map.startingCT = report.startingCT;
+          if (!g.map.score) Object.assign(g.map, { score: [0, 0], reportedAt: report.reportedAt, source: 'DRAFT5' });
+        }
+        return;
+      }
       const score = match.reversed ? [event.scoreB, event.scoreA] : [event.scoreA, event.scoreB];
       if (!g.map?.score || (score.every((n, i) => n >= g.map.score[i]) &&
           score.some((n, i) => n > g.map.score[i]))) {
@@ -142,8 +181,7 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now())
           reportedAt: event.eventDate * 1000,
         };
       }
-      const first = rounds.findLast((e) => e.map.name === event.map.name);
-      const startingCT = openingCT(data, g, event.map.name, first.eventDate) ??
+      const startingCT = report?.startingCT ?? halftimeCT(data, g, event.map.name) ??
         reportedOpeningCT(rounds, g, event.map.name);
       if (startingCT !== undefined) g.map.startingCT = startingCT;
     } catch {
@@ -163,7 +201,23 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now())
       }
       if (prior?.map?.startingCT != null && isCurrentMap(g, prior.map.name)) {
         g.map ??= { name: prior.map.name, score: null };
-        g.map.startingCT ??= prior.map.startingCT;
+        if (prior.map.sideSource === 'CSTV PGL') {
+          g.map.startingCT = prior.map.startingCT;
+          g.map.sideSource = prior.map.sideSource;
+        } else g.map.startingCT ??= prior.map.startingCT;
+      }
+      for (const raw of (await streams) ?? []) {
+        const map = broadcastMap(raw, g, resolveTeam, now);
+        if (!map) continue;
+        const before = g.map;
+        if (!before?.score || (map.score.every((n, i) => n >= before.score[i]) &&
+            map.score.some((n, i) => n > before.score[i]))) {
+          g.map = { ...before, ...map };
+        }
+        if (map.startingCT != null) {
+          g.map.startingCT = map.startingCT;
+          g.map.sideSource = 'CSTV PGL';
+        }
       }
     }
   }));

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addRoundScores } from '../server/round-scores.js';
+import { broadcastMap } from '../server/cstv.js';
 import { publicLiveState, mapSnapshot } from '../server/cito-score.js';
 import { agendaScore, currentCT } from '../dist/js/schedule.js';
 
@@ -134,9 +135,10 @@ test('opening sides belong to the named teams and map, even when PGL has the new
   assert.equal((await loadWith({ ...kickoff, description: 'Lynn Vision de CT e 9z de TR.' })).startingCT, 15);
   for (const invalid of [
     { eventDate: 4 }, { map: { name: 'de_nuke' } }, { scoreA: 1 },
-    { description: '9z de CT.' }, { description: '9z de CT e Lynn Vision de CT.' },
+    { description: '9z pode começar de CT.' }, { description: '9z de CT e Lynn Vision de CT.' },
   ]) assert.equal((await loadWith({ ...kickoff, ...invalid })).startingCT, undefined);
-  assert.equal((await loadWith(kickoff, 3)).startingCT, undefined);
+  assert.equal((await loadWith(kickoff, 3)).startingCT, 7);
+  assert.equal((await loadWith({ ...kickoff, description: '9z de CT.' }, 3)).startingCT, undefined);
   assert.equal((await loadWith({ ...kickoff, map: round.map }, 3)).startingCT, 7);
   const halftime = { ...round, scoreA: 7, scoreB: 5,
     description: 'Fim do primeiro tempo com a Lynn Vision confirmando a virada no placar e abrindo uma vantagem mínima jogando de TR na Inferno!' };
@@ -148,4 +150,59 @@ test('opening sides belong to the named teams and map, even when PGL has the new
   const advanced = { ...game, map: { name: 'inferno', score: [12, 9] } };
   await addRoundScores([advanced], [{ ...previous[0], map: updated }], async () => { throw Error('offline'); });
   assert.deepEqual(advanced.map, { name: 'inferno', score: [12, 9], startingCT: 7 });
+});
+
+test('one named side before the pistol starts a colored zero score on the announced map', async () => {
+  const game = { round: 1, slot: 6, bo: 1, status: 'live', a: 1, b: 9, map: null };
+  const now = 1795501686000;
+  const announcement = {
+    title: 'MAPA DEFINIDO', description: 'Teremos Ancient com a PVISION começando de CT!',
+    map: { name: null }, scoreA: null, scoreB: null, eventDate: 1795501544,
+  };
+  async function read(g, description) {
+    await addRoundScores([g], [{ ...g, coverage: { id: 'test', reversed: false } }],
+      async () => Response.json({ data: [{ ...announcement, description }] }), now);
+    return g;
+  }
+  const first = await read({ ...game }, announcement.description);
+  assert.deepEqual(first.map.score, [0, 0]);
+  assert.equal(first.map.name, 'ancient');
+  assert.equal(currentCT(first), game.a);
+  const second = await read({ ...game, map: { name: 'ancient', score: [5, 7] } }, announcement.description);
+  assert.deepEqual(second.map.score, [5, 7]);
+  assert.equal(currentCT(second), game.b);
+  const reversed = await read({ ...game, a: game.b, b: game.a }, 'Teremos Ancient com a PVISION começando de TR!');
+  assert.equal(currentCT(reversed), game.b);
+  const nextMap = { ...game, bo: 3, series: [1, 0], completedMaps: ['ancient'] };
+  assert.equal((await read(nextMap, announcement.description)).map, null);
+  for (const description of ['Teremos Ancient com a Liquid começando de CT!', 'Talvez a PVISION comece de CT!']) {
+    assert.equal((await read({ ...game }, description)).map, null);
+  }
+});
+
+test('both PGL broadcast channels confirm sides independently of team order or a more advanced score', async () => {
+  const now = 2000000;
+  const frames = {
+    a: { map: 'de_nuke', phase: 'second', ct: 'GOSH', tr: 'Liquid', ctScore: 4, trScore: 9, rounds: 13 },
+    b: { map: 'de_ancient', phase: 'first', ct: 'PVISION', tr: 'DENDELE', ctScore: 0, trScore: 1, rounds: 1 },
+  };
+  const first = { round: 1, slot: 5, status: 'live', a: 4, b: 12, bo: 1, stream: 'main', map: { name: 'nuke', score: [10, 5] } };
+  const second = { round: 1, slot: 6, status: 'live', a: 9, b: 1, bo: 1, stream: 'secondary', map: null };
+  const read = (channel) => frames[channel];
+  const offline = async () => new Response('', { status: 503 });
+  await addRoundScores([first, second], [], offline, now, read);
+  assert.deepEqual(first.map.score, [10, 5]);
+  assert.equal(first.map.sideSource, 'CSTV PGL');
+  assert.equal(currentCT(first), 12);
+  assert.deepEqual(second.map.score, [1, 0]);
+  assert.equal(currentCT(second), 1);
+  const nextPoll = { ...second, map: { name: 'ancient', score: [7, 5] } };
+  await addRoundScores([nextPoll], [second], offline, now + 15000, () => assert.fail('cooldown'));
+  assert.equal(currentCT(nextPoll), 9);
+
+  const resolve = (name) => ({ GOSH: 12, Liquid: 4 })[name];
+  for (const invalid of [{ warmup: true }, { tr: 'PVISION' }, { map: 'de_ancient' }, { rounds: 12 }])
+    assert.equal(broadcastMap({ ...frames.a, ...invalid }, first, resolve, now), null);
+  const half = broadcastMap({ ...frames.a, ctScore: 3, rounds: 12 }, first, resolve, now);
+  assert.equal(half.startingCT, undefined);
 });

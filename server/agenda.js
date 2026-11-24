@@ -59,6 +59,7 @@ export function parseSchedule(source) {
       b,
       bo: Number(row.format.slice(2)),
       status,
+      ...(status === 'live' ? { stream: row.stream ?? null } : {}),
       ...(status === 'live' && row.format === 'BO3' ? {
         completedMaps: maps.slice(0, sa + sb).map((m) => m.map)
           .filter((name) => /^de_[a-z0-9_]+$/i.test(name)).map((name) => name.slice(3)),
