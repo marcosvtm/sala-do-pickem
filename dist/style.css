@@ -1345,6 +1345,7 @@ nav a {
   margin-top: 18px;
 }
 .hero-home {
+  --banner-glass: rgb(12 18 22 / 34%);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1369,7 +1370,7 @@ nav a {
 }
 .deadline {
   padding: 8px 12px;
-  background: rgb(12 18 22 / 34%);
+  background: var(--banner-glass);
   text-shadow: 0 1px 3px #080d10;
   border: 1px solid #64725d;
   border-radius: 9px;
@@ -2249,6 +2250,36 @@ nav a {
 }
 .phase-picker a:hover { background: #283134; }
 .phase-picker a[aria-current] { background: var(--acid); color: #182007; }
+.hero-home .phase-picker {
+  gap: 2px;
+  padding: 2px;
+  margin-block: 8px;
+  background: var(--banner-glass);
+  border-color: rgb(100 114 93 / 75%);
+  border-radius: 6px;
+}
+.hero-home .phase-picker a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: .86rem;
+  line-height: 1.4;
+  text-shadow: 0 1px 3px #080d10;
+}
+.hero-home .phase-picker a:hover { background: rgb(223 239 190 / 15%); }
+.hero-home .phase-picker a[aria-current] {
+  background: #dfefbe;
+  color: #202a15;
+  text-shadow: none;
+}
+@media (max-width: 760px), (pointer: coarse) {
+  .hero-home .phase-picker a { min-height: 44px; min-width: 44px; }
+}
+@media (max-width: 360px) {
+  .hero-home .phase-picker a { padding-inline: 4px; }
+}
 .page-phases { margin-top: 22px; }
 .phase-preview, .phase-agenda, .participation { margin-block: 18px; }
 .phase-agenda select { width: auto; margin: 0 0 10px; }
