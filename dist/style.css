@@ -1865,7 +1865,7 @@ nav a {
 }
 .agenda-row {
   display: grid;
-  grid-template-columns: 75px minmax(0, 1fr) auto;
+  grid-template-columns: 5.75rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
   padding: 8px 0;
@@ -1975,7 +1975,7 @@ nav a {
     padding: 14px;
   }
   .agenda-row {
-    grid-template-columns: 48px minmax(0, 1fr) auto;
+    grid-template-columns: 5rem minmax(0, 1fr) auto;
     gap: 8px;
   }
   .scheduled-teams {
@@ -2011,7 +2011,7 @@ nav a {
 @media (max-width: 540px) {
   .agenda-row:has(.live-map-score) {
     grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 4px;
+    row-gap: 8px;
   }
   .agenda-row:has(.live-map-score) .game-time {
     display: flex;

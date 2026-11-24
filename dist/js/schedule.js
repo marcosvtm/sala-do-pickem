@@ -130,7 +130,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
       const live = g.status === 'live';
       timing.append(
         el(
-          'b',
+          g.status === 'end' ? 'span' : 'b',
           live ? 'live' : '',
           live ? (stale ? 'Última leitura' : 'Ao vivo') : g.status === 'end' ? 'Encerrado' : time.format(g.at)
         ),
