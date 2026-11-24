@@ -36,7 +36,11 @@ function element(tag, className, text) {
 export function bindEditor(teams, current, onEdit) {
   const list = $('strengthList'),
     rows = [],
-    fixed = {};
+    fixed = {},
+    strengths = {};
+  const sortLabels = { team: 'Equipe', ...columns };
+  let sortKey = 'team',
+    ascending = true;
   const formatControl = $('strengthFormat');
   const strengthFormat = () =>
     Number(formatControl.querySelector(':checked').value);
@@ -44,7 +48,6 @@ export function bindEditor(teams, current, onEdit) {
     fixed[key] = makeMatrix(teams, key, current());
   let fixedVersion;
   let personal,
-    strengths,
     feed,
     records,
     openTeam = null;
@@ -53,7 +56,7 @@ export function bindEditor(teams, current, onEdit) {
     input.oninput = () => {
       write(Number(input.value));
       dirty = true;
-      render();
+      render({ keepTeamInPlace: true });
       onEdit(true);
     };
     const finish = () => {
@@ -143,6 +146,7 @@ export function bindEditor(teams, current, onEdit) {
       const old = rows[openTeam];
       old.panel.hidden = true;
       old.button.setAttribute('aria-expanded', 'false');
+      applyOrder();
     }
     openTeam = openTeam === id ? null : id;
     if (openTeam !== null) {
@@ -205,8 +209,51 @@ export function bindEditor(teams, current, onEdit) {
     .sort((a, b) =>
       teams[a].name.localeCompare(teams[b].name, 'pt-BR', { numeric: true })
     );
-  list.append(...alphabetical.map((i) => rows[i].wrap));
-  function render() {
+  const sortHeader = $('strengthSort');
+  for (const [key, label] of Object.entries(sortLabels)) {
+    const button = element('button', null, label);
+    button.type = 'button';
+    button.dataset.column = key;
+    button.setAttribute('aria-controls', list.id);
+    button.onclick = () => {
+      ascending = key === sortKey ? !ascending : key === 'team';
+      sortKey = key;
+      applyOrder();
+    };
+    sortHeader.append(button);
+  }
+  function applyOrder(keepTeamInPlace = false) {
+    const byName = sortKey === 'team';
+    const order = [...alphabetical];
+    if (byName && !ascending) order.reverse();
+    if (!byName) {
+      const scores = strengths[sortKey];
+      order.sort((a, b) =>
+        ascending ? scores[a] - scores[b] : scores[b] - scores[a]
+      );
+    }
+    const moved = order.some((id, i) => list.children[i] !== rows[id].wrap);
+    if (moved && !keepTeamInPlace) {
+      const focus = list.contains(document.activeElement)
+        ? document.activeElement
+        : null;
+      list.append(...order.map((id) => rows[id].wrap));
+      focus?.focus({ preventScroll: true });
+    }
+    for (const button of sortHeader.children) {
+      const selected = button.dataset.column === sortKey;
+      button.setAttribute('aria-pressed', String(selected));
+      button.dataset.arrow = selected ? (ascending ? '↑' : '↓') : '';
+    }
+    const direction = byName
+      ? (ascending ? 'A–Z' : 'Z–A')
+      : (ascending ? 'menor para maior' : 'maior para menor');
+    const status = sortLabels[sortKey] + ' · ' + direction +
+      (moved && keepTeamInPlace ? ' · Reordena ao fechar a equipe' : '');
+    if ($('strengthOrder').textContent !== status)
+      $('strengthOrder').textContent = status;
+  }
+  function render({ keepTeamInPlace = false } = {}) {
     const s = current(),
       bo = strengthFormat();
     const version = s.formVersion ?? 1;
@@ -219,7 +266,7 @@ export function bindEditor(teams, current, onEdit) {
     const matrices = { ...fixed, custom: personal };
     for (const key of Object.keys(columns)) {
       const values = fieldStrength(matrices[key][bo]);
-      if (key === 'custom') strengths = values;
+      strengths[key] = values;
       rows.forEach(
         (row, i) => (row.values[key].textContent = percent.format(values[i]))
       );
@@ -233,18 +280,21 @@ export function bindEditor(teams, current, onEdit) {
       row.bonus.value.textContent =
         (s.bonus[i] > 0 ? '+' : '') + s.bonus[i] + ' p.p.';
     });
+    $('resetTeams').disabled =
+      s.trust.every((n) => n === 100) && s.bonus.every((n) => n === 0);
+    applyOrder(keepTeamInPlace);
     if (openTeam !== null) renderGame(openTeam);
   }
   const renderMixer = bindMixer(current, (editing) => {
     render();
     onEdit(editing);
   });
-  formatControl.onchange = render;
-  $('sortStrength').onclick = () => {
-    const order = [...alphabetical].sort((a, b) => strengths[b] - strengths[a]);
-    list.append(...order.map((i) => rows[i].wrap));
-    $('strengthOrder').textContent =
-      'Ordem do último clique · MD' + strengthFormat();
+  formatControl.onchange = () => render();
+  $('resetTeams').onclick = () => {
+    const { trust, bonus } = newDraft();
+    Object.assign(current(), { trust, bonus });
+    render();
+    onEdit(false);
   };
   $('resetModel').onclick = () => {
     const s = current(),

@@ -371,13 +371,14 @@
             <section class="strengths" aria-labelledby="strengthTitle">
               <div class="panel-title">
                 <h3 id="strengthTitle">Força das equipes</h3>
-                <button type="button" id="sortStrength" class="outline">
-                  Ordenar por força
+                <button type="button" id="resetTeams" class="outline" disabled>
+                  Restaurar ajustes das equipes
                 </button>
               </div>
               <p class="hint">
                 Chance média de vencer os outros 15 times, com o mesmo peso para
-                cada adversário. Abra uma equipe para ajustar sua força.
+                cada adversário. Clique no título de uma coluna para ordenar
+                ou no nome de uma equipe para ajustar sua força.
               </p>
               <div class="strength-tools">
                 <span id="strengthFormatLabel">Formato</span>
@@ -396,16 +397,13 @@
                     <span>MD3</span>
                   </label>
                 </div>
-                <small id="strengthOrder">Ordem alfabética</small>
+                <small id="strengthOrder" role="status"></small>
               </div>
-              <div class="strength-row strength-head" aria-hidden="true">
-                <span>Equipe</span><span>Neutro</span><span>Valve</span
-                ><span>HLTV</span><span>Forma</span><span>IA</span
-                ><strong>Seu modelo</strong>
-              </div>
+              <div id="strengthSort" class="strength-row strength-head"
+                role="group" aria-label="Ordenar equipes por coluna"></div>
               <div id="strengthList"></div>
               <button type="button" id="resetModel" class="text-btn">
-                Restaurar ajustes iniciais
+                Restaurar modelo inteiro
               </button>
             </section>
             <div class="match-preview">
