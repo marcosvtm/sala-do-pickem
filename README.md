@@ -2,6 +2,10 @@
 
 Calculadora em português para montar um cartão do Stage 1 do PGL Major de Singapura, testar modelos pessoais e compartilhar cartões salvos e modelos por link. O cálculo roda no navegador em um Web Worker. O endereço de produção fica no campo **About** deste repositório.
 
+## Licença
+
+A [licença MIT](LICENSE) se aplica ao código próprio do Pick'em dos Broxinhas. Fotos, marcas, logotipos, dados e componentes de terceiros seguem os termos dos respectivos titulares.
+
 ## Rodar e contribuir
 
 Use Node.js 22.13 ou mais recente, com SQLite nativo.
