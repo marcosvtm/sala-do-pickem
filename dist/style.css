@@ -579,9 +579,8 @@ select {
 .strengths {
   margin: 26px 0;
 }
-.strengths .panel-title {
-  align-items: center;
-  flex-wrap: wrap;
+#resetTeams {
+  margin-left: auto;
 }
 #resetTeams:disabled {
   opacity: 0.55;
@@ -632,10 +631,6 @@ select {
 .format-toggle input:focus-visible + span {
   outline: 2px solid var(--text);
   outline-offset: 2px;
-}
-.strength-tools small {
-  margin-left: auto;
-  color: var(--muted);
 }
 .strength-row {
   display: grid;
@@ -810,12 +805,18 @@ button.strength-row[aria-expanded='true'] {
   .team-control + .team-control {
     margin-top: 15px;
   }
+}
+@media (max-width: 500px) {
   .strength-tools {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px 10px;
   }
-  .strength-tools small {
-    flex-basis: 100%;
-    margin-left: 0;
+  #strengthFormatLabel {
+    grid-column: 1 / -1;
+  }
+  #resetTeams {
+    padding: 6px 10px;
   }
 }
 .ends {

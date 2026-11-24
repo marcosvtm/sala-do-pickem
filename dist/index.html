@@ -369,12 +369,7 @@
               </div>
             </section>
             <section class="strengths" aria-labelledby="strengthTitle">
-              <div class="panel-title">
-                <h3 id="strengthTitle">Força das equipes</h3>
-                <button type="button" id="resetTeams" class="outline" disabled>
-                  Restaurar ajustes das equipes
-                </button>
-              </div>
+              <h3 id="strengthTitle">Força das equipes</h3>
               <p class="hint">
                 Chance média de vencer os outros 15 times, com o mesmo peso para
                 cada adversário. Clique no título de uma coluna para ordenar
@@ -397,7 +392,9 @@
                     <span>MD3</span>
                   </label>
                 </div>
-                <small id="strengthOrder" role="status"></small>
+                <button type="button" id="resetTeams" class="outline" disabled>
+                  Restaurar ajustes das equipes
+                </button>
               </div>
               <div id="strengthSort" class="strength-row strength-head"
                 role="group" aria-label="Ordenar equipes por coluna"></div>
@@ -577,19 +574,6 @@
         </div>
         <div id="picksTable"></div>
         <p class="hint" id="validationInfo" role="status"></p>
-        <details class="search-help">
-          <summary>Como a busca funciona</summary>
-          <p>
-            A busca rápida testa trocas a partir de oito cartões em 8.192
-            torneios simulados. O critério é a chance de fazer cinco ou mais
-            acertos com o modelo escolhido.
-          </p>
-          <p>
-            Refinar mantém o melhor candidato da busca e explora outras
-            combinações. A porcentagem pode variar quando a amostra de validação
-            cresce. O resultado é a melhor sugestão encontrada nas tentativas.
-          </p>
-        </details>
         <div class="refinement" id="refinement">
           <div>
             <label for="searchTime">Tempo extra de busca</label>
@@ -600,12 +584,35 @@
               <option value="0">Até eu parar</option>
             </select>
           </div>
-          <button class="outline" type="button" id="refine">
-            Refinar busca
-          </button>
-          <button class="outline" type="button" id="stopSearch" hidden>
-            Parar e comparar
-          </button>
+          <div class="refine-actions">
+            <button class="outline" type="button" id="refine">
+              Refinar busca
+            </button>
+            <button class="outline" type="button" id="stopSearch" hidden>
+              Parar e comparar
+            </button>
+            <button
+              type="button"
+              class="help-trigger"
+              popovertarget="searchHelp"
+              aria-label="Como a busca funciona"
+            >
+              <span aria-hidden="true">?</span>
+            </button>
+            <aside id="searchHelp" popover aria-labelledby="searchHelpTitle">
+              <strong id="searchHelpTitle">Como a busca funciona</strong>
+              <p>
+                A busca rápida testa trocas a partir de oito cartões em 8.192
+                torneios simulados. O critério é a chance de fazer cinco ou mais
+                acertos com o modelo escolhido.
+              </p>
+              <p>
+                Refinar mantém o melhor candidato da busca e explora outras
+                combinações. A porcentagem pode variar quando a amostra de validação
+                cresce. O resultado é a melhor sugestão encontrada nas tentativas.
+              </p>
+            </aside>
+          </div>
         </div>
         <div class="modal-bottom">
           <small>A sugestão altera apenas o rascunho.</small>

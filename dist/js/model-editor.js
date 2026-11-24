@@ -240,18 +240,14 @@ export function bindEditor(teams, current, onEdit) {
       list.append(...order.map((id) => rows[id].wrap));
       focus?.focus({ preventScroll: true });
     }
+    const direction = ascending ? 'ordem crescente' : 'ordem decrescente';
     for (const button of sortHeader.children) {
       const selected = button.dataset.column === sortKey;
+      const label = sortLabels[button.dataset.column];
       button.setAttribute('aria-pressed', String(selected));
       button.dataset.arrow = selected ? (ascending ? '↑' : '↓') : '';
+      button.setAttribute('aria-label', selected ? label + ', ' + direction : label);
     }
-    const direction = byName
-      ? (ascending ? 'A–Z' : 'Z–A')
-      : (ascending ? 'menor para maior' : 'maior para menor');
-    const status = sortLabels[sortKey] + ' · ' + direction +
-      (moved && keepTeamInPlace ? ' · Reordena ao fechar a equipe' : '');
-    if ($('strengthOrder').textContent !== status)
-      $('strengthOrder').textContent = status;
   }
   function render({ keepTeamInPlace = false } = {}) {
     const s = current(),

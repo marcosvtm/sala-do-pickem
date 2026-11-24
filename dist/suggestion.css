@@ -320,21 +320,67 @@
 .refinement button {
   min-height: 42px;
 }
+.refine-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.help-trigger {
+  display: grid;
+  width: 38px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+.help-trigger span {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.help-trigger:hover,
+.help-trigger:focus-visible {
+  color: var(--acid);
+}
 #apply:disabled,
 #suggest:disabled {
   opacity: 0.55;
 }
-#suggestion .search-help {
-  margin: 5px 0 12px;
-  font-size: 0.85rem;
+#searchHelp {
+  width: min(23rem, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  padding: 14px 16px;
+  border: 1px solid #59656b;
+  border-radius: 9px;
+  box-shadow: 0 8px 28px #0008;
+  background: var(--inner);
   color: var(--muted);
+  font-size: 0.9rem;
 }
-#suggestion .search-help summary {
-  cursor: pointer;
+#searchHelp strong {
   color: var(--text);
 }
-#suggestion .search-help p {
-  margin: 7px 0;
+#searchHelp p {
+  margin: 7px 0 0;
+}
+@supports (position-area: top span-all) {
+  #searchHelp {
+    position: fixed;
+    inset: auto;
+    margin: 6px;
+    position-area: top span-all;
+    justify-self: anchor-center;
+    position-try-fallbacks: flip-block;
+  }
 }
 #validationInfo {
   margin: 6px 0 10px;
