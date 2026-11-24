@@ -1,7 +1,7 @@
 import { progress } from '../dist/js/progress.js';
 import { findStage, stageCatalog } from './stages.js';
 
-export const scoredCardsSql = `SELECT id,nick,submitted,revision,settings,edit_hash IS NOT NULL AS hasEditKey,
+export const scoredCardsSql = `SELECT id,nick,submitted,revision,settings,participant_id AS participantId,edit_hash IS NOT NULL AS hasEditKey,
   (SELECT count(*) FROM json_each(cards.settings,'$.card') p
    WHERE json_extract(?, '$[' || p.value || ']')= CASE WHEN p.key<2 THEN 0 WHEN p.key<8 THEN 1 ELSE 2 END) hits
   FROM cards WHERE stage=? AND removed_at IS NULL`;
@@ -45,7 +45,7 @@ export async function majorRanking(db, now, fetcher, page, size) {
     const live = await stage.readResults(db, now, fetcher);
     stale ||= Boolean(live.stale);
     const { results } = await db.prepare(`WITH scored AS (${scoredCardsSql})
-      SELECT id,nick,hits,json_extract(settings,'$.model') AS model,
+      SELECT id,nick,hits,participantId,json_extract(settings,'$.model') AS model,
       coalesce(json_extract(settings,'$.formVersion'),1) AS formVersion FROM scored`)
       .bind(swissBuckets(live.locks), phase.id).all();
     for (const row of results) cards.push({ ...row, stage: phase.id });

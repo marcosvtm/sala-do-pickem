@@ -1,3 +1,4 @@
+import { authenticatedParticipant, participantApi } from './participants.js';
 import {
   defaults,
   validate,
@@ -5,7 +6,7 @@ import {
   personalSettings,
 } from '../dist/js/state.js';
 import { scoredCardsSql, swissBuckets, majorRanking } from './standings.js';
-import { LEGACY_STAGE_ID, calendarPreview, findStage, stageCatalog, stageInfo } from './stages.js';
+import { LEGACY_STAGE_ID, calendarPreview, findStage, navigationCatalog, stageInfo } from './stages.js';
 
 const json = (body, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -44,7 +45,7 @@ async function changeCard(db, stage, now, id, hash, revision, update) {
         .run()
     : await db
         .prepare(
-          "UPDATE cards SET removed_at=unixepoch(),nick='',nick_key='!'||id,settings='{}',revision=revision+1" +
+          "UPDATE cards SET removed_at=unixepoch(),participant_id=NULL,nick='',nick_key='!'||id,settings='{}',revision=revision+1" +
             guard
         )
         .bind(...args)
@@ -81,9 +82,10 @@ async function changeCard(db, stage, now, id, hash, revision, update) {
 }
 export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
   const url = new URL(req.url);
+  if (url.pathname === '/api/participant') return participantApi(req, db, ownerHash);
   if (url.pathname === '/api/stages')
     return req.method === 'GET'
-      ? json({ serverTime: now, ...stageCatalog(now) })
+      ? json({ serverTime: now, ...await navigationCatalog(db, now) })
       : failure('Método indisponível.', 405);
   if (url.pathname === '/api/ranking/geral' && req.method === 'GET') {
     const raw = url.searchParams.get('page') ?? '0';
@@ -99,7 +101,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     return json({ serverTime: now, ...info, invitedTeams: stage.invitedTeams });
   if (info.status === 'preparing') {
     if (url.pathname === '/api/results' && req.method === 'GET')
-      return json(calendarPreview(stage));
+      return stage.previewSchedule ? json(calendarPreview(stage)) : failure('Agenda ainda não publicada.', 409);
     return failure(stage.name + ' em preparação. Aguarde a confirmação das equipes.', 409);
   }
   const ranking = url.pathname === '/api/ranking' && req.method === 'GET';
@@ -311,30 +313,39 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch) {
     });
   if (req.headers.has('X-Card-Key') && !hash)
     return failure('Chave do cartão inválida.', 400);
+  const linked = req.headers.has('X-Major-Code') ? await authenticatedParticipant(req, db) : null;
+  if (req.headers.has('X-Major-Code') && !linked)
+    return failure('Código de participação inválido. Recupere sua participação antes de salvar.', 403);
+  const participantId = linked?.id ?? id;
   const retry = async () => {
     const prior = await db
       .prepare(
-        'SELECT id,nick_key,settings,edit_hash FROM cards WHERE stage=? AND id=? AND removed_at IS NULL'
+        'SELECT id,nick_key,settings,edit_hash,participant_id FROM cards WHERE stage=? AND id=? AND removed_at IS NULL'
       )
       .bind(stage.id, body.id)
       .first();
     return (
       prior?.nick_key === nickKey &&
       prior.settings === settings &&
-      prior.edit_hash === hash
+      prior.edit_hash === hash &&
+      (prior.participant_id ?? prior.id) === participantId
     );
   };
   if (now >= stage.closesAt) return (await retry()) ? json({ id: body.id }) : closed();
   // The database clock guards the actual insert as well as the request-time gate.
   const result = await db
     .prepare(
-      `INSERT INTO cards(id,stage,nick,nick_key,submitted,settings,edit_hash)
-    SELECT ?,?,?,?,unixepoch(),?,? WHERE unixepoch() < ? ON CONFLICT DO NOTHING`
+      `INSERT INTO cards(id,stage,nick,nick_key,submitted,settings,edit_hash,participant_id)
+    SELECT ?,?,?,?,unixepoch(),?,?,? WHERE unixepoch() < ? AND NOT EXISTS (
+      SELECT 1 FROM cards WHERE stage=? AND id=? AND removed_at IS NULL
+    ) ON CONFLICT DO NOTHING`
     )
-    .bind(body.id, stage.id, nick, nickKey, settings, hash, stage.closesAt / 1000)
+    .bind(body.id, stage.id, nick, nickKey, settings, hash, participantId, stage.closesAt / 1000, stage.id, participantId)
     .run();
   if (result.meta.changes) return json({ id: body.id }, 201);
   if (await retry()) return json({ id: body.id });
+  if (linked && await db.prepare('SELECT id FROM cards WHERE stage=? AND coalesce(participant_id,id)=? AND removed_at IS NULL').bind(stage.id, participantId).first())
+    return failure('Este participante já salvou um cartão nesta fase.', 409);
   const clock = await db
     .prepare('SELECT unixepoch() >= ? AS closed')
     .bind(stage.closesAt / 1000)

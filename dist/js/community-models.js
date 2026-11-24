@@ -1,3 +1,4 @@
+import { phasePath } from './major-phases.js';
 import { MODELS, modelName, makeMatrix } from './models.js';
 import { progress, fixtureBrier } from './progress.js';
 import { newDraft } from './state.js';
@@ -27,11 +28,11 @@ const date = (ms) =>
 let modelsPage = 0,
   loadingModels = false,
   modelsVersion;
-async function refreshModels() {
+async function refreshModels(stageId) {
   if (loadingModels) return;
   loadingModels = true;
   try {
-    const res = await fetch('/api/models?page=' + modelsPage, {
+    const res = await fetch(phasePath('/api/models?page=' + modelsPage, stageId), {
       cache: 'no-store',
     });
     if (!res.ok) throw Error();
@@ -41,7 +42,7 @@ async function refreshModels() {
       const rows = data.models.map((m) => {
         const row = node('div', undefined, 'saved-model-row'),
           link = node('a', modelName('custom', m.nick));
-        link.href = '/modelos?modelo=' + encodeURIComponent(m.id);
+        link.href = phasePath('/modelos?modelo=' + encodeURIComponent(m.id), stageId);
         const info = node(
           'span',
           m.source === 'card' ? 'Salvo com o cartão' : 'Modelo publicado',
@@ -80,7 +81,9 @@ async function refreshModels() {
 }
 
 
-export function bindCommunityModels(teams) {
+export function bindCommunityModels(stage) {
+  const { teams } = stage;
+  const refresh = () => refreshModels(stage.id);
   for (const [id, d] of [
     ['modelsPrev', -1],
     ['modelsNext', 1],
@@ -88,7 +91,7 @@ export function bindCommunityModels(teams) {
     $(id).onclick = () => {
       if (!loadingModels) {
         modelsPage += d;
-        refreshModels();
+        refresh();
       }
     };
   const comparison = $('modelComparison');
@@ -104,7 +107,7 @@ export function bindCommunityModels(teams) {
         node(
           'b',
           brier(
-            fixtureBrier(makeMatrix(teams, model, newDraft()), finished)
+            fixtureBrier(makeMatrix(teams, model, newDraft(stage.id)), finished)
           )
         )
       );
@@ -112,9 +115,9 @@ export function bindCommunityModels(teams) {
     }
   }
   comparison.addEventListener('toggle', compare);
-  document.addEventListener('model-published', refreshModels);
+  document.addEventListener('model-published', refresh);
   return {
-    show: refreshModels,
+    show: refresh,
     setLocks(locks) {
       if (JSON.stringify(latest) === JSON.stringify(locks)) return;
       latest = locks;

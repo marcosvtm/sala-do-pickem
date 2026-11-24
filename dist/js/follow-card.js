@@ -1,3 +1,4 @@
+import { phasePath } from './major-phases.js';
 import { validate } from './state.js';
 
 // A followed card is a public simulation input. Keep this preference separate
@@ -19,11 +20,11 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
     onSelect(null, false, Boolean(shared));
     if (!id) return;
     try {
-      const res = await fetch('/api/cards/' + encodeURIComponent(id), { cache: 'no-store' });
+      const res = await fetch(phasePath('/api/cards/' + encodeURIComponent(id),stage.id), { cache: 'no-store' });
       if (!res.ok) throw Error();
       const card = await res.json();
       if (request !== generation) return;
-      if (card.id !== id || !validate(card.settings)) throw Error();
+      if (card.id !== id || !validate(card.settings, { stageId: stage.id })) throw Error();
       onSelect(card, resume, Boolean(shared));
       status.textContent = '';
     } catch {
@@ -39,7 +40,7 @@ export function bindFollowCard(stage, readReceipt, onSelect) {
     retry.hidden = true;
     status.textContent = 'Carregando cartões…';
     try {
-      const res = await fetch('/api/stage/cards', { cache: 'no-store' });
+      const res = await fetch(phasePath('/api/stage/cards', stage.id), { cache: 'no-store' });
       if (!res.ok) throw Error();
       const { cards } = await res.json();
       if (request !== generation) return;

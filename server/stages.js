@@ -2,6 +2,7 @@ import stageOne from '../dist/data/stage.json' with { type: 'json' };
 import stageTwoInvites from '../dist/data/stage2-invites.json' with { type: 'json' };
 import stageTwoSchedule from '../dist/data/stage2-schedule.json' with { type: 'json' };
 import { CLOSE, SOURCE, START, emptyLocks, liveResults } from './results.js';
+import { majorPhases } from '../dist/js/major-phases.js';
 
 // Unscoped links and requests from the first release always refer to this roster.
 export const LEGACY_STAGE_ID = stageOne.id;
@@ -26,6 +27,7 @@ const phases = [
     previewSchedule: stageTwoSchedule,
     invitedTeams: stageTwoInvites.teams,
   },
+  ...majorPhases.slice(2).map(({ id, name }) => ({ id, name, rosterConfirmed: false })),
 ];
 
 export function findStage(id) {
@@ -40,8 +42,23 @@ export function stageInfo(phase, now) {
   return { id, name, startsAt, closesAt, rosterConfirmed, source, picksOpen, status };
 }
 
-export function stageCatalog(now) {
-  return { defaultStage: LEGACY_STAGE_ID, stages: phases.map((phase) => stageInfo(phase, now)) };
+export function stageCatalog(now, completed = []) {
+  const stages = phases.map(phase => ({
+    ...stageInfo(phase, now), completed: completed.includes(phase.id),
+  }));
+  const next = stages.find(stage => !stage.completed) ?? stages.at(-1);
+  return { defaultStage: next.id, stages };
+}
+
+export async function navigationCatalog(db, now) {
+  if (!db) return stageCatalog(now);
+  const { results } = await db.prepare('SELECT stage,locks FROM stage_results').bind().all();
+  const completed = results.filter(row => {
+    const locks = JSON.parse(row.locks);
+    return Array.isArray(locks) && locks.length === 33 &&
+      locks.every(side => side === 0 || side === 1);
+  }).map(row => row.stage);
+  return stageCatalog(now, completed);
 }
 
 export function calendarPreview(phase) {

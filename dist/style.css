@@ -1946,7 +1946,7 @@ nav a {
   overflow-x: auto;
 }
 .agenda-maps {
-  width: min(100%, 42rem);
+  width: min(100%, 34rem);
   color: var(--text);
   font-size: 0.875rem;
   line-height: 1.35;
@@ -1963,6 +1963,8 @@ nav a {
   font-size: 0.8rem;
   color: var(--muted);
 }
+.agenda-maps th:first-child { width: 12ch; }
+.agenda-maps thead th:is(:nth-child(2), :nth-child(3)) { width: 5ch; }
 .agenda-maps :is(th, td):is(:nth-child(2), :nth-child(3)) {
   text-align: center;
 }
@@ -2221,4 +2223,44 @@ nav a {
   .matches-hero .hero-art { position: absolute; height: 100%; object-position: right center; }
   .matches-hero::before { display: block; background: linear-gradient(90deg,#080d12ed, #080d1299 48%, transparent 75%); }
   .matches-hero .hero-copy { max-width: 67%; }
+}
+
+.phase-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 12px 0;
+  padding: 3px;
+  background: #101719ed;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.phase-picker a {
+  padding: .42rem .7rem;
+  color: var(--text);
+  font-size: .88rem;
+  font-weight: 650;
+  white-space: nowrap;
+  text-decoration: none;
+  border-radius: 5px;
+}
+.phase-picker a:hover { background: #283134; }
+.phase-picker a[aria-current] { background: var(--acid); color: #182007; }
+.page-phases { margin-top: 22px; }
+.phase-preview, .phase-agenda, .participation { margin-block: 18px; }
+.phase-agenda select { width: auto; margin: 0 0 10px; }
+.phase-timeslot { display: flex; align-items: center; gap: 22px; padding: 8px 0; border-top: 1px solid var(--line); }
+.phase-timeslot span { color: var(--muted); }
+.participation form, #codeResult { display: grid; grid-template-columns: minmax(0, 23rem) auto; align-items: center; justify-content: start; gap: 6px 10px; margin-top: 15px; }
+.participation label { grid-column: 1 / -1; }
+.participation input { width: 100%; }
+#privateCode { font-family: monospace; font-size: .92rem; }
+@media (max-width: 520px) {
+  .phase-picker { gap: 0; }
+  .phase-picker a { font-size: .8rem; padding: .5rem .56rem; }
+  .participation form, #codeResult { grid-template-columns: minmax(0, 1fr); }
+  .participation .outline { justify-self: start; }
 }

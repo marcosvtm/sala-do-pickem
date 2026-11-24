@@ -38,7 +38,7 @@ Publique atualizações no mesmo projeto Sites, com o endereço público e o ban
 
 ### Ranking Broxas
 
-Em `/ranking`, o Geral soma os acertos confirmados por participante. Empates dividem a posição antes da paginação. No Stage 1, o identificador do cartão identifica a participação. Na abertura de fases posteriores, o vínculo entre cartões de um mesmo jogador deverá ser verificado. Nicks iguais por si só não vinculam pessoas.
+Em `/ranking`, o Geral soma os acertos confirmados por participante. Empates dividem a posição antes da paginação. No Stage 1, o identificador do cartão identifica a participação. O primeiro recibo identifica a participação. Em **Minha participação**, o navegador original pode emitir um código privado mesmo depois do fechamento da fase. Em outro aparelho, o jogador recupera a participação com esse código antes de salvar o cartão seguinte. O servidor valida a prova, associa o novo cartão ao participante e limita cada participante a um cartão por fase. Os controles de edição continuam usando o recibo próprio de cada cartão. Sem recibo e sem código, a associação exige conferência do organizador.
 
 O filtro de fase permite abrir vários cartões, consultar os dez picks e o modelo salvo e levar um cartão fechado ao simulador. Os links antigos em `/cartoes#ID` continuam a apontar para o Stage 1. Os modelos publicados e as cópias editáveis estão em **Modelos da galera**, na página Modelos.
 
@@ -94,7 +94,7 @@ O refinamento conserva o candidato mais bem pontuado na seleção, renova a amos
 
 ## Preparação do Stage 2
 
-O cartão ativo continua no Stage 1. A inicial permite consultar os oito convidados e o prazo previsto do Stage 2. A fase `sg26-s2-v1` tem programação e identidade próprias em `/api/stages` e `/api/results?stage=sg26-s2-v1`. Os cartões abrem em uma etapa posterior, após a confirmação dos participantes e da primeira rodada.
+Inicial, Modelos e Partidas compartilham o seletor `?fase=stage-1|stage-2|stage-3|playoffs`. A edição do Stage 1 mantém o elenco e os links originais. O Stage 2 apresenta os oito convidados e sua programação por rodada. Após 33 resultados oficiais, a inicial sem fase explícita abre na fase seguinte, com a agenda anterior recolhida. Acessos antigos de edição, simulação e modelos continuam associados ao Stage 1. A fase `sg26-s2-v1` tem programação e identidade próprias em `/api/stages` e `/api/results?stage=sg26-s2-v1`. Os cartões abrem em uma etapa posterior, após a confirmação dos participantes e da primeira rodada.
 
 O estudo IA do Stage 2 é produzido separadamente após a análise do Stage 1. Para obter as chaves PGL e os pontos Valve dos 24 candidatos, execute `node scripts/prepare-stage2-study.js --pool`. A entrega do estudo usa um JSON com estes campos:
 

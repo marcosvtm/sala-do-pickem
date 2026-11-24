@@ -15,11 +15,20 @@ export const cards = sqliteTable(
     submitted: integer('submitted').notNull(),
     settings: text('settings').notNull(),
     editHash: text('edit_hash'),
+    participantId: text('participant_id'),
     revision: integer('revision').notNull().default(1),
     removedAt: integer('removed_at'),
   },
-  (t) => [uniqueIndex('stage_nick').on(t.stage, t.nickKey)]
+  (t) => [
+    uniqueIndex('stage_nick').on(t.stage, t.nickKey),
+    uniqueIndex('stage_participant').on(t.stage, t.participantId),
+  ]
 );
+
+export const participants = sqliteTable('participants', {
+  id: text('id').primaryKey(),
+  recoveryHash: text('recovery_hash').notNull().unique(),
+});
 
 export const results = sqliteTable('stage_results', {
   stage: text('stage').primaryKey(),

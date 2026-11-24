@@ -1,3 +1,4 @@
+import { majorPhases as phases } from './major-phases.js';
 import { modelName } from './models.js';
 
 const $ = (id) => document.getElementById(id);
@@ -13,12 +14,6 @@ function link(text, href) {
   return a;
 }
 
-const phases = [
-  { key: 'stage-1', id: 'sg26-s1-v1', name: 'Stage 1' },
-  { key: 'stage-2', id: 'sg26-s2-v1', name: 'Stage 2' },
-  { key: 'stage-3', id: 'sg26-s3-v1', name: 'Stage 3' },
-  { key: 'playoffs', id: 'sg26-playoffs', name: 'Playoffs' },
-];
 const url = new URL(location.href);
 if (/^\/cartoes(?:\/|\.html)?$/.test(url.pathname)) {
   url.pathname = '/ranking';

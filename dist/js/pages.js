@@ -1,3 +1,4 @@
+import { phasePath } from './major-phases.js';
 import { MODELS, explanations, modelName, describeBase } from './models.js';
 import { personalSettings } from './state.js';
 
@@ -48,7 +49,8 @@ export function renderCatalog(
     catalog.dataset.selected = selected;
   }
 }
-export function bindPages(teams, apply, onModels) {
+export function bindPages(stage, apply, onModels) {
+  const { teams } = stage;
   const $ = (id) => document.getElementById(id);
   // Keep the clicked header under the pointer when another guide above it closes.
   $('modelGuides').addEventListener('click', (event) => {
@@ -92,7 +94,7 @@ export function bindPages(teams, apply, onModels) {
     $('importSettings').replaceChildren();
     $('importInfo').textContent = 'Buscando os ajustes…';
     try {
-      const res = await fetch('/api/models/' + encodeURIComponent(id));
+      const res = await fetch(phasePath('/api/models/' + encodeURIComponent(id), stage.id));
       if (!res.ok) throw Error();
       const model = await res.json();
       if (requested !== id) return;
@@ -131,7 +133,7 @@ export function bindPages(teams, apply, onModels) {
       $('importCopy').hidden = false;
       $('importCopy').onclick = () => {
         apply(personalSettings(model));
-        history.replaceState(null, '', '/modelos');
+        history.replaceState(null, '', phasePath('/modelos', stage.id));
         render();
         $('guide-custom').open = true;
         $('modelos').scrollIntoView({ block: 'start' });
@@ -171,8 +173,12 @@ export function bindPages(teams, apply, onModels) {
     } else if (!id) requested = null;
   }
   function navigate(path) {
-    const editId = new URLSearchParams(location.search).get('editar');
-    if (editId) path += '?editar=' + encodeURIComponent(editId);
+    const params = new URLSearchParams(location.search);
+    const target = new URL(path, location.origin);
+    if (params.has('fase') || params.has('editar') || params.has('modelo') || params.has('simular'))
+      target.search = new URL(phasePath(path, stage.id), location.origin).search;
+    if (params.get('editar')) target.searchParams.set('editar', params.get('editar'));
+    path = target.pathname + target.search;
     if (location.pathname + location.search + location.hash !== path)
       history.pushState(null, '', path);
     render();

@@ -1,13 +1,9 @@
+import { phasePath } from './major-phases.js';
 import { shareButton } from './share.js';
-import { editKey, prepareEditKey } from './card-access.js';
+import { participationForCard } from './participation.js';
+import { editKey, prepareEditKey, readReceipt } from './card-access.js';
 
-export function readReceipt(stage) {
-  try {
-    return JSON.parse(localStorage.getItem('public-card:' + stage.id));
-  } catch {
-    return null;
-  }
-}
+export { readReceipt } from './card-access.js';
 
 export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline) {
   const form = document.querySelector('#saveCard'),
@@ -42,7 +38,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     share.replaceChildren();
     if (saved)
       share.append(
-        shareButton('/ranking?fase=stage-1#' + token, 'Compartilhar cartão de ' + saved)
+        shareButton(phasePath('/ranking#' + token, stage.id), 'Compartilhar cartão de ' + saved)
       );
     onOwner(editing?.nick || saved);
   }
@@ -82,7 +78,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     message.textContent = text;
     if (link) {
       const anchor = document.createElement('a');
-      anchor.href = '/ranking?fase=stage-1#' + token;
+      anchor.href = phasePath('/ranking#' + token, stage.id);
       anchor.textContent = 'Ver meu cartão';
       message.append(' ', anchor);
     }
@@ -150,11 +146,16 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
         ? editKey(stage, token)
         : prepareEditKey(stage, token);
       if (!secret) throw Error('Use o navegador em que você salvou o cartão.');
+      const headers = { 'Content-Type': 'application/json', 'X-Card-Key': secret };
+      if (!editing) {
+        const code = await participationForCard(stage.id);
+        if (code) headers['X-Major-Code'] = code;
+      }
       const response = await fetch(
-        editing ? '/api/cards/' + token : '/api/cards',
+        phasePath(editing ? '/api/cards/' + token : '/api/cards', stage.id),
         {
           method: editing ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Card-Key': secret },
+          headers,
           body: JSON.stringify({
             id: token,
             nick,
@@ -174,10 +175,11 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
           );
           localStorage.setItem(stage.id, JSON.stringify(state));
         }
-        location.assign('/ranking?fase=stage-1#' + token);
+        location.assign(phasePath('/ranking#' + token, stage.id));
         return;
       }
       remember();
+      document.dispatchEvent(new Event('card-receipt-changed'));
       ownerChanged();
     } catch (err) {
       feedback(err.message || 'Tente salvar novamente.');
@@ -187,7 +189,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     }
   });
   refresh();
-  fetch('/api/stage')
+  fetch(phasePath('/api/stage', stage.id))
     .then((r) => (r.ok ? r.json() : null))
     .then((info) => {
       if (info) {

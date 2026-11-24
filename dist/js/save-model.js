@@ -1,3 +1,4 @@
+import { phasePath } from './major-phases.js';
 import { personalSettings } from './state.js';
 import { shareButton } from './share.js';
 
@@ -33,7 +34,7 @@ export function bindModelSaving(stage, current, onName) {
     message.replaceChildren();
     if (saved) {
       const link = document.createElement('a');
-      link.href = '/modelos?modelo=' + encodeURIComponent(receipt.id);
+      link.href = phasePath('/modelos?modelo=' + encodeURIComponent(receipt.id), stage.id);
       link.textContent = 'Ver modelo publicado';
       message.append(link);
       share.append(
@@ -53,7 +54,7 @@ export function bindModelSaving(stage, current, onName) {
     refresh();
     message.textContent = '';
     try {
-      const res = await fetch('/api/models', {
+      const res = await fetch(phasePath('/api/models', stage.id), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

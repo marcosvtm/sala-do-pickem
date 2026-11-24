@@ -28,6 +28,8 @@ export function withSharePreview(html, url) {
   const path = Object.hasOwn(pages, route) ? route : '/';
   const { title, description } = pages[path];
   const canonical = new URL(path, publicOrigin);
+  const phase = url.searchParams.get('fase');
+  if (['stage-1', 'stage-2', 'stage-3', 'playoffs'].includes(phase)) canonical.searchParams.set('fase', phase);
   const model = url.searchParams.get('modelo');
   const publicModelId = /^(?:m-)?[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i;
   if (path === '/modelos' && model && publicModelId.test(model))

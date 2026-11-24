@@ -31,3 +31,11 @@ export function forgetCard(stage, id) {
     /* The server has already removed the card. */
   }
 }
+
+export function readReceipt(stage) {
+  try {
+    return JSON.parse(localStorage.getItem('public-card:' + stage.id));
+  } catch {
+    return null;
+  }
+}

@@ -1,3 +1,4 @@
+import { phasePath } from './major-phases.js';
 import { ROUND_START } from './swiss.js';
 import { hltvMatchLink } from './hltv-link.js';
 export const SCORE_POLL_MS = 15000;
@@ -36,7 +37,7 @@ export function currentGames(games) {
     );
 }
 export function matchLink(game, base) {
-  if (!base) return null;
+  if (!base?.links) return null;
   const opening =
     game.round === 1 &&
     base.games.find(
@@ -176,7 +177,7 @@ function mapTable(game, teams, maps) {
   maps.forEach((map, i) => {
     const row = body.insertRow();
     const name = mapName(map.name);
-    const title = el('th', '', name ? (i + 1) + ' · ' + name : 'Mapa ' + (i + 1));
+    const title = el('th', '', name || 'Mapa ' + (i + 1));
     if (!name && map.status === 'upcoming') title.append(' · A definir');
     title.scope = 'row';
     row.append(title);
@@ -201,7 +202,7 @@ function mapTable(game, teams, maps) {
     else if (map.status === 'end') label = winner ? winner.short + ' venceu' : 'Encerrado';
     else if (i === game.bo - 1) {
       const tiedBeforeLast = game.series?.every((n) => n === (game.bo - 1) / 2);
-      label = tiedBeforeLast ? 'A seguir' : 'Desempate se necessário';
+      label = tiedBeforeLast ? 'A seguir' : 'Aguardando (desempate)';
     }
     const status = row.insertCell();
     status.textContent = label;
@@ -210,7 +211,7 @@ function mapTable(game, teams, maps) {
   return table;
 }
 
-function renderGame(game, games, teams, base, stale, expanded) {
+export function renderGame(game, games, teams, base, stale, expanded, prefix = '') {
   const row = el('div', 'agenda-row');
   const maps = game.bo > 1 ? seriesMaps(game) : [];
   const phase = seriesPhase(game, maps);
@@ -240,7 +241,7 @@ function renderGame(game, games, teams, base, stale, expanded) {
   info.append(names, el('small', '', matchNotes(game, games, maps, phase)));
   const actions = el('div', 'agenda-actions');
   row.append(timing, info, actions);
-  const key = game.round + '-' + game.slot;
+  const key = prefix + game.round + '-' + game.slot;
   row.dataset.series = key;
   if (game.bo > 1) {
     const toggle = el('button', 'map-toggle');
@@ -347,7 +348,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
     renderAgenda(games, stale, checked);
   }
   try {
-    const res = await fetch('/data/schedule.json');
+    const res = await fetch(stage.scheduleUrl);
     if (res.ok) {
       base = await res.json();
       paint(base.games, true, null);
@@ -357,7 +358,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
     if (busy) return;
     busy = true;
     try {
-      const res = await fetch('/api/results', { cache: 'no-store' });
+      const res = await fetch(phasePath('/api/results', stage.id), { cache: 'no-store' });
       if (!res.ok) throw Error();
       const data = await res.json();
       // A concurrent first refresh may return a snapshot before any successful source read.

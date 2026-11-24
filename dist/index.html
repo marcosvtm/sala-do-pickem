@@ -26,7 +26,7 @@
         </nav>
       </div>
     </header>
-    <main class="wrap">
+    <main class="wrap" id="majorMain" hidden>
       <aside id="editingBanner" class="panel" hidden>
         <strong id="editingTitle"></strong>
         <a id="cancelEdit" href="/ranking?fase=stage-1">Cancelar e voltar ao ranking</a>
@@ -38,8 +38,9 @@
           <span class="kicker"><i></i> PGL MAJOR · SINGAPURA 2026</span>
           <h1>Pick'em dos <em>Broxinhas</em></h1>
           <p>Monte seu cartão para o Major de despedida de FalleN.</p>
-          <div class="eventline">
-            <b>Stage 1</b><span>24–27 de novembro</span><span>16 equipes</span>
+          <nav class="phase-picker" data-phase-picker aria-label="Fase do cartão"></nav>
+          <div class="eventline" id="phaseEvent">
+            <span>24–27 de novembro</span><span>16 equipes</span>
           </div>
         </div>
         <div class="deadline">
@@ -56,6 +57,10 @@
           </strong>
           <small id="closingTime"></small>
         </div>
+      </section>
+      <section id="phasePreview" class="panel phase-preview" hidden>
+        <h2 id="phasePreviewTitle"></h2>
+        <p id="phasePreviewText"></p><p id="phaseInvites" class="hint" hidden></p>
       </section>
       <div class="dashboard" data-page="/">
         <section class="panel board">
@@ -168,6 +173,23 @@
           </div>
         </section>
       </div>
+      <details class="panel participation" id="participation" data-page="/">
+        <summary id="participationTitle">Minha participação</summary>
+        <p id="participantLabel"></p>
+        <button type="button" class="outline" id="showCode" hidden>Mostrar meu código privado</button>
+        <div id="codeResult" hidden>
+          <label for="privateCode">Seu código de recuperação</label>
+          <input id="privateCode" readonly autocomplete="off" spellcheck="false" />
+          <button type="button" class="outline" id="copyCode">Copiar código</button>
+        </div>
+        <form id="recoverForm">
+          <label for="restoreCode">Recuperar com um código</label>
+          <input id="restoreCode" type="password" autocomplete="off" placeholder="Cole seu código privado" required />
+          <button class="outline" id="recoverParticipation">Recuperar participação</button>
+        </form>
+        <p class="hint">Gere o código no navegador em que salvou seu primeiro cartão. Se perdeu o recibo e o código, fale com o organizador.</p>
+        <p id="participantStatus" role="status"></p>
+      </details>
       <section class="panel agenda" data-page="/">
         <div class="panel-title">
           <h2>Agenda do Stage 1</h2>
@@ -192,12 +214,9 @@
         </div>
         <div id="agendaGames"></div>
       </section>
-      <details id="nextStage" class="panel" data-page="/">
-        <summary>Stage 2 em preparação</summary>
-        <p>Oito convidados aguardam os oito classificados do Stage 1. Os cartões abrirão após a confirmação das equipes e dos confrontos.</p>
-        <p id="nextStageInfo" class="hint" role="status"></p>
-        <a href="https://www.pglesports.com/cs2/pgl-major-singapore-2026/">Programação da PGL</a>
-      </details>
+      <div id="phaseAgendas" data-page="/"></div>
+      <nav class="phase-picker page-phases" data-page="/modelos" data-phase-picker aria-label="Fase dos modelos" hidden></nav>
+      <nav class="phase-picker page-phases" data-page="/partidas" data-phase-picker aria-label="Fase das partidas" hidden></nav>
       <section data-page="/modelos" hidden class="page-intro">
         <span class="kicker"><i></i> STAGE 1 · SINGAPURA</span>
         <h1>Modelos</h1>
@@ -700,6 +719,6 @@
       <div id="choices"></div>
     </dialog>
     <div id="toast" role="status"></div>
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/phase-page.js"></script>
   </body>
 </html>

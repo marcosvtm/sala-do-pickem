@@ -1,10 +1,11 @@
+import { phasePath } from './major-phases.js';
 import { bindCommunityModels } from './community-models.js';
 import { MODELS, makeMatrix, modelName, modelAvailable, FORM_VERSION } from './models.js';
 import { bindSuggestions } from './suggestion-dialog.js';
 import { bindBracket } from './bracket.js';
 import { bindPages, renderCatalog } from './pages.js';
 import { bindFeed } from './schedule.js';
-import { newDraft, validate, swap, STAGE, personalSettings } from './state.js';
+import { newDraft, validate, swap, personalSettings } from './state.js';
 import { bindEditor } from './model-editor.js';
 import { bindModelSaving } from './save-model.js';
 import { wilson } from './simulation.js';
@@ -45,48 +46,28 @@ function personalNick() {
     ? followedCard.nick : publishedName;
 }
 
-async function init() {
-  const preview = $('nextStage');
-  let previewLoaded = false;
-  preview.addEventListener('toggle', async () => {
-    if (!preview.open || previewLoaded) return;
-    previewLoaded = true;
-    const detail = $('nextStageInfo');
-    detail.textContent = 'Consultando os convidados…';
-    try {
-      const response = await fetch('/api/stage?stage=sg26-s2-v1');
-      if (!response.ok) throw Error();
-      const next = await response.json();
-      const date = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Cuiaba', day: '2-digit', month: '2-digit',
-        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-      });
-      detail.textContent = next.invitedTeams.map(team => team.name).join(' · ') +
-        '. Prazo previsto para os picks em ' + date.format(next.closesAt) + ' (Cuiabá).';
-    } catch {
-      previewLoaded = false;
-      detail.textContent = 'A consulta aos convidados está indisponível. Consulte a programação da PGL.';
-    }
-  });
-  const response = await fetch('data/stage.json');
+export async function startSwissEdition(edition) {
+  const response = await fetch(edition.rosterUrl);
   if (!response.ok) throw new Error('Dados da fase indisponíveis');
   stage = await response.json();
-  state = newDraft();
+  if (stage.id !== edition.id) throw Error('O elenco não pertence à fase.');
+  stage.scheduleUrl = edition.scheduleUrl;
+  state = newDraft(stage.id);
   const receipt = readReceipt(stage);
   const editId = new URLSearchParams(location.search).get('editar');
   if (editId) {
     const res =
       editKey(stage, editId) &&
-      (await fetch('/api/cards/' + encodeURIComponent(editId), {
+      (await fetch(phasePath('/api/cards/' + encodeURIComponent(editId), stage.id), {
         cache: 'no-store',
       }));
     if (res?.ok) editingCard = await res.json();
     if (!editingCard || editingCard.serverTime >= editingCard.closesAt) {
-      location.replace('/ranking?fase=stage-1#' + encodeURIComponent(editId));
+      location.replace(phasePath('/ranking#' + encodeURIComponent(editId), stage.id));
       return;
     }
     $('editingTitle').textContent = 'Editando o cartão de ' + editingCard.nick;
-    $('cancelEdit').href = '/ranking?fase=stage-1#' + encodeURIComponent(editId);
+    $('cancelEdit').href = phasePath('/ranking#' + encodeURIComponent(editId), stage.id);
     $('editingBanner').hidden = false;
   }
   let saved;
@@ -95,7 +76,7 @@ async function init() {
       ? editingCard.settings
       : location.hash.startsWith('#c=')
         ? JSON.parse(atob(location.hash.slice(3)))
-        : JSON.parse(localStorage.getItem(STAGE));
+        : JSON.parse(localStorage.getItem(stage.id));
     // Early versions could register a card before writing a local draft.
     if (
       !saved &&
@@ -104,19 +85,19 @@ async function init() {
       !location.hash.startsWith('#c=')
     ) {
       const res = await fetch(
-        '/api/cards?focus=' + encodeURIComponent(receipt.token)
+        phasePath('/api/cards?focus=' + encodeURIComponent(receipt.token), stage.id)
       );
       if (res.ok) {
         const wall = await res.json();
         saved = wall.cards.find((card) => card.id === receipt.token)?.settings;
       }
     }
-    if (saved && validate(saved, { draft: true })) {
+    if (saved && validate(saved, { draft: true, stageId: stage.id })) {
       state = saved;
       let published;
       try {
         published = JSON.parse(
-          localStorage.getItem('published-model:' + STAGE)
+          localStorage.getItem('published-model:' + stage.id)
         );
       } catch {
         /* Storage may be unavailable. */
@@ -169,8 +150,8 @@ async function init() {
       invalidate({ editing });
     }
   );
-  const community = bindCommunityModels(stage.teams);
-  bindPages(stage.teams, (settings) => {
+  const community = bindCommunityModels(stage);
+  bindPages(stage, (settings) => {
     delete state.weights;
     delete state.base;
     delete state.weight;
@@ -193,9 +174,9 @@ async function init() {
     if (card) {
       let working;
       if (resume) {
-        try { working = JSON.parse(localStorage.getItem('card-simulation:' + STAGE + ':' + card.id)); } catch {}
+        try { working = JSON.parse(localStorage.getItem('card-simulation:' + stage.id + ':' + card.id)); } catch {}
       }
-      const settings = validate(working) && working.card.every((team, i) => team === card.settings.card[i])
+      const settings = validate(working, { stageId: stage.id }) && working.card.every((team, i) => team === card.settings.card[i])
         ? working : structuredClone(card.settings);
       state = { ...settings, card: [...card.settings.card], locks, formVersion: settings.formVersion ?? 1 };
     } else state = { ...localDraft, locks };
@@ -212,7 +193,7 @@ async function init() {
       const switchingPerson = Boolean(owner && !nick);
       owner = nick;
       if (switchingPerson) {
-        state = { ...newDraft(), locks: state.locks };
+        state = { ...newDraft(stage.id), locks: state.locks };
         modelSaving?.clear();
         renderCard();
         renderSettings();
@@ -256,6 +237,8 @@ async function init() {
     bracket.setSchedule(feed);
     editor.setSchedule(feed);
     if (feed.locks) community.setLocks(feed.locks);
+    if (edition.key === 'stage-1' && feed.locks?.length === 33 && feed.locks.every(side => side === 0 || side === 1))
+      document.dispatchEvent(new Event('stage-one-completed'));
   });
   runHint();
   start('preview');
@@ -270,10 +253,10 @@ function persist() {
   if (editingCard || sharedSimulation) return;
   try {
     if (followedCard) {
-      const key = 'card-simulation:' + STAGE + ':' + followedCard.id;
+      const key = 'card-simulation:' + stage.id + ':' + followedCard.id;
       localStorage.setItem(key, JSON.stringify({ ...state, locks: followedCard.settings.locks }));
-      localStorage.setItem(STAGE, JSON.stringify({ ...localDraft, locks: state.locks }));
-    } else localStorage.setItem(STAGE, JSON.stringify(state));
+      localStorage.setItem(stage.id, JSON.stringify({ ...localDraft, locks: state.locks }));
+    } else localStorage.setItem(stage.id, JSON.stringify(state));
   } catch {
     /* Storage may be disabled. */
   }
@@ -605,7 +588,7 @@ function bind() {
   $('activeModel').onchange = (e) => chooseModel(e.target.value);
   for (const id of ['left', 'right', 'bo']) $(id).onchange = renderDuel;
   $('restore').onclick = () => {
-    state.card = newDraft().card;
+    state.card = newDraft(stage.id).card;
     renderCard();
     invalidate();
     toast('Picks removidos.');
@@ -618,7 +601,3 @@ function bind() {
     if (location.hash.startsWith('#c=')) location.reload();
   });
 }
-init().catch(() => {
-  $('status').textContent =
-    'Não foi possível carregar a fase. Recarregue a página.';
-});
