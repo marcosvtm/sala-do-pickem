@@ -143,8 +143,9 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
       else
         for (const [i, id] of [g.a, g.b].entries()) {
           if (i) names.append(inlineScore ? inlineBoard(g, stage.teams, inlineScore, stale) : el('small', '', '×'));
+          const lost = g.status === 'end' && inlineScore && inlineScore[i] < inlineScore[1 - i];
           const team = stage.teams[id],
-            span = el('span', '', team.name),
+            span = el('span', lost ? 'losing-team' : '', team.name),
             img = new Image();
           img.alt = '';
           img.src = '/assets/' + team.logo;

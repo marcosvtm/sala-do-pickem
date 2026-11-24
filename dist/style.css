@@ -1897,6 +1897,14 @@ nav a {
   object-fit: contain;
   flex: none;
 }
+.scheduled-teams .losing-team {
+  color: var(--muted);
+  font-weight: 400;
+}
+.scheduled-teams .losing-team img {
+  filter: saturate(0.2);
+  opacity: 0.72;
+}
 .scheduled-teams.has-score {
   flex-wrap: nowrap;
 }
