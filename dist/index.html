@@ -218,36 +218,10 @@
       </section>
       <div id="phaseAgendas" data-page="/ /partidas"></div>
       <section data-page="/modelos" hidden class="hero models-hero">
-        <img class="hero-art" src="/assets/banner-modelos.webp" loading="lazy" alt="" />
-        <svg class="mirage-radar" viewBox="74 130 902 774" preserveAspectRatio="none" role="img" aria-label="Maquete da Mirage" aria-describedby="mirage-description">
-          <desc id="mirage-description">O TR sai da sua base em laranja, entra pela rampa A e chega ao plant. O CT sai da sua base em azul e sobe até a bilheteria, de onde defende o bomb.</desc>
-          <defs>
-            <path id="tr-to-a" d="M891 369 L891 451 882 486 881 537 870 555 858 562 798 562 795 579 780 653 762 664 744 658 711 655 704 655 677 659 661 670 628 672 601 697 589 723 572 744 556 751 550 770 550 780" />
-            <path id="ct-to-ticket" d="M286 717 L309 739 325 781 344 804 365 808 407 822 433 818 451 823" />
-            <g id="route-end" fill="currentColor">
-              <circle r="18" fill-opacity=".13" stroke="currentColor" stroke-width="3" />
-              <circle r="7" />
-            </g>
-          </defs>
-          <image href="/assets/radar-mirage.webp" width="1024" height="1024" />
-          <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <use class="ct" href="#ct-to-ticket" stroke="currentColor" stroke-opacity=".28" stroke-width="7" />
-            <use class="tr" href="#tr-to-a" stroke="currentColor" stroke-opacity=".28" stroke-width="7" />
-            <g stroke="currentColor" stroke-dasharray="1 9" stroke-width="5">
-              <use class="ct" href="#ct-to-ticket" />
-              <use class="tr" href="#tr-to-a" />
-            </g>
-          </g>
-          <g fill="currentColor">
-            <circle class="ct" cx="286" cy="717" r="9" />
-            <circle class="ct" cx="344" cy="804" r="6" />
-            <circle class="tr" cx="891" cy="369" r="9" />
-            <circle class="tr" cx="858" cy="562" r="6" />
-            <circle class="tr" cx="762" cy="664" r="6" />
-          </g>
-          <use class="ct" href="#route-end" x="451" y="823" />
-          <use class="tr" href="#route-end" x="550" y="780" />
-        </svg>
+        <picture class="models-scene">
+          <source media="(max-width: 600px)" srcset="/assets/banner-modelos-mobile.webp" width="990" height="543" />
+          <img class="hero-art" src="/assets/banner-modelos.webp" width="1960" height="653" loading="lazy" alt="Maquete da Mirage sobre uma mesa de desenho, iluminada por uma luminária de latão." />
+        </picture>
         <div class="hero-copy">
           <span class="kicker"><i></i><span id="modelsPhaseLabel">Stage 1 · Singapura</span></span>
           <h1>Modelos</h1>
