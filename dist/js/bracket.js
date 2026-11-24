@@ -2,6 +2,23 @@ import { tournament, ROUND_START } from './swiss.js';
 import { updateLock } from './state.js';
 import { matchLink } from './schedule.js';
 
+const pairingKey = (round, a, b) => [round, Math.min(a, b), Math.max(a, b)].join('/');
+const kickoffTime = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Cuiaba', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+});
+const bracketMarks = {
+  'gosh.svg': 'gosh-mark.svg',
+  '100_thieves.svg': '100_thieves.svg#_100_THIEVES',
+};
+
+export function kickoffCountdown(at, now) {
+  const total = Math.max(0, Math.ceil((at - now) / 1000));
+  const two = (n) => String(n).padStart(2, '0');
+  const minutes = two(Math.floor(total / 60) % 60);
+  const seconds = two(total % 60);
+  return (total >= 3600 ? two(Math.floor(total / 3600)) + ':' : '') + minutes + ':' + seconds;
+}
+
 export function mergeOfficial(locks, official) {
   const merged = [...locks];
   for (let r = 0; r < 5; r++) {
@@ -21,7 +38,7 @@ export function project(locks, official, previews) {
     wins = Array(16).fill(0),
     losses = Array(16).fill(0);
   tournament((a, b, bo, i, round) => {
-    const key = [round, Math.min(a, b), Math.max(a, b)].join('/');
+    const key = pairingKey(round, a, b);
     const picked = previews.get(key);
     const source =
       official[i] >= 0
@@ -69,14 +86,15 @@ const labels = {
 export function bindBracket(teams, getLocks, onChange) {
   const grid = document.getElementById('matches');
   const previews = new Map();
-  const liveLinks = new Map();
+  const schedule = new Map();
   let official = Array(33).fill(-1),
     projection,
     previousTap;
-  function logo(id) {
+  function logo(id, alt = '') {
     const img = new Image();
-    img.src = '/assets/' + teams[id].logo;
-    img.alt = '';
+    const file = teams[id].logo;
+    img.src = '/assets/' + (bracketMarks[file] ?? file);
+    img.alt = alt;
     return img;
   }
   function pool(w, l) {
@@ -87,43 +105,69 @@ export function bindBracket(teams, getLocks, onChange) {
     const icons = el('div', 'pool-teams');
     teams.forEach((t, id) => {
       if (projection.wins[id] === w && projection.losses[id] === l) {
-        const s = el('span', '', t.short);
-        s.title = t.name;
-        s.prepend(logo(id));
-        icons.append(s);
+        const img = logo(id, t.name);
+        img.title = t.name;
+        icons.append(img);
       }
     });
     box.append(icons);
     return box;
   }
-  function updateLiveLink(fixture, g) {
-    const href = liveLinks.get(g.key + '/' + g.bo);
+  function updateCenter(fixture, g) {
+    const game = schedule.get(g.key + '/' + g.bo);
     const center = fixture.children[1];
-    fixture.classList.toggle('is-live', Boolean(href));
-    if (href) {
-      if (center.getAttribute('href') === href) return;
-      const link = el('a', 'fixture-live', 'AO VIVO');
-      link.href = href;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.title = teams[g.a].name + ' × ' + teams[g.b].name + ' ao vivo na HLTV (nova aba)';
-      link.setAttribute('aria-label', link.title);
-      center.replaceWith(link);
-    } else if (center.tagName === 'A') {
-      center.replaceWith(el('small', 'fixture-format', 'MD' + g.bo));
+    const live = game?.status === 'live' && !game.stale && g.source !== 'official';
+    fixture.classList.toggle('is-live', live);
+    if (live) {
+      if (center.classList.contains('fixture-live') && center.getAttribute('href') === game.href) return;
+      const badge = el(game.href ? 'a' : 'span', 'fixture-live', 'LIVE');
+      badge.title = teams[g.a].name + ' × ' + teams[g.b].name + ' ao vivo';
+      if (game.href) {
+        badge.href = game.href;
+        badge.target = '_blank';
+        badge.rel = 'noopener noreferrer';
+        badge.title += ' na HLTV (nova aba)';
+      }
+      badge.setAttribute('aria-label', badge.title);
+      center.replaceWith(badge);
+    } else if (game?.status === 'upcoming' && Number.isFinite(game.at) && g.source !== 'official') {
+      if (center.dataset.kickoff === String(game.at)) return;
+      const clock = el('time', 'fixture-clock', kickoffCountdown(game.at, Date.now()));
+      clock.dateTime = new Date(game.at).toISOString();
+      clock.dataset.kickoff = game.at;
+      clock.title = 'Início previsto em ' + kickoffTime.format(game.at) + ' (Cuiabá) · MD' + g.bo;
+      center.replaceWith(clock);
+    } else {
+      const ended = game?.status === 'end' || g.source === 'official';
+      const text = ended ? 'FIM' : 'vs';
+      if (center.className === 'fixture-status' && center.textContent === text) return;
+      const status = el('small', 'fixture-status', text);
+      status.title = (ended ? 'Encerrado' : 'Aguardando confirmação da agenda') + ' · MD' + g.bo;
+      center.replaceWith(status);
     }
   }
   function setSchedule({ games, stale, base }) {
-    liveLinks.clear();
-    if (!stale) for (const game of games) {
-      if (game.status !== 'live' || game.a == null || game.b == null) continue;
-      const href = matchLink(game, base);
-      if (href) liveLinks.set([game.round - 1, Math.min(game.a, game.b), Math.max(game.a, game.b), game.bo].join('/'), href);
+    schedule.clear();
+    for (const game of games) {
+      if (game.a == null || game.b == null) continue;
+      schedule.set(pairingKey(game.round - 1, game.a, game.b) + '/' + game.bo, {
+        status: game.status, at: game.at, stale, href: matchLink(game, base) ?? null,
+      });
     }
     for (const fixture of grid.querySelectorAll('.fixture')) {
-      updateLiveLink(fixture, projection.games[Number(fixture.dataset.index)]);
+      updateCenter(fixture, projection.games[Number(fixture.dataset.index)]);
     }
   }
+  function tick() {
+    if (document.hidden || !grid.getClientRects().length) return;
+    const now = Date.now();
+    for (const clock of grid.querySelectorAll('time[data-kickoff]')) {
+      const value = kickoffCountdown(Number(clock.dataset.kickoff), now);
+      if (clock.textContent !== value) clock.textContent = value;
+    }
+  }
+  setInterval(tick, 1000);
+  document.addEventListener('visibilitychange', tick);
   function draw() {
     const locks = getLocks();
     projection = project(locks, official, previews);
@@ -140,7 +184,7 @@ export function bindBracket(teams, getLocks, onChange) {
         const game = el('div', 'fixture ' + g.source);
         game.dataset.index = g.i;
         for (const [side, id] of [g.a, g.b].entries()) {
-          if (side) game.append(el('small', 'fixture-format', 'MD' + g.bo));
+          if (side) game.append(el('small'));
           const btn = el('button', 'team-side');
           btn.type = 'button';
           btn.dataset.match = g.i;
@@ -160,10 +204,10 @@ export function bindBracket(teams, getLocks, onChange) {
           );
           btn.setAttribute('aria-pressed', String(g.side === side));
           btn.disabled = g.source === 'official';
-          btn.append(logo(id), el('span', '', teams[id].short));
+          btn.append(logo(id));
           game.append(btn);
         }
-        updateLiveLink(game, g);
+        updateCenter(game, g);
         stack.append(game);
       }
       if (r >= 3) stack.append(pool(r - 3, 3));

@@ -2,6 +2,9 @@
 <svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 524.2">
   <defs>
     <style>
+      #_100_THIEVES:target {
+        fill: #f2f4ef;
+      }
       .cls-1 {
         fill: #df3533;
       }

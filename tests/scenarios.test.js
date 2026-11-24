@@ -15,7 +15,7 @@ import {
   mixWeights,
   mixPercentages,
 } from '../dist/js/models.js';
-import { project, fixProjected, mergeOfficial } from '../dist/js/bracket.js';
+import { project, fixProjected, mergeOfficial, kickoffCountdown } from '../dist/js/bracket.js';
 import { currentGames } from '../dist/js/schedule.js';
 import { parseSchedule } from '../server/agenda.js';
 import { openDb } from '../scripts/local-db.js';
@@ -23,6 +23,14 @@ import { cardsApi } from '../server/api.js';
 import { CLOSE } from '../server/results.js';
 import stage from '../dist/data/stage.json' with { type: 'json' };
 import agenda from '../dist/data/schedule.json' with { type: 'json' };
+
+test('bracket countdown changes format at an hour and stops at kickoff', () => {
+  const now = Date.UTC(2026, 10, 24);
+  for (const [delta, display] of [
+    [360000000, '100:00:00'], [3600000, '01:00:00'], [3599000, '59:59'],
+    [601000, '10:01'], [1, '00:01'], [0, '00:00'], [-3000, '00:00'],
+  ]) assert.equal(kickoffCountdown(now + delta, now), display);
+});
 
 test('exploratory picks alter the draw; future locks preserve the exact opponents and clear invalidated rounds', () => {
   const s = defaults(stage.card),
