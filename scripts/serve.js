@@ -2,6 +2,7 @@ import http from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { openDb } from './local-db.js';
 import { cardsApi } from '../server/api.js';
+import { withSharePreview } from '../server/share-preview.js';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -13,6 +14,7 @@ const types = {
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
+  '.jpg': 'image/jpeg',
   '.png': 'image/png',
 };
 const port = Number(process.env.PORT || 4173);
@@ -74,7 +76,9 @@ const server = http.createServer(async (req, res) => {
       'Content-Type': types[path.extname(file)] || 'application/octet-stream',
       'Cache-Control': 'no-store',
     });
-    res.end(bytes);
+    res.end(file.endsWith('.html')
+      ? withSharePreview(bytes.toString(), new URL(req.url, 'http://' + req.headers.host))
+      : bytes);
   } catch {
     res.writeHead(404);
     res.end('Recurso indisponível');

@@ -19,6 +19,8 @@ npm test
 
 Faça um fork, crie uma branch e envie o pull request contra `main`. Conte o que mudou e como reproduzir. Mudanças no pareamento, na pontuação ou nas fórmulas devem incluir um caso que verifique o comportamento. Para uma mudança de interface, vale conferir um cartão no celular. O mantenedor publica pelo Sites após escolher a revisão. Um merge por si só não publica o site.
 
+Publique atualizações no mesmo projeto Sites, com o endereço público e o banco D1 existentes. Mantenha a versão atual disponível enquanto prepara a próxima. Mudanças de formato devem continuar lendo os cartões, modelos e rascunhos já salvos, inclusive seus links e as chaves do navegador.
+
 ## Organização
 
 - `dist/` contém o frontend editável. `npm run build` empacota os recursos e a API em um Worker do Sites em `dist/server/`.

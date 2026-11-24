@@ -1,4 +1,5 @@
 import { cardsApi } from './api.js';
+import { withSharePreview } from './share-preview.js';
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -33,7 +34,10 @@ export default {
       request.method === 'HEAD'
         ? null
         : Uint8Array.from(atob(file[1]), (c) => c.charCodeAt(0));
-    return new Response(body, {
+    const content = body && path.endsWith('.html')
+      ? withSharePreview(new TextDecoder().decode(body), url)
+      : body;
+    return new Response(content, {
       headers: { 'Content-Type': file[0], 'Cache-Control': 'no-cache' },
     });
   },
