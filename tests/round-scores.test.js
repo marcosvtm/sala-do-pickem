@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addRoundScores } from '../server/round-scores.js';
+import { publicLiveState, mapSnapshot } from '../server/cito-score.js';
+import { agendaScore, currentCT } from '../dist/js/schedule.js';
 
 test('round coverage follows both opponents, map and publication time, including reversed team order', async () => {
   const game = { round: 1, status: 'live', a: 0, b: 8, bo: 1, map: { name: 'nuke', score: null } };
@@ -35,6 +37,53 @@ test('round coverage follows both opponents, map and publication time, including
   }
 });
 
+test('live state follows the named opponents and swaps sides before round 13 even on the round-end snapshot', async () => {
+  const now = Date.UTC(2026, 10, 24, 5, 32);
+  const id = 'cs2-match-2400496';
+  const game = { round: 1, slot: 3, a: 0, b: 8, bo: 1, status: 'live', map: { name: 'mirage', score: [5, 4] } };
+  const state = {
+    entityType: 'cs2_live_state', matchId: id, status: 'live', source: 'live', dataAvailable: true,
+    teams: { team1Name: 'Ninjas in Pyjamas', team2Name: 'M80' },
+    currentMap: 'de_mirage', currentRound: 12, score: { team1: 5, team2: 7 },
+    ctTeam: 'team1', tTeam: 'team2', lastVerified: new Date(now).toISOString(),
+  };
+  const resolve = (name) => ({ 'Ninjas in Pyjamas': 0, M80: 8 })[name];
+  const html = (frame) => '<script>self.__next_f.push(' +
+    JSON.stringify([1, '20:' + JSON.stringify(['$', 'main', { initialState: frame }]) + '\n']) + ')</script>';
+  assert.deepEqual(publicLiveState(html(state), id), state);
+  assert.equal(publicLiveState(html(state), 'cs2-match-other'), null);
+  assert.equal(currentCT({ ...game, map: { score: [5, 6], startingCT: 0 } }), 0);
+  for (const frame of [state, { ...state, currentRound: 13, ctTeam: 'team2', tTeam: 'team1' }]) {
+    const map = mapSnapshot(frame, game, resolve, now);
+    assert.deepEqual(map.score, [5, 7]);
+    assert.equal(map.startingCT, 0);
+    assert.equal(currentCT({ ...game, map }), 8);
+    assert.deepEqual(mapSnapshot(frame, { ...game, a: 8, b: 0 }, resolve, now).score, [7, 5]);
+  }
+  assert.equal(mapSnapshot(state, { ...game, b: 6 }, resolve, now), null);
+  assert.equal(mapSnapshot({ ...state, currentMap: 'de_nuke' }, game, resolve, now), null);
+  assert.equal(mapSnapshot(state, game, resolve, now + 181000), null);
+  const live = { ...state, currentRound: 14, ctTeam: 'team2', tTeam: 'team1', score: { team1: 6, team2: 7 } };
+  const reader = (frame) => async (url) => url.startsWith('https://cito.gg/')
+    ? new Response(html(frame)) : new Response('', { status: 503 });
+  const fresh = structuredClone(game);
+  await addRoundScores([fresh], [], reader(live), now);
+  assert.deepEqual(agendaScore(fresh), [6, 7]);
+  assert.equal(currentCT(fresh), 8);
+  assert.equal(fresh.map.source, 'Cito');
+  const next = structuredClone(game);
+  await addRoundScores([next], [fresh], reader(state), now);
+  assert.deepEqual(next.map.score, [6, 7]);
+});
+
+test('finished best-of-ones show rounds even in overtime and finished best-of-threes show series wins', () => {
+  const ended = { status: 'end', bo: 1, map: { name: 'mirage', score: [14, 16] }, series: [0, 1] };
+  assert.deepEqual(agendaScore(ended), [14, 16]);
+  assert.deepEqual(agendaScore({ ...ended, bo: 3, series: [2, 1] }), [2, 1]);
+  assert.deepEqual(agendaScore({ ...ended, map: null }), [0, 1]);
+  assert.equal(agendaScore({ status: 'upcoming' }), null);
+});
+
 test('opening sides belong to the named teams and map, even when PGL has the newer score', async () => {
   const game = { round: 1, status: 'live', bo: 1, a: 7, b: 15, map: { name: 'inferno', score: [12, 8] } };
   const previous = [{ ...game, coverage: { id: 'test', reversed: true } }];
@@ -45,7 +94,7 @@ test('opening sides belong to the named teams and map, even when PGL has the new
   const round = { eventDate: 3, map: { name: 'de_inferno' }, scoreA: 7, scoreB: 11 };
   async function loadWith(announcement, bo = 1, score = [12, 8]) {
     const fresh = { ...game, bo, map: { name: 'inferno', score } };
-    await addRoundScores([fresh], previous, async () => Response.json({ data: [round, announcement] }));
+    await addRoundScores([fresh], [{ ...previous[0], bo }], async () => Response.json({ data: [round, announcement] }));
     return fresh.map;
   }
   assert.deepEqual(await loadWith(kickoff), { name: 'inferno', score: [12, 8], startingCT: 7 });

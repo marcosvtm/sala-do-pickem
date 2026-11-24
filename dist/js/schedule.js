@@ -1,10 +1,16 @@
 import { ROUND_START } from './swiss.js';
+export const SCORE_POLL_MS = 15000;
 const $ = (id) => document.getElementById(id);
 const time = new Intl.DateTimeFormat('pt-BR', {
   hour: '2-digit',
   minute: '2-digit',
   timeZone: 'America/Cuiaba',
 });
+const scoreTime = new Intl.DateTimeFormat('pt-BR', {
+  timeStyle: 'medium', timeZone: 'America/Cuiaba',
+});
+const delayedScore = (g) => g.status === 'live' && g.map?.reportedAt > 0 &&
+  Date.now() - g.map.reportedAt > 180000;
 const day = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: '2-digit',
@@ -42,24 +48,37 @@ export function matchLink(game, base) {
     ROUND_START[game.round - 1] + (opening?.slot ?? game.slot) - 1
   ];
 }
-function liveMapScore(game, teams, stale) {
-  const { score, startingCT } = game.map;
-  const rounds = score[0] + score[1];
-  // Opening sides identify the two regulation halves. Overtime needs its own confirmation.
-  const knownSides = !stale && [game.a, game.b].includes(startingCT) &&
-    Math.max(...score) < 13 && rounds < 24;
+export function currentCT(game) {
+  const map = game.map;
+  if (!map?.score) return null;
+  const rounds = map.score[0] + map.score[1];
+  const teams = [game.a, game.b];
+  if (rounds < 24 && Math.max(...map.score) < 13 && teams.includes(map.startingCT))
+    return rounds < 12 ? map.startingCT : teams.find((id) => id !== map.startingCT);
+  return map.sideRound === rounds + 1 && teams.includes(map.currentCT) ? map.currentCT : null;
+}
+export function agendaScore(game) {
+  if (game.status === 'live') return game.map?.score ?? null;
+  if (game.status !== 'end') return null;
+  return game.bo === 1 ? game.map?.score ?? game.series : game.series;
+}
+function inlineBoard(game, teams, score, stale) {
+  const final = game.status === 'end';
+  const ct = !final && !stale ? currentCT(game) : null;
   const board = el('strong', 'live-map-score');
   const labels = [game.a, game.b].map((id, i) => {
-    const side = knownSides ? ((id === startingCT) === (rounds < 12) ? 'CT' : 'TR') : '';
+    const side = ct != null ? (id === ct ? 'CT' : 'TR') : '';
     const value = el('b', '', score[i]);
     if (side) value.dataset.side = side;
+    const winner = final && score[i] > score[1 - i];
+    if (winner) value.className = 'winning-score';
     if (i) board.append(el('small', '', '×'));
     board.append(value);
-    return teams[id].name + ' ' + score[i] + (side ? ' (' + side + ')' : '');
+    return teams[id].name + ' ' + score[i] + (side ? ' (' + side + ')' : '') + (winner ? ' (vencedor)' : '');
   });
   board.title = labels.join(' × ');
   board.setAttribute('role', 'img');
-  board.setAttribute('aria-label', 'Placar do mapa: ' + board.title);
+  board.setAttribute('aria-label', (final ? 'Placar final: ' : 'Placar do mapa: ') + board.title);
   return board;
 }
 export async function bindFeed(stage, applyOfficial, onSchedule) {
@@ -91,7 +110,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
     lastChecked = checked;
     onSchedule?.({ games, stale, base, locks: confirmedLocks });
     const rows = currentGames(games),
-      sig = JSON.stringify([rows, stale, Boolean(base)]);
+      sig = JSON.stringify([rows, stale, Boolean(base), rows.map((g) => delayedScore(g))]);
     $('agendaStatus').textContent =
       (rows.some((g) => g.status !== 'end')
         ? 'Rodada ' + Math.min(...rows.map((g) => g.round)) + ' · '
@@ -99,7 +118,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
       'Horários de Cuiabá' +
       (stale
         ? ' · Agenda da última leitura disponível'
-        : ' · Consulta a cada 30 s') +
+        : ' · Consulta a cada 15 s') +
       (checked
         ? ' · PGL ' + day.format(checked) + ' às ' + time.format(checked)
         : ' · Programação publicada');
@@ -117,13 +136,13 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
         ),
         el('small', '', day.format(g.at))
       );
-      const inlineScore = live && g.map?.score && g.a !== null && g.b !== null;
+      const inlineScore = g.a !== null && g.b !== null ? agendaScore(g) : null;
       const names = el('div', 'scheduled-teams' + (inlineScore ? ' has-score' : ''));
       if (g.a === null || g.b === null)
         names.append(el('strong', '', 'Adversários a definir'));
       else
         for (const [i, id] of [g.a, g.b].entries()) {
-          if (i) names.append(inlineScore ? liveMapScore(g, stage.teams, stale) : el('small', '', '×'));
+          if (i) names.append(inlineScore ? inlineBoard(g, stage.teams, inlineScore, stale) : el('small', '', '×'));
           const team = stage.teams[id],
             span = el('span', '', team.name),
             img = new Image();
@@ -134,10 +153,14 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
         }
       const info = el('div', 'scheduled-info');
       info.append(names);
-      let score = g.map ? ' · ' + g.map.name[0].toUpperCase() + g.map.name.slice(1) : '';
-      if (g.map?.score && !inlineScore) score += ' ' + g.map.score.join('–');
+      let score = g.map && (live || g.bo === 1) ? ' · ' + g.map.name[0].toUpperCase() + g.map.name.slice(1) : '';
       if (live && !g.map?.score) score += ' · Aguardando placar';
-      if (g.map?.reportedAt) score += ' · DRAFT5 ' + time.format(g.map.reportedAt);
+      if (live && g.map?.score) {
+        const reported = g.map.reportedAt;
+        score += ' · ' + (delayedScore(g) ? 'Último placar disponível · ' : '') +
+          (g.map.source ?? (reported ? 'DRAFT5' : 'PGL'));
+        if (reported) score += ' ' + scoreTime.format(reported);
+      }
       info.append(
         el(
           'small',
@@ -146,7 +169,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
             g.round +
             ' · MD' +
             g.bo +
-            (g.series && (g.bo > 1 || (g.status === 'end' && !g.map?.score))
+            (g.series && live && g.bo > 1
               ? ' · Mapas ' + g.series.join('–')
               : '') +
             score
@@ -199,7 +222,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
       paint(data.schedule, stale, data.scheduleChecked);
       $('feedStatus').textContent = data.stale
         ? 'PGL temporariamente indisponível. Exibindo os últimos resultados confirmados.'
-        : 'Fonte: PGL · Consulta a cada 30 s.';
+        : 'Fonte: PGL · Consulta a cada 15 s.';
     } catch {
       if (latestGames) paint(latestGames, true, lastChecked);
       $('agendaStatus').textContent =
@@ -213,7 +236,7 @@ export async function bindFeed(stage, applyOfficial, onSchedule) {
   await poll();
   setInterval(() => {
     if (!document.hidden) poll();
-  }, 30000);
+  }, SCORE_POLL_MS);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) poll();
   });

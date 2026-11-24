@@ -1,6 +1,7 @@
 import { availableGames, ROUND_SIZES } from '../dist/js/swiss.js';
 import { stageRows, parseSchedule } from './agenda.js';
 import { addRoundScores } from './round-scores.js';
+import { SCORE_POLL_MS } from '../dist/js/schedule.js';
 import baseSchedule from '../dist/data/schedule.json' with { type: 'json' };
 import stage from '../dist/data/stage.json' with { type: 'json' };
 
@@ -94,13 +95,14 @@ export async function liveResults(
       r.attempted - r.checked > 15000 ||
       now - r.checked > 180000,
   });
-  if (row && now - row.attempted < 30000) return output(row);
+  const retryAfter = row?.attempted > row?.checked ? 30000 : SCORE_POLL_MS;
+  if (row && now - row.attempted < retryAfter) return output(row);
   const claim = await db
     .prepare(
       `INSERT INTO stage_results(stage,locks,checked,attempted) VALUES(?,?,0,?)
     ON CONFLICT(stage) DO UPDATE SET attempted=excluded.attempted WHERE stage_results.attempted<=?`
     )
-    .bind(stage.id, JSON.stringify(emptyLocks()), now, now - 30000)
+    .bind(stage.id, JSON.stringify(emptyLocks()), now, now - retryAfter)
     .run();
   if (claim.meta.changes) {
     try {
@@ -123,7 +125,7 @@ export async function liveResults(
           games.filter((g) => g.status === 'end').length >=
           old.filter((g) => g.status === 'end').length
         ) {
-          await addRoundScores(games, old, fetcher);
+          await addRoundScores(games, old, fetcher, now);
           schedule = JSON.stringify({ games, checked: now });
         }
       } catch {

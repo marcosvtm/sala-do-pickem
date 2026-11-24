@@ -1925,6 +1925,9 @@ nav a {
 .live-map-score [data-side='TR'] {
   color: #ffb165;
 }
+.live-map-score .winning-score {
+  color: #72df9a;
+}
 @media (max-width: 1120px) {
   .catalog {
     grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -1,4 +1,7 @@
 import stage from '../dist/data/stage.json' with { type: 'json' };
+import schedule from '../dist/data/schedule.json' with { type: 'json' };
+import { matchLink } from '../dist/js/schedule.js';
+import { readCitoScore } from './cito-score.js';
 
 const origin = 'https://draft5.gg';
 const normalize = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -8,8 +11,9 @@ stage.teams.forEach((team, i) => {
     aliases.set(normalize(name), i);
 });
 for (const [alias, team] of Object.entries({
-  imperial: 'IMP', dendelecs: 'DEN', lynnvision: 'LVG', parivision: 'PVI',
+  imperial: 'IMP', dendelecs: 'DEN', lynnvision: 'LVG', parivision: 'PVI', bcgame: 'GOSH',
 })) aliases.set(alias, aliases.get(normalize(team)));
+const resolveTeam = (name) => typeof name === 'string' ? aliases.get(normalize(name)) : undefined;
 
 function findMatches(html) {
   const matches = [];
@@ -50,15 +54,16 @@ function openingCT(events, game, mapName, firstRoundAt) {
   }
 }
 
-export async function addRoundScores(games, previous, fetcher) {
+export async function addRoundScores(games, previous, fetcher, now = Date.now()) {
   const live = games.filter((g) => g.status === 'live' && (g.map || g.bo === 1) && g.a !== null && g.b !== null);
   if (!live.length) return;
   let listing;
   await Promise.all(live.map(async (g) => {
-    const prior = previous.find((p) => p.round === g.round && p.a === g.a && p.b === g.b);
+    const prior = previous.find((p) => p.round === g.round && p.bo === g.bo && p.a === g.a && p.b === g.b);
+    const scoreboard = readCitoScore(g, matchLink(g, schedule), resolveTeam, fetcher, now);
     let match = prior?.coverage;
     if (prior?.map?.reportedAt && (prior.map.name === g.map?.name || (!g.map && g.bo === 1)) &&
-        (!g.map?.score || prior.map.score[0] + prior.map.score[1] > g.map.score[0] + g.map.score[1])) {
+        (!g.map?.score || prior.map.score.every((n, i) => n >= g.map.score[i]))) {
       g.map = { ...prior.map };
     }
     try {
@@ -82,13 +87,13 @@ export async function addRoundScores(games, previous, fetcher) {
         [e.scoreA, e.scoreB].every((n) => Number.isSafeInteger(n) && n >= 0)
       ).sort((a, b) => b.eventDate - a.eventDate || b.id - a.id);
       const event = rounds[0];
-      if (!event || event.eventDate * 1000 < (g.map?.reportedAt ?? 0)) return;
-      const keepPglScore = !g.map?.reportedAt && g.map?.score &&
-        event.scoreA + event.scoreB <= g.map.score[0] + g.map.score[1];
-      if (!keepPglScore) {
+      if (!event) return;
+      const score = match.reversed ? [event.scoreB, event.scoreA] : [event.scoreA, event.scoreB];
+      if (!g.map?.score || (score.every((n, i) => n >= g.map.score[i]) &&
+          score.some((n, i) => n > g.map.score[i]))) {
         g.map = {
           name: event.map.name.slice(3),
-          score: match.reversed ? [event.scoreB, event.scoreA] : [event.scoreA, event.scoreB],
+          score,
           reportedAt: event.eventDate * 1000,
         };
       }
@@ -97,6 +102,15 @@ export async function addRoundScores(games, previous, fetcher) {
     } catch {
       // The PGL status and last known round remain usable between coverage updates.
     } finally {
+      const frame = await scoreboard;
+      if (frame && (!g.map || frame.name === g.map.name)) {
+        const before = g.map;
+        if (!before?.score || (frame.score.every((n, i) => n >= before.score[i]) &&
+            (frame.reportedAt >= (before.reportedAt ?? 0) || frame.score.some((n, i) => n > before.score[i]))))
+          g.map = frame;
+        const startingCT = frame.startingCT ?? before?.startingCT;
+        if (startingCT != null) g.map.startingCT = startingCT;
+      }
       if (g.map && g.map.name === prior?.map?.name && prior.map.startingCT != null)
         g.map.startingCT ??= prior.map.startingCT;
     }
