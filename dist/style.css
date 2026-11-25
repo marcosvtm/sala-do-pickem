@@ -2302,6 +2302,24 @@ html:has(#homePanels) { scrollbar-gutter: stable; }
 .stage-player { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .stage-player .rank-place { font-size: .83rem; flex-shrink: 0; }
 .card-model-info { margin-top: .35rem; }
+.card-model-info > summary {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 1.5rem;
+  color: var(--muted);
+  font-size: .8125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.card-model-info > summary::after { float: none; color: inherit; font-size: 1em; }
+.card-model-info > summary:is(:hover, :focus-visible) { color: var(--text); }
+@media (pointer: coarse) {
+  .card-model-info > summary { min-height: 2rem; }
+}
 .community-models { margin-block: 18px; }
 @media (max-width: 660px) {
   .broxas-table .stage-score { display: none; }
