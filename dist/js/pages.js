@@ -70,6 +70,10 @@ export function bindPages(stage, apply, view) {
     vrs.textContent = 'ranking global usado no ' + phase.name;
     $('vrsEdition').replaceChildren(vrs);
     $('formCutoff').textContent = cutoff;
+    if (stage.formCoverage === 'history-plus-stage1') {
+      $('formScope').textContent = 'Para esta edição, o histórico congelado em 20/11 foi atualizado com as séries oficiais do Stage 1. A janela de 120 dias é contada até o corte desta fase.';
+      $('formScope').hidden = false;
+    }
     $('hltvPhase').textContent = 'o ' + phase.name;
     $('readingRanks').textContent = 'posições mundiais da edição desta fase';
     for (const link of [$('hltvEdition'), $('readingRankingLink')]) {

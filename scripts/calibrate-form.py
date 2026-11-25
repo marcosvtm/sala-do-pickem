@@ -3,6 +3,7 @@ import argparse
 import gzip
 import json
 import math
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -141,7 +142,56 @@ def main(write):
         path.write_bytes((json.dumps(stage, indent=2, ensure_ascii=False) + "\n").encode())
 
 
+def stage_two_ratings(request):
+    """Replay the frozen calibration, then incorporate only confirmed Singapore series."""
+    history = json.loads(gzip.decompress((ROOT / "research/form-history.json.gz").read_bytes()))
+    stage = json.loads((ROOT / "dist/data/stage.json").read_text(encoding="utf-8"))
+    freeze = history["cutoff"]
+    cutoff = request["cutoff"]
+    if cutoff < freeze:
+        raise ValueError("Corte do S2 anterior ao histórico congelado.")
+    keys = {"fut_esports": "fut", "nemiga": "nemiga", "g2_esports": "g2", "1win": "1win",
+            "natus_vincere": "natusvincere", "astralis": "astralis", "the_mongolz": "themongolz", "mibr": "mibr"}
+    original, regional = Replay(1, 0), Replay(0.25, 1)
+    events = [(at, 1, i, [a, b, bo, y]) for i, (at, a, b, bo, y, _) in enumerate(history["matches"])]
+    events.extend((r["at"], 0, i, r["teams"]) for i, r in enumerate(history["rankings"]))
+    for at, match, _, data in sorted(events):
+        if at > freeze:
+            raise ValueError("Histórico posterior ao corte do Stage 1.")
+        for model in (original, regional):
+            if match:
+                model.play(at, *data)
+            else:
+                model.publish(at, data)
+    for team, key in zip(stage["teams"], history["field"], strict=True):
+        keys[team["logo"].split(".")[0]] = key
+        for model, field in ((original, "elo"), (regional, "formElo")):
+            rating = model.elo(key, freeze) * (0.64 if key == "9z" else 1)
+            if abs(rating - team[field]) > 1e-7:
+                raise ValueError("O Elo inicial diverge da edição congelada para " + key)
+            model.rating[key] = rating, freeze
+    for game in request["games"]:
+        at = game["at"]
+        if not freeze < at <= cutoff:
+            raise ValueError("Série fora da janela de dados do Stage 2.")
+        a, b = keys[game["a"]], keys[game["b"]]
+        for model in (original, regional):
+            model.play(at, a, b, game["bo"], game["winA"])
+    out = {}
+    for team, key in keys.items():
+        if key not in regional.schedule:
+            raise ValueError("Sem histórico de forma para " + team)
+        out[team] = {"elo": round(original.elo(key, cutoff), 8), "formElo": round(regional.elo(key, cutoff), 8),
+                     "formEvidence": regional.evidence(key, cutoff)}
+    return out
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--write", action="store_true", help="Update the stage snapshot after validation")
-    main(parser.parse_args().write)
+    parser.add_argument("--stage2", action="store_true", help="Read verified Stage 1 games from stdin and return candidate ratings")
+    args = parser.parse_args()
+    if args.stage2:
+        print(json.dumps(stage_two_ratings(json.load(sys.stdin)), allow_nan=False))
+    else:
+        main(args.write)

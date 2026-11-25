@@ -1,5 +1,4 @@
 import { majorPhases, phasePath } from './major-phases.js';
-import { modelAvailable } from './models.js';
 import { personalSettings, validPersonal } from './state.js';
 
 // The legacy S1 roster stores the PGL identifier in the logo filename.
@@ -69,13 +68,10 @@ export function bindPreviousModels(stage, apply, $) {
     try {
       const model = await get(phasePath('/api/models/' + encodeURIComponent(select.value), previous.id));
       const { settings, adjusted } = copyTeamSettings(model, roster.teams, stage.teams);
-      const pendingStudy = settings.weights?.study > 0 && !modelAvailable(stage.teams, 'study', { stage: stage.id });
-      if (pendingStudy) settings.weights.study = 0;
       apply(settings);
       message.textContent = adjusted.length
         ? 'Modelo copiado. Ajustes individuais mantidos para ' + adjusted.join(', ') + '.'
         : 'Modelo copiado. Todas as equipes começam com os ajustes padrão.';
-      if (pendingStudy) message.append(' O peso do Modelo IA nesta cópia fica em zero até o estudo da fase.');
     } catch { message.textContent = 'Falha ao copiar o modelo. Tente novamente.'; }
     finally { select.disabled = false; copy.disabled = !select.value; }
   };

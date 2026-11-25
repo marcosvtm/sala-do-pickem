@@ -1,6 +1,7 @@
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import stageOne from '../dist/data/stage.json' with { type: 'json' };
 import invited from '../dist/data/stage2-invites.json' with { type: 'json' };
 import calendar from '../dist/data/stage2-schedule.json' with { type: 'json' };
@@ -49,6 +50,8 @@ function frozenTeam(team, ratings) {
 
 export function prepareEdition(input, openingFeed, lastFeed) {
   const promoted = advancingSeeds(parsePgl(lastFeed));
+  if (input?.formCoverage === 'history-plus-stage1' && input.stage1Digest !== formDigest(formGames(lastFeed)))
+    throw Error('A entrada de forma está desatualizada. Recalcule com os resultados finais do Stage 1.');
   const seeded = [...invited.teams, ...promoted];
   const context = agendaContext(seeded, calendar.games);
   const games = parseSchedule(openingFeed, context);
@@ -79,7 +82,40 @@ export function prepareEdition(input, openingFeed, lastFeed) {
         !/^https:\/\/www\.hltv\.org\/matches\/\d+\/[\w-]+$/.test(link)))))
     throw Error('Links da HLTV precisam acompanhar os 33 horários oficiais por rodada.');
   return { id: STAGE, version: input.version, startsAt: new Date(startsAt).toISOString(),
-    cutoff: input.cutoff, sources: input.sources, teams, games, ...(links ? { links } : {}) };
+    cutoff: input.cutoff, sources: input.sources, ...(input.formCoverage === 'history-plus-stage1' ? { formCoverage: input.formCoverage } : {}), teams, games, ...(links ? { links } : {}) };
+}
+
+// Match identities and winners are checked by the same Swiss parser that settles the public cards.
+function formGames(lastFeed) {
+  const locks = parsePgl(lastFeed);
+  const games = parseSchedule(lastFeed).filter(g => g.status === 'end')
+    .sort((a, b) => a.at - b.at || a.round - b.round || a.slot - b.slot)
+    .map(g => ({ at: g.at / 1000, a: stageOneTeams[g.a].id, b: stageOneTeams[g.b].id,
+      bo: g.bo, winA: Number(g.series[0] > g.series[1]) }));
+  if (games.length !== locks.filter(side => side >= 0).length) throw Error('Divergência nos resultados oficiais do S1.');
+  return games;
+}
+
+function formDigest(games) {
+  return createHash('sha256').update(JSON.stringify(games)).digest('hex');
+}
+
+export function ratePool(lastFeed, now) {
+  const games = formGames(lastFeed);
+  const cutoff = new Date(Math.floor(now / 1000) * 1000).toISOString();
+  const launcher = process.platform === 'win32' && !process.env.STAGE2_PYTHON;
+  const python = process.env.STAGE2_PYTHON || (launcher ? 'py' : 'python3');
+  const script = fileURLToPath(new URL('calibrate-form.py', import.meta.url));
+  const replay = spawnSync(python, [...(launcher ? ['-3'] : []), script, '--stage2'], {
+    input: JSON.stringify({ cutoff: Math.floor(now / 1000), games }), encoding: 'utf8', windowsHide: true,
+  });
+  if (replay.error || replay.status !== 0)
+    throw Error('Falha ao calcular a forma dos candidatos: ' + (replay.error?.message || replay.stderr.trim()));
+  const ratings = JSON.parse(replay.stdout);
+  const teams = pool.map(team => frozenTeam(team, { ...ratings[team.id], vrs: team.vrs, hltvRank: weeklyRanking.positions[team.id] }));
+  return { stage: STAGE, version: 'sg26-s2-' + cutoff.slice(0, 19).replace(/[-:]/g, '') + 'Z', cutoff,
+    sources: { vrs: invited.sources.vrs, hltv: weeklyRanking.source, form: SOURCE },
+    formCoverage: 'history-plus-stage1', stage1Digest: formDigest(games), teams };
 }
 
 async function feed(url) {
@@ -90,25 +126,42 @@ async function feed(url) {
 
 async function main([action, file, fixture2, fixture1]) {
   if (action === '--pool') {
-    const teams = pool.map(({ id, name, vrs }) => ({ id, name, vrs, hltvRank: weeklyRanking.positions[id], elo: null, formElo: null,
-      formEvidence: { series: null, opponents: null, externalOpponents: null, unknownSeries: null } }));
+    const teams = pool.map(({ id, name, vrs }) => ({ id, name, vrs, hltvRank: weeklyRanking.positions[id],
+      elo: null, formElo: null, formEvidence: { series: null, opponents: null, externalOpponents: null, unknownSeries: null } }));
     console.log(JSON.stringify({ stage: STAGE, version: '', cutoff: '', sources: { vrs: invited.sources.vrs,
       hltv: weeklyRanking.source, form: '' }, teams }, null, 2));
     return;
   }
-  if (!file || !['--check', '--install'].includes(action) || Boolean(fixture2) !== Boolean(fixture1))
-    throw Error('Use --pool, --check dados.json [agenda-s2.json agenda-s1.json] ou --install dados.json.');
+  if (!['--ratings', '--status', '--check', '--install'].includes(action) || Boolean(fixture2) !== Boolean(fixture1) ||
+      (file && ['--ratings', '--status'].includes(action)))
+    throw Error('Use --pool, --ratings, --status, --check [dados.json [agenda-s2.json agenda-s1.json]] ou --install [dados.json].');
   if (action === '--install' && fixture2) throw Error('A instalação exige confirmação nas duas agendas oficiais.');
-  const [input, openingFeed, lastFeed] = await Promise.all([readJson(file),
-    fixture2 ? readJson(fixture2) : feed(calendar.source),
-    fixture1 ? readJson(fixture1) : feed(SOURCE)]);
+  const lastFeed = fixture1 ? await readJson(fixture1) : await feed(SOURCE);
+  if (action === '--ratings') {
+    console.log(JSON.stringify(ratePool(lastFeed, Date.now()), null, 2));
+    return;
+  }
+  const openingFeed = fixture2 ? await readJson(fixture2) : await feed(calendar.source);
+  const editionPath = new URL('../dist/data/edition-s2.json', import.meta.url);
+  const existing = await readJson(editionPath);
+  const now = Date.now();
+  const input = file ? await readJson(file) : ratePool(lastFeed, existing ? Date.parse(existing.cutoff) : now);
+  if (action === '--status') {
+    const games = parseSchedule(lastFeed);
+    const settled = games.filter(g => g.status === 'end').length;
+    const opening = parseSchedule(openingFeed, agendaContext(pool, calendar.games)).filter(g => g.round === 1);
+    const known = opening.filter(g => g.a !== null && g.b !== null).length;
+    console.log(input.teams.length + ' candidatos com forças · ' + settled + '/33 séries encerradas no S1 · ' +
+      known + '/8 confrontos identificados na abertura do S2.');
+    if (settled < 33 || known < 8) { console.log('Aguardando confirmação da PGL.'); return; }
+  }
   const result = prepareEdition(input, openingFeed, lastFeed);
   if (action === '--install') {
-    const path = new URL('../dist/data/edition-s2.json', import.meta.url);
-    const existing = await readJson(path);
+    const path = editionPath;
     if (existing && JSON.stringify(existing) !== JSON.stringify(result))
       throw Error('A edição publicada é imutável. Revise o procedimento antes de trocar dados dos cartões.');
     if (!existing) {
+      if (Date.parse(result.cutoff) > Date.now()) throw Error('O corte dos dados ainda está no futuro.');
       if (Date.now() >= Date.parse(result.startsAt) - 3600000 || result.games.some(g => g.status !== 'upcoming'))
         throw Error('O prazo da fase precisa estar aberto para instalar a primeira edição.');
       const temp = new URL('edition-s2-' + randomUUID() + '.tmp', path);

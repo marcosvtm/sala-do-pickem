@@ -128,7 +128,7 @@ button:disabled {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  margin: 26px 0 20px;
+  margin: 26px 0 var(--hero-bottom-gap, 20px);
   border-radius: 14px;
   border: 1px solid #3a4445;
   min-height: 218px;
@@ -1028,8 +1028,9 @@ dialog::backdrop {
     padding: 7px 9px;
     font-size: 0.82rem;
   }
+  :root { --hero-bottom-gap: 14px; }
   .hero {
-    margin: 14px 0;
+    margin: 14px 0 var(--hero-bottom-gap);
     min-height: 0;
   }
   .hero-copy {
@@ -1499,6 +1500,9 @@ html:has(#homePanels) { scrollbar-gutter: stable; }
   border: 1px solid var(--line);
   border-radius: 9px;
   text-align: left;
+}
+#modelGuides {
+  margin-block-start: var(--hero-bottom-gap, 20px);
 }
 .model-guide {
   padding-inline: clamp(14px, 2vw, 24px);

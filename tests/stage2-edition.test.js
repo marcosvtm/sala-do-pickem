@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { prepareEdition, advancingSeeds } from '../scripts/prepare-stage2-edition.js';
+import { spawnSync } from 'node:child_process';
+import { prepareEdition, advancingSeeds, ratePool } from '../scripts/prepare-stage2-edition.js';
 import { rehearsal, fixtureRows } from './fixtures/stage2.js';
 import { createSwissResultReader, emptyLocks } from '../server/results.js';
 import { openDb } from '../scripts/local-db.js';
@@ -57,4 +58,31 @@ test('Stage 2 reads its own official schedule and settles its worker results ind
     assert.equal(exact.snapshot().histograms.vrs.slice(5).reduce((sum, value) => sum + value, 0), 1);
     assert.deepEqual(sample.snapshot().histograms.vrs, exact.snapshot().histograms.vrs);
   } finally { db.sqlite.close(); }
+});
+
+test('the rated candidate pool incorporates only settled S1 series and detects stale form at installation', t => {
+  const interpreter = process.env.STAGE2_PYTHON || (process.platform === 'win32' ? 'py' : 'python3');
+  if (spawnSync(interpreter, ['--version']).status !== 0) return t.skip('Python is needed for the historical replay');
+  const { first, second } = rehearsal();
+  const cutoff = Date.parse('2026-11-27T15:00:00Z');
+  const beforeFinal = structuredClone(first);
+  beforeFinal.at(-1).status = 'live';
+  const pending = ratePool(beforeFinal, cutoff);
+  const complete = ratePool(first, cutoff);
+  assert.equal(complete.teams.length, 24);
+  const finalist = first.at(-1).leftTeamKey;
+  const before = pending.teams.find(team => team.id === finalist);
+  const after = complete.teams.find(team => team.id === finalist);
+  assert.equal(after.formEvidence.series, before.formEvidence.series + 1);
+  assert(after.formElo > before.formElo);
+  assert.deepEqual(complete.teams[0], pending.teams[0]); // An invited team did not play this series.
+  assert.throws(() => prepareEdition(pending, second, first), /desatualizada/);
+  const edition = prepareEdition(complete, second, first);
+  assert.equal(edition.teams.length, 16);
+  assert.equal(edition.formCoverage, 'history-plus-stage1');
+  const state = { ...newDraft(edition.id), model: 'vrs', card: Array.from({ length: 10 }, (_, i) => i) };
+  const simulation = sampleRun(edition.teams, state, ['vrs', 'hltv', 'elo']);
+  simulation.next();
+  for (const histogram of Object.values(simulation.snapshot().histograms))
+    assert.equal(histogram.reduce((sum, p) => sum + p, 0), 1);
 });

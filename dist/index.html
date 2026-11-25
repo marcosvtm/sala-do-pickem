@@ -330,6 +330,7 @@
               série só conta como inter-regional se ambas as regiões eram
               conhecidas e diferentes.
             </p>
+            <p id="formScope" hidden></p>
             <div class="form-history">
               <table>
                 <caption>
@@ -456,6 +457,10 @@
                   ><span>Participação</span>
                 </div>
                 <div id="mixControls"></div>
+                <div id="pendingStudyMix" hidden>
+                  <p class="hint">Esta mistura inclui o Modelo IA, cujo estudo ainda está em preparação. Para usar os outros modelos agora, zere o peso da IA nesta cópia.</p>
+                  <button type="button" class="outline" id="omitPendingStudy">Zerar peso da IA nesta cópia</button>
+                </div>
                 <p class="hint" id="emptyMix" hidden>
                   Todos os pesos estão zerados. Cada equipe tem 50% de chance em
                   qualquer confronto.
