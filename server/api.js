@@ -7,7 +7,7 @@ import {
   personalSettings,
 } from '../dist/js/state.js';
 import { scoredCardsSql, swissBuckets, majorRanking } from './standings.js';
-import { LEGACY_STAGE_ID, calendarPreview, findStage, navigationCatalog, stageInfo } from './stages.js';
+import { LEGACY_STAGE_ID, calendarPreview, findStage, navigationCatalog, readStageInfo } from './stages.js';
 
 const json = (body, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -100,7 +100,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer
   if (requested.length > 1) return failure('Informe apenas uma fase.', 400);
   const stage = findStage(requested[0] ?? LEGACY_STAGE_ID);
   if (!stage) return failure('Fase não encontrada.', 404);
-  const info = stageInfo(stage, now, pausedStage);
+  const info = await readStageInfo(stage, now, pausedStage, db);
   if (url.pathname === '/api/stage/participants' && req.method === 'GET')
     return json(await participantDirectory(db, stage.id));
   if (url.pathname === '/api/stage' && req.method === 'GET')

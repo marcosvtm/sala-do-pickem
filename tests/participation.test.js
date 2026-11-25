@@ -11,7 +11,7 @@ const [first, second] = majorPhases;
 test('an original receipt recovers the same participant across stages and devices without sharing edit access', async () => {
   const db = openDb();
   const s2 = findStage(second.id);
-  const now = findStage(first.id).closesAt - 1000;
+  let now = findStage(first.id).closesAt - 1000;
   const live = async () => ({ locks: Array(33).fill(0), stale: false });
   const keys = { first: randomUUID(), second: randomUUID() };
   const ids = { first: randomUUID(), second: randomUUID() };
@@ -40,6 +40,7 @@ test('an original receipt recovers the same participant across stages and device
     assert.equal((await query('cards/' + ids.first, 'DELETE', { 'X-Major-Code': code }, { revision: 1 })).status, 403);
 
     // Rehearse a confirmed second stage only in this isolated database.
+    now = s2.closesAt - 60000;
     s2.rosterConfirmed = true;
     s2.readResults = live;
     const route = 'cards?stage=' + second.id;
@@ -102,6 +103,7 @@ test('choosing a public participant links a new stage without granting edit acce
     assert.equal((await directory()).participants.length, 2);
     assert.deepEqual((await directory()).participants.find(p => p.id === old.id), { id: old.id, nick: 'mr.K', cardId: null });
 
+    now = stage.closesAt - 60000;
     stage.rosterConfirmed = true;
     stage.readResults = async () => ({ locks: Array(33).fill(-1), stale: false });
     stage.editionVersion = 'ensaio-de-participacao';

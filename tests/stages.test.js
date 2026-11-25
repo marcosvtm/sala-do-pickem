@@ -29,6 +29,37 @@ test('phase badges distinguish confirmed live play, a break, the pick deadline a
     [['future', '28/11'], ['future', '02/12'], ['future', '10/12']]);
 });
 
+test('pick windows follow the last scheduled MD3 plus three hours and require a confirmed roster', async () => {
+  const at = Date.parse('2026-11-27T10:00:00-04:00');
+  const dates = stageCatalog(at).stages.map(stage => stage.opensNotBefore);
+  assert.deepEqual(dates, [null, at, Date.parse('2026-12-01T10:00:00-04:00'), Date.parse('2026-12-06T10:00:00-04:00')]);
+  const phase = findStage(secondId);
+  const db = openDb();
+  const original = phase.readResults;
+  try {
+    const delayed = at + 90 * 60000;
+    const games = [1, 2, 3].map(slot => ({ round: 5, bo: 3, slot, at: delayed - (6 - slot) * 3600000 }));
+    db.sqlite.prepare('INSERT INTO stage_results(stage,locks,schedule,checked,attempted) VALUES(?,?,?,1,1)')
+      .run(stageOne.id, JSON.stringify(Array(33).fill(-1)), JSON.stringify({ games }));
+    const detail = now => cardsApi(request('stage?stage=' + secondId), db, now).then(response => response.json());
+    assert.equal((await detail(delayed + 1)).status, 'preparing');
+    phase.rosterConfirmed = true;
+    phase.readResults = async () => ({ locks: Array(33).fill(-1) });
+    const catalog = await (await cardsApi(request('stages'), db, at)).json();
+    assert.equal(catalog.stages[1].opensNotBefore, delayed);
+    assert.equal((await detail(delayed - 1)).picksOpen, false);
+    const early = await cardsApi(new Request('https://example.org/api/cards?stage=' + secondId, { method: 'POST' }), db, delayed - 1);
+    assert.equal(early.status, 409);
+    assert.equal((await detail(delayed)).picksOpen, true);
+    assert.equal((await detail(phase.closesAt)).status, 'locked');
+  } finally {
+    phase.rosterConfirmed = false;
+    if (original) phase.readResults = original;
+    else delete phase.readResults;
+    db.sqlite.close();
+  }
+});
+
 test('copying a model carries adjustments by PGL id, including legacy logo ids, with fresh arrays', () => {
   const model = newDraft(stageOne.id);
   model.trust[2] = 45;

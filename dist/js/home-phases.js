@@ -7,7 +7,7 @@ const dateTime = new Intl.DateTimeFormat('pt-BR', {
   hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
 });
 
-function preparing(phase, info, template) {
+function preparing(phase, template, deadlineTemplate) {
   const dashboard = template.content.firstElementChild.cloneNode(true);
   const playoffs = phase.format === 'bracket';
   const second = phase.key === 'stage-2';
@@ -20,13 +20,19 @@ function preparing(phase, info, template) {
   dashboard.querySelector('[data-model-status]').textContent = playoffs
     ? 'Os modelos dos playoffs estarão disponíveis quando a chave estiver definida.'
     : 'A simulação aguarda as equipes e os modelos do ' + phase.name + '.';
-  const deadline = document.createElement('div');
-  deadline.className = 'deadline';
-  const title = document.createElement('span');
-  title.textContent = 'Prazo para salvar os picks';
-  const time = document.createElement('small');
-  time.textContent = info?.closesAt ? 'Previsto para ' + dateTime.format(info.closesAt) + ' (UTC-4)' : 'A confirmar';
-  deadline.append(title, time);
+  const deadline = deadlineTemplate.cloneNode(true);
+  deadline.querySelector('#countdown').hidden = true;
+  deadline.querySelector('[data-waiting-clock]').removeAttribute('hidden');
+  const time = deadline.querySelector('small');
+  function updateDeadline(info, now) {
+    const at = info?.opensNotBefore;
+    const text = !at ? 'Abertura a confirmar' : now < at
+      ? 'Previsto para ' + dateTime.format(at) + ' (UTC-4)'
+      : 'Aguardando confirmação da fase';
+    if (time.textContent !== text) time.textContent = text;
+    deadline.title = 'Os picks abrem após a confirmação das equipes e dos confrontos' +
+      (at ? ', a partir de ' + dateTime.format(at) + ' (UTC-4).' : '.');
+  }
   if (second) {
     fetch(phasePath('/api/stage', phase.id), { signal: AbortSignal.timeout(5000) })
       .then(response => response.ok ? response.json() : null)
@@ -37,7 +43,7 @@ function preparing(phase, info, template) {
         invites.hidden = false;
       }).catch(() => {});
   }
-  return { dashboard, deadline, ready: false };
+  return { dashboard, deadline, ready: false, updateDeadline };
 }
 
 // Each Swiss edition owns its controls and callbacks, even when a different phase is visible.
@@ -113,7 +119,10 @@ export function bindHomePhases(initial, catalog) {
     const info = picker.info(phase);
     const ready = phase === majorPhases[0] ||
       Boolean(phase.rosterUrl && info?.rosterConfirmed && info.status !== 'preparing');
-    if (phase === current && mounted?.ready === ready) return;
+    if (phase === current && mounted?.ready === ready) {
+      mounted.updateDeadline?.(info, picker.now());
+      return;
+    }
     mounted?.controls?.pause();
     current = phase;
     picker.select(phase);
@@ -134,8 +143,9 @@ export function bindHomePhases(initial, catalog) {
         summaries.set(phase, view.agenda);
       }
     } else {
-      if (!pending.has(phase)) pending.set(phase, preparing(phase, info, template));
+      if (!pending.has(phase)) pending.set(phase, preparing(phase, template, templates.deadline));
       view = pending.get(phase);
+      view.updateDeadline(info, picker.now());
     }
     mounted = view;
     for (const [p, agenda] of summaries) agenda.open = p === phase;

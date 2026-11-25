@@ -1,3 +1,4 @@
+import stageOneSchedule from '../dist/data/schedule.json' with { type: 'json' };
 import stageOne from '../dist/data/stage.json' with { type: 'json' };
 import stageTwoInvites from '../dist/data/stage2-invites.json' with { type: 'json' };
 import stageTwoSchedule from '../dist/data/stage2-schedule.json' with { type: 'json' };
@@ -13,11 +14,19 @@ const localStartDay = new Intl.DateTimeFormat('pt-BR', {
 });
 const stageTwoStart = stageTwoEdition ? Date.parse(stageTwoEdition.startsAt)
   : Math.min(...stageTwoSchedule.games.map((game) => game.at));
+const estimatedMd3DurationMs = 3 * 60 * 60 * 1000;
+
+function lastSwissSeries(games) {
+  const finals = games?.filter(game => game.round === 5 && game.bo === 3 && Number.isFinite(game.at));
+  return finals?.length === 3 ? Math.max(...finals.map(game => game.at)) : null;
+}
+
 const phases = [
   {
     id: LEGACY_STAGE_ID,
     name: 'Stage 1',
     startsAt: START,
+    lastSeriesAt: lastSwissSeries(stageOneSchedule.games),
     closesAt: CLOSE,
     rosterConfirmed: true,
     source: SOURCE,
@@ -27,6 +36,7 @@ const phases = [
     id: 'sg26-s2-v1',
     name: 'Stage 2',
     startsAt: stageTwoStart,
+    lastSeriesAt: lastSwissSeries(stageTwoEdition?.games ?? stageTwoSchedule.games),
     closesAt: stageTwoStart - 60 * 60 * 1000,
     rosterConfirmed: Boolean(stageTwoEdition),
     ...(stageTwoEdition && {
@@ -38,20 +48,36 @@ const phases = [
     previewSchedule: stageTwoSchedule,
     invitedTeams: stageTwoInvites.teams,
   },
-  ...majorPhases.slice(2).map(({ id, name }) => ({ id, name, rosterConfirmed: false })),
+  {
+    id: majorPhases[2].id, name: majorPhases[2].name, rosterConfirmed: false,
+    // PGL groupStageEndpoint?stage=3, round 5 match 3, schedule checked on November 24.
+    lastSeriesAt: Date.parse('2026-12-06T19:00:00+08:00'),
+  },
+  { id: majorPhases[3].id, name: majorPhases[3].name, rosterConfirmed: false },
 ];
 
 export function findStage(id) {
   return phases.find((phase) => phase.id === id);
 }
 
-export function stageInfo(phase, now, pausedStage) {
+function stageInfo(phase, now, pausedStage, previousSchedule) {
+  const previous = phases[phases.indexOf(phase) - 1];
+  const lastStart = lastSwissSeries(previousSchedule?.games) ?? previous?.lastSeriesAt;
+  const opensNotBefore = lastStart == null ? null : lastStart + estimatedMd3DurationMs;
   const { id, name, startsAt, closesAt, rosterConfirmed, source } = phase;
-  const ready = rosterConfirmed && Boolean(phase.readResults);
+  const ready = rosterConfirmed && Boolean(phase.readResults) &&
+    (!previous || (opensNotBefore !== null && now >= opensNotBefore));
   const writesPaused = ready && now < closesAt && id === pausedStage;
   const picksOpen = ready && now < closesAt && !writesPaused;
   const status = !ready ? 'preparing' : writesPaused ? 'paused' : picksOpen ? 'open' : 'locked';
-  return { id, name, startsAt, closesAt, rosterConfirmed, source, picksOpen, writesPaused, status };
+  return { id, name, startsAt, closesAt, opensNotBefore, rosterConfirmed, source, picksOpen, writesPaused, status };
+}
+
+export async function readStageInfo(phase, now, pausedStage, db) {
+  const previous = phases[phases.indexOf(phase) - 1];
+  const row = previous && db ? await db.prepare('SELECT schedule FROM stage_results WHERE stage=?')
+    .bind(previous.id).first() : null;
+  return stageInfo(phase, now, pausedStage, row?.schedule && JSON.parse(row.schedule));
 }
 
 function displayStatus(info, completed, locks, schedule, now) {
@@ -68,11 +94,13 @@ function displayStatus(info, completed, locks, schedule, now) {
 }
 
 export function stageCatalog(now, snapshots = [], pausedStage) {
+  let previousSchedule;
   const stages = phases.map((phase, i) => {
-    const info = stageInfo(phase, now, pausedStage);
+    const info = stageInfo(phase, now, pausedStage, previousSchedule);
     const row = snapshots.find(snapshot => snapshot.stage === phase.id);
     const locks = row ? JSON.parse(row.locks) : [];
     const schedule = row?.schedule ? JSON.parse(row.schedule) : null;
+    previousSchedule = schedule;
     const completed = majorPhases[i].format === 'swiss' && locks.length === 33 &&
       locks.every(side => side === 0 || side === 1);
     const startDate = info.startsAt ? localStartDay.format(info.startsAt) : majorPhases[i].startDate;

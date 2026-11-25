@@ -1,5 +1,5 @@
 import { progress } from '../dist/js/progress.js';
-import { findStage, stageCatalog } from './stages.js';
+import { findStage, navigationCatalog } from './stages.js';
 
 export const scoredCardsSql = `SELECT id,nick,submitted,revision,settings,participant_id AS participantId,edit_hash IS NOT NULL AS hasEditKey,
   (SELECT count(*) FROM json_each(cards.settings,'$.card') p
@@ -37,7 +37,7 @@ export function overallStandings(cards) {
 }
 
 export async function majorRanking(db, now, fetcher, page, size) {
-  const { stages } = stageCatalog(now);
+  const { stages } = await navigationCatalog(db, now);
   const cards = [];
   let stale = false;
   for (const phase of stages.filter(p => p.status !== 'preparing')) {

@@ -92,6 +92,7 @@ export function bindPhasePickers(selected, initialCatalog, pickers = document.qu
         else item.tab.removeAttribute('aria-current');
       }
     },
+    now: () => Number.isFinite(catalog?.serverTime) ? catalog.serverTime + (Date.now() - lastSuccess) : Date.now(),
     info: phase => catalog?.stages.find(stage => stage.id === phase.id),
   };
 }

@@ -1366,6 +1366,7 @@ nav a {
 .agenda {
   margin-top: 18px;
 }
+html:has(#homePanels) { scrollbar-gutter: stable; }
 .hero-home {
   --banner-glass: rgb(12 18 22 / 34%);
   display: flex;
@@ -1397,18 +1398,23 @@ nav a {
   border: 1px solid #64725d;
   border-radius: 9px;
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: minmax(0, auto) auto;
+  grid-template-areas: 'label status' 'date status';
   align-items: center;
   gap: 0 12px;
 }
+.deadline > small { grid-area: date; }
 .deadline > span {
+  grid-area: label;
   font-weight: 600;
   font-size: 0.84rem;
   color: #dce6d8;
 }
 .deadline strong {
-  grid-column: 2;
-  grid-row: 1 / 3;
+  grid-area: status;
+  display: grid;
+  place-items: center;
+  min-block-size: max(32px, 1.12em);
   font-size: clamp(1.6rem, 3vw, 2.5rem);
   letter-spacing: -0.05em;
   font-variant-numeric: tabular-nums;
@@ -2337,6 +2343,19 @@ nav a {
   .models-hero .hero-art { object-fit: cover; object-position: 75% center; }
   .hero-home .hero-art { object-position: 72% 20%; }
   .hero-home .deadline { margin-inline-start: clamp(10px, 3.5vw, 22px); }
+}
+@container (max-width: 26rem) {
+  .hero-home .deadline {
+    grid-template-areas: 'label status' 'date date';
+    column-gap: 8px;
+    padding-inline: 8px;
+    max-width: calc(100% - 20px);
+    margin-inline: 10px;
+  }
+  .deadline strong { font-size: 1.35rem; }
+}
+@container (max-width: 18rem) {
+  .hero-home .deadline { grid-template-rows: minmax(2.5rem, auto) auto; }
 }
 @container (max-width: 20.6rem) {
   .phase-picker[data-destination="/ranking"] { --phases: 4; }
