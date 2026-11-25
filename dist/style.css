@@ -1216,7 +1216,7 @@ dialog::backdrop {
   font: inherit;
   display: grid;
   grid-template-columns:
-    minmax(90px, 1.1fr) minmax(105px, 1fr) auto minmax(95px, auto)
+    minmax(90px, 1.1fr) minmax(105px, 1fr) 3.5rem 3.5rem minmax(95px, auto)
     1rem;
   gap: 12px;
   align-items: center;
@@ -1274,36 +1274,111 @@ dialog::backdrop {
   color: var(--muted);
   font-size: 0.9rem;
 }
-.wall-chance,
-.pick-outcome .hit {
+.wall-chance {
   color: var(--acid);
 }
-.pick-outcome .miss {
-  color: var(--red);
+.wall-tally {
+  display: grid;
+  justify-items: center;
+  gap: .12rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.wall-tally small {
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 500;
 }
 .wall-details {
-  padding: 0 0 16px;
+  padding-bottom: .7rem;
 }
-.wall-details h3 {
-  margin: 16px 0 6px;
+.wall-card-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .25rem 1.25rem;
+  margin-top: .55rem;
+  font-size: .9rem;
 }
+.wall-meta { margin: 0; }
 .wall-meta b {
   color: var(--text);
 }
-.pick-outcome {
+.pick-strip {
   display: grid;
-  grid-template-columns: 26px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 0.93rem;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 6fr) minmax(0, 2fr);
+  gap: 3px;
+  max-width: 44rem;
 }
-.pick-outcome img {
-  width: 23px;
-  height: 23px;
+.pick-group {
+  --group-ink: #9cdbbf;
+  --group-bg: #21332f;
+  background: var(--group-bg);
+  border-radius: 5px;
+  min-width: 0;
+  padding: .35rem 0 .45rem;
+  text-align: center;
+}
+.pick-group:nth-child(2) { --group-ink: var(--blue); --group-bg: #22313a; }
+.pick-group:last-child { --group-ink: var(--red); --group-bg: #34292e; }
+.pick-group h3 {
+  margin: 0 0 .3rem;
+  color: var(--group-ink);
+  font-size: .78rem;
+  line-height: 1.2;
+}
+.pick-marks {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+.pick-mark {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  min-width: 0;
+  gap: .2rem;
+}
+.pick-crest {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(84%, 2.45rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #141b20;
+}
+.pick-crest img {
+  width: 78%;
+  height: 78%;
   object-fit: contain;
 }
-.pick-outcome .open {
+.pick-mark[data-outcome='miss'] img { opacity: .52; filter: grayscale(1); }
+.pick-mark[data-outcome='hit'] .pick-crest::after,
+.pick-mark[data-outcome='miss'] .pick-crest::after {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  display: grid;
+  place-items: center;
+  width: 1.05em;
+  height: 1.05em;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #141b20;
+  font: 800 .82rem/1 system-ui, sans-serif;
+  content: '✓';
+  color: #10231b;
+  background: #88d8ad;
+}
+.pick-mark[data-outcome='miss'] .pick-crest::after {
+  content: '×';
+  color: #2d1014;
+  background: var(--red);
+}
+.pick-short {
+  font-size: .68rem;
+  font-weight: 650;
+  line-height: 1.15;
   color: var(--muted);
 }
 .wall-pager {
@@ -1335,25 +1410,25 @@ dialog::backdrop {
     font-size: 0.76rem;
   }
   .wall-summary {
-    grid-template-columns: minmax(90px, 1fr) auto auto;
-    gap: 1px 8px;
+    grid-template-columns: minmax(0, 1fr) auto auto .8rem;
+    gap: 3px 6px;
   }
   .wall-model {
     grid-row: 2;
     grid-column: 1;
   }
-  .wall-hits {
-    grid-row: 1;
-    grid-column: 2;
-  }
   .wall-chance {
     grid-row: 2;
-    grid-column: 2;
+    grid-column: 2 / 4;
+    text-align: center;
+    font-size: .82rem;
   }
   .wall-summary:after {
     grid-row: 1/3;
-    grid-column: 3;
+    grid-column: 4;
   }
+  .pick-strip { gap: 2px; }
+  .pick-mark[data-outcome] .pick-crest::after { font-size: .65rem; }
 }
 
 nav a[aria-current='page'] {
@@ -1775,6 +1850,7 @@ html:has(#homePanels) { scrollbar-gutter: stable; }
   object-fit: contain;
 }
 .bracket img[src$='/liquid.svg'],
+.pick-crest img[src$='/liquid.svg'],
 .scheduled-teams img[src$='/liquid.svg'] {
   filter: brightness(0) invert(0.94);
 }
@@ -2225,8 +2301,7 @@ html:has(#homePanels) { scrollbar-gutter: stable; }
 .phase-details span { color: var(--muted); }
 .stage-player { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .stage-player .rank-place { font-size: .83rem; flex-shrink: 0; }
-.card-model-info { margin-top: 12px; }
-.simulation-link { display: inline-block; margin-top: 12px; }
+.card-model-info { margin-top: .35rem; }
 .community-models { margin-block: 18px; }
 @media (max-width: 660px) {
   .broxas-table .stage-score { display: none; }

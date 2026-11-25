@@ -1,15 +1,12 @@
 import { tournament, ROUND_START } from './swiss.js';
 import { updateLock } from './state.js';
 import { matchLink } from './schedule.js';
+import { teamMark } from './team-mark.js';
 
 const pairingKey = (round, a, b) => [round, Math.min(a, b), Math.max(a, b)].join('/');
 const kickoffTime = new Intl.DateTimeFormat('pt-BR', {
   timeZone: 'America/Cuiaba', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
 });
-const bracketMarks = {
-  'gosh.svg': 'gosh-mark.svg',
-  '100_thieves.svg': '100_thieves.svg#_100_THIEVES',
-};
 
 export function kickoffCountdown(at, now) {
   const total = Math.max(0, Math.ceil((at - now) / 1000));
@@ -137,8 +134,7 @@ export function bindBracket(teams, getLocks, onChange, $) {
     previousTap;
   function logo(id, alt = '') {
     const img = new Image();
-    const file = teams[id].logo;
-    img.src = '/assets/' + (bracketMarks[file] ?? file);
+    img.src = teamMark(teams[id].logo);
     img.alt = alt;
     return img;
   }

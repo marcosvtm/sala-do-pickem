@@ -3,6 +3,7 @@ import { phasePath } from './major-phases.js';
 import { progress, pickStatus, fixtureBrier } from './progress.js';
 import { shareButton } from './share.js';
 import { editKey, forgetCard } from './card-access.js';
+import { teamMark } from './team-mark.js';
 const node = (tag, text, cls) => {
   const el = document.createElement(tag);
   if (text !== undefined) el.textContent = text;
@@ -29,6 +30,44 @@ const date = (ms) =>
     minute: '2-digit',
     timeZone: 'America/Cuiaba',
   }).format(ms);
+
+const pickGroups = [
+  { label: '3–0', start: 0, end: 2 },
+  { label: '3–1 / 3–2', start: 2, end: 8 },
+  { label: '0–3', start: 8, end: 10 },
+];
+const pickLabels = { hit: 'Acertou', miss: 'Errou', open: 'Em aberto' };
+
+function fillPickStrip(strip, card, teams, outcomes) {
+  for (const { label, start, end } of pickGroups) {
+    const group = node('div', undefined, 'pick-group');
+    const marks = node('div', undefined, 'pick-marks');
+    group.append(node('h3', label), marks);
+    for (let i = start; i < end; i++) {
+      const team = teams[card[i]];
+      const status = outcomes[i];
+      const pick = node('span', undefined, 'pick-mark');
+      pick.dataset.outcome = status;
+      pick.title = team.name + ' · ' + pickLabels[status];
+      pick.setAttribute('role', 'img');
+      pick.setAttribute('aria-label', pick.title);
+      const crest = node('span', undefined, 'pick-crest');
+      const img = new Image();
+      img.alt = '';
+      img.src = teamMark(team.logo);
+      crest.append(img);
+      pick.append(crest, node('span', team.short, 'pick-short'));
+      marks.append(pick);
+    }
+    strip.append(group);
+  }
+}
+
+function tally(label, value) {
+  const metric = node('span', undefined, 'wall-tally');
+  metric.append(node('small', label), ' ', node('b', value + '/10'));
+  return metric;
+}
 export function loadStageBoard(phase, root, active) {
   const $ = id => root.querySelector('#' + CSS.escape(id));
   let focusId = '', scrolled = false, ready = false;
@@ -185,9 +224,10 @@ export function loadStageBoard(phase, root, active) {
         modelName(c.settings.model, c.nick, c.settings.formVersion ?? 1),
         'wall-model'
       );
-      const hits = node('b', c.hits + '/10', 'wall-hits'),
-        chance = node('span', '', 'wall-chance');
-      head.append(who, label, hits, chance);
+      const outcomes = c.settings.card.map((id, i) => pickStatus(i, teams[id]));
+      const alive = outcomes.filter(status => status !== 'miss').length;
+      const chance = node('span', '', 'wall-chance');
+      head.append(who, label, tally('Vivos', alive), tally('Acertos', c.hits), chance);
       const initial = node('b', '…'),
         current = node('b', '…');
       const info = node('p', undefined, 'wall-meta');
@@ -198,7 +238,10 @@ export function loadStageBoard(phase, root, active) {
         current
       );
       const details = node('div', undefined, 'wall-details');
-      details.append(info);
+      const picks = node('div', undefined, 'pick-strip');
+      const footer = node('div', undefined, 'wall-card-meta');
+      footer.append(info);
+      details.append(picks, footer);
       if (!c.hasEditKey && !isLocked()) {
         details.append(
           node(
@@ -208,34 +251,8 @@ export function loadStageBoard(phase, root, active) {
           )
         );
       }
-      const picks = node('div');
-      details.append(picks);
-      function buildPickRows() {
-        for (const [i, id] of c.settings.card.entries()) {
-          if ([0, 2, 8].includes(i))
-            picks.append(
-              node('h3', i === 0 ? '3–0' : i === 2 ? '3–1 / 3–2' : '0–3')
-            );
-          const status = pickStatus(i, teams[id]),
-            row = node('div', undefined, 'pick-outcome');
-          const img = new Image();
-          img.alt = '';
-          img.src = '/assets/' + stage.teams[id].logo;
-          row.append(
-            img,
-            node('span', stage.teams[id].name),
-            node(
-              'b',
-              { hit: 'Acertou', miss: 'Errou', open: 'Em aberto' }[status],
-              status
-            )
-          );
-          picks.append(row);
-        }
-      }
       const canEstimate = modelAvailable(stage.teams, c.settings.model, c.settings, stage.modelStatus);
-      const undecided = c.settings.card.filter((id, i) => pickStatus(i, teams[id]) === 'open').length;
-      const certain = c.hits >= 5 ? 1 : c.hits + undecided < 5 ? 0 : null;
+      const certain = c.hits >= 5 ? 1 : alive < 5 ? 0 : null;
       function paintCurrent(value) {
         current.textContent = value === null ? 'Indisponível' : pct(value);
         chance.textContent = value === null ? 'Chance indisponível' : pct(value) + ' de 5+';
@@ -297,14 +314,14 @@ export function loadStageBoard(phase, root, active) {
       };
       const simulate = node('a', 'Simular este cartão', 'simulation-link');
       simulate.href = phasePath('/?simular=' + c.id + '#resultado', stage.id);
-      if (isLocked()) details.append(simulate);
+      if (isLocked()) footer.append(simulate);
       details.append(modelInfo);
       details.id = 'picks-' + c.id;
       head.setAttribute('aria-controls', details.id);
       function expand(open) {
         head.setAttribute('aria-expanded', String(open));
         details.hidden = !open;
-        if (open && !picks.childElementCount) buildPickRows();
+        if (open && !picks.childElementCount) fillPickStrip(picks, c.settings.card, stage.teams, outcomes);
         if (open && canEstimate && !requested) {
           requested = true;
           estimate(c, c.settings.locks, value => {
