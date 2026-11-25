@@ -2295,15 +2295,25 @@ html:has(#homePanels) { scrollbar-gutter: stable; }
   font-variant-numeric: tabular-nums;
 }
 .phase-picker [aria-current] .phase-status { color: #3b482e; }
-.phase-status[data-state="live"] { color: #acfc8b; font-weight: 750; }
-.phase-picker [aria-current] .phase-status[data-state="live"] { color: #285d2c; }
+.phase-picker .phase-status[data-state="live"] {
+  gap: .32em;
+  padding: .13em .45em;
+  border-radius: 1em;
+  background: #202719;
+  color: var(--acid);
+  font-size: .7rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.015em;
+  text-shadow: none;
+}
 .phase-status[data-state="live"]::before {
   content: '';
-  width: .48em;
-  height: .48em;
+  width: .5em;
+  height: .5em;
   background: currentColor;
   border-radius: 50%;
-  box-shadow: 0 0 .35em currentColor;
+  box-shadow: 0 0 .32em rgb(217 245 87 / 75%);
 }
 .phase-picker a[aria-disabled="true"] { color: #b4beb9; cursor: default; }
 .phase-status[data-state="locked"]::before {
