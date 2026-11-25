@@ -5,7 +5,6 @@ import { matchLink } from './schedule.js';
 import { hltvMatchLink } from './hltv-link.js';
 import { progress } from './progress.js';
 
-const $ = (id) => document.getElementById(id);
 const percent = new Intl.NumberFormat('pt-BR', {
   style: 'percent',
   minimumFractionDigits: 1,
@@ -34,7 +33,7 @@ function element(tag, className, text) {
   return item;
 }
 
-export function bindEditor(teams, current, onEdit) {
+export function bindEditor(teams, current, onEdit, $) {
   const list = $('strengthList'),
     rows = [],
     fixed = {},
@@ -282,7 +281,7 @@ export function bindEditor(teams, current, onEdit) {
   const renderMixer = bindMixer(current, (editing) => {
     render();
     onEdit(editing);
-  });
+  }, $, Boolean(fixed.study));
   formatControl.onchange = () => render();
   $('resetTeams').onclick = () => {
     const { trust, bonus } = newDraft();
@@ -296,6 +295,7 @@ export function bindEditor(teams, current, onEdit) {
     delete s.base;
     delete s.weight;
     delete s.description;
+    if (!fixed.study) weights.study = 0;
     Object.assign(s, { weights, trust, bonus });
     render();
     onEdit(false);

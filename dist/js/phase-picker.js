@@ -20,8 +20,66 @@ export async function readStageCatalog() {
   return null;
 }
 
-export function bindPhasePickers(selected, initialCatalog, pickers = document.querySelectorAll('.phase-picker')) {
-  const tabs = [];
+function sectionAvailable(phase, stage) {
+  return phase === majorPhases[0] || Boolean(phase.rosterUrl && stage?.rosterConfirmed &&
+    (stage.completed || ['open', 'locked', 'paused'].includes(stage.status)));
+}
+
+export function bindSectionNavigation(navs, catalog, initial, show) {
+  const picker = bindPhasePickers(initial, catalog, navs, update);
+  const overall = navs[0].dataset.destination === '/ranking';
+  const notice = document.createElement('p');
+  notice.className = 'hint';
+  notice.role = 'status';
+  notice.hidden = true;
+  let selected, currentAddress;
+  function update() {
+    const url = new URL(location.href);
+    const path = url.pathname.replace(/\/$/, '');
+    const nav = navs.find(item => item.dataset.destination === path);
+    if (!nav) return;
+    if (nav.nextElementSibling !== notice) nav.after(notice);
+    const key = url.searchParams.get('fase') ||
+      (history.state?.section === path && history.state.phase);
+    const requested = majorPhases.find(p => p.key === key) || (key === 'geral' ? null : initial);
+    const locked = requested && !sectionAvailable(requested, picker.info(requested));
+    const fallback = overall ? null : majorPhases.findLast(p => sectionAvailable(p, picker.info(p)));
+    notice.hidden = !locked;
+    if (locked) notice.textContent = requested.name + ' em preparação. Exibindo ' + (fallback?.name || 'o ranking geral') + '.';
+    const phase = locked ? fallback : requested;
+    const address = locked ? new URL(path, url.origin) : url;
+    if (phase === selected && address.href === currentAddress) return;
+    selected = phase;
+    currentAddress = address.href;
+    picker.select(phase);
+    show(phase, address);
+  }
+  document.addEventListener('click', event => {
+    const link = event.target.closest('a[href]');
+    if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey ||
+        event.shiftKey || event.altKey) return;
+    const isPhaseTab = navs.some(nav => nav.contains(link));
+    const cardLink = overall && link.hasAttribute('data-ranking-card');
+    const sectionLink = link.closest('header') && navs.some(nav => nav.dataset.destination === link.pathname);
+    if (!isPhaseTab && !cardLink && !sectionLink) return;
+    const target = new URL(link.href);
+    const path = target.pathname;
+    const key = target.searchParams.get('fase') || 'geral';
+    const next = majorPhases.find(p => p.key === key);
+    if (cardLink && (!next || !sectionAvailable(next, picker.info(next)))) return;
+    event.preventDefault();
+    if (isPhaseTab && notice.hidden && key === (selected?.key || 'geral')) return;
+    history.pushState({ section: path, phase: key }, '', isPhaseTab ? path : target);
+    update();
+    if (sectionLink) window.scrollTo(0, 0);
+  });
+  window.addEventListener('popstate', update);
+  window.addEventListener('hashchange', update);
+  update();
+}
+
+export function bindPhasePickers(selected, initialCatalog, pickers = document.querySelectorAll('.phase-picker'), onUpdate) {
+  const tabs = [], generals = [];
   for (const nav of pickers) {
     const path = nav.dataset.destination;
     if (path === '/ranking') {
@@ -31,6 +89,7 @@ export function bindPhasePickers(selected, initialCatalog, pickers = document.qu
       general.className = 'all-phases';
       if (!selected) general.setAttribute('aria-current', 'page');
       nav.append(general);
+      generals.push(general);
     }
     for (const phase of majorPhases) {
       const tab = document.createElement('a');
@@ -42,7 +101,7 @@ export function bindPhasePickers(selected, initialCatalog, pickers = document.qu
       tab.append(name, badge);
       if (phase === selected) tab.setAttribute('aria-current', 'page');
       nav.append(tab);
-      tabs.push({ tab, badge, phase });
+      tabs.push({ tab, badge, phase, path, restricted: path !== '/' });
     }
   }
 
@@ -50,8 +109,21 @@ export function bindPhasePickers(selected, initialCatalog, pickers = document.qu
   let lastSuccess = catalog ? Date.now() : 0;
   let busy = false;
   function render(fresh) {
-    for (const { tab, badge, phase } of tabs) {
+    for (const { tab, badge, phase, path, restricted } of tabs) {
       const stage = catalog?.stages.find(item => item.id === phase.id);
+      if (restricted && !sectionAvailable(phase, stage)) {
+        tab.removeAttribute('href');
+        tab.setAttribute('role', 'link');
+        tab.setAttribute('aria-disabled', 'true');
+        badge.dataset.state = 'locked';
+        badge.textContent = stage?.startDate || phase.startDate;
+        tab.title = phase.name + ' em preparação · Início previsto em ' + badge.textContent;
+        tab.setAttribute('aria-label', tab.title);
+        continue;
+      }
+      tab.href = path + '?fase=' + phase.key;
+      tab.removeAttribute('role');
+      tab.removeAttribute('aria-disabled');
       let state = stage?.displayStatus;
       if (!fresh && state === 'live') state = 'in-progress';
       if (!fresh && state === 'picks-open') state = undefined;
@@ -77,6 +149,7 @@ export function bindPhasePickers(selected, initialCatalog, pickers = document.qu
         if (info) document.dispatchEvent(new CustomEvent('phase-card-writes', { detail: info }));
       }
       render(Boolean(updated));
+      if (updated) onUpdate?.();
     } finally {
       busy = false;
     }
@@ -87,6 +160,10 @@ export function bindPhasePickers(selected, initialCatalog, pickers = document.qu
   return {
     select(phase) {
       selected = phase;
+      for (const general of generals) {
+        if (!phase) general.setAttribute('aria-current', 'page');
+        else general.removeAttribute('aria-current');
+      }
       for (const item of tabs) {
         if (item.phase === phase) item.tab.setAttribute('aria-current', 'page');
         else item.tab.removeAttribute('aria-current');

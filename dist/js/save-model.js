@@ -23,15 +23,15 @@ export function savedModelIdentity(stage, current) {
   };
 }
 
-export function bindModelSaving(stage, current, onName) {
-  const form = document.getElementById('publishModel'),
+export function bindModelSaving(stage, current, onName, $) {
+  const form = $('publishModel'),
     nick = form.querySelector('#modelNick');
-  const button = document.getElementById('publishButton'),
-    message = document.getElementById('publishedModel'),
-    share = document.getElementById('modelShare');
+  const button = $('publishButton'),
+    message = $('publishedModel'),
+    share = $('modelShare');
   const identity = savedModelIdentity(stage, current);
   let attempt, busy = false, displayed;
-  nick.value = identity.receipt?.nick || document.getElementById('nick').value;
+  nick.value = identity.receipt?.nick || $('nick').value;
   function refresh() {
     const saved = identity.nameFor(nick.value.trim());
     button.disabled = busy || !nick.value.trim() || Boolean(saved);
@@ -79,7 +79,7 @@ export function bindModelSaving(stage, current, onName) {
       if (!res.ok) throw Error(data.message || 'Falha ao salvar o modelo.');
       identity.remember({ id: data.id, nick: name, signature: sig });
       displayed = undefined;
-      document.dispatchEvent(new Event('model-published'));
+      document.dispatchEvent(new CustomEvent('model-published', { detail: stage.id }));
     } catch (err) {
       message.textContent = err.message || 'Tente novamente.';
     } finally {

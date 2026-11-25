@@ -3,7 +3,6 @@ import { MODELS, modelName, makeMatrix, modelAvailable } from './models.js';
 import { progress, fixtureBrier } from './progress.js';
 import { newDraft } from './state.js';
 import { shareButton } from './share.js';
-const $ = (id) => document.getElementById(id);
 const node = (tag, text, cls) => {
   const el = document.createElement(tag);
   if (text !== undefined) el.textContent = text;
@@ -25,63 +24,61 @@ const date = (ms) =>
     minute: '2-digit',
     timeZone: 'America/Cuiaba',
   }).format(ms);
-let modelsPage = 0,
-  loadingModels = false,
-  modelsVersion;
-async function refreshModels(stageId) {
-  if (loadingModels) return;
-  loadingModels = true;
-  try {
-    const res = await fetch(phasePath('/api/models?page=' + modelsPage, stageId), {
-      cache: 'no-store',
-    });
-    if (!res.ok) throw Error();
-    const data = await res.json(),
-      sig = JSON.stringify([modelsPage, data]);
-    if (sig !== modelsVersion) {
-      const rows = data.models.map((m) => {
-        const row = node('div', undefined, 'saved-model-row'),
-          link = node('a', modelName('custom', m.nick));
-        link.href = phasePath('/modelos?modelo=' + encodeURIComponent(m.id), stageId);
-        const info = node(
-          'span',
-          m.source === 'card' ? 'Salvo com o cartão' : 'Modelo publicado',
-          'hint'
-        );
-        info.append(' · ' + date(m.submitted * 1000) + ' (Cuiabá)');
-        const entry = node('div');
-        entry.append(link, info);
-        row.append(
-          entry,
-          shareButton(link.href, 'Compartilhar modelo de ' + m.nick)
-        );
-        return row;
+export function bindCommunityModels(stage, $) {
+  let modelsPage = 0,
+    loadingModels = false,
+    modelsVersion;
+  async function refreshModels(stageId) {
+    if (loadingModels) return;
+    loadingModels = true;
+    try {
+      const res = await fetch(phasePath('/api/models?page=' + modelsPage, stageId), {
+        cache: 'no-store',
       });
-      $('savedModels').replaceChildren(
-        ...(rows.length
-          ? rows
-          : [
-              node(
-                'p',
-                'Os modelos aparecem aqui quando alguém salva um modelo ou um cartão.',
-                'hint'
-              ),
-            ])
-      );
-      $('modelsPrev').hidden = !modelsPage;
-      $('modelsNext').hidden = !data.hasMore;
-      modelsVersion = sig;
+      if (!res.ok) throw Error();
+      const data = await res.json(),
+        sig = JSON.stringify([modelsPage, data]);
+      if (sig !== modelsVersion) {
+        const rows = data.models.map((m) => {
+          const row = node('div', undefined, 'saved-model-row'),
+            link = node('a', modelName('custom', m.nick));
+          link.href = phasePath('/modelos?modelo=' + encodeURIComponent(m.id), stageId);
+          const info = node(
+            'span',
+            m.source === 'card' ? 'Salvo com o cartão' : 'Modelo publicado',
+            'hint'
+          );
+          info.append(' · ' + date(m.submitted * 1000) + ' (Cuiabá)');
+          const entry = node('div');
+          entry.append(link, info);
+          row.append(
+            entry,
+            shareButton(link.href, 'Compartilhar modelo de ' + m.nick)
+          );
+          return row;
+        });
+        $('savedModels').replaceChildren(
+          ...(rows.length
+            ? rows
+            : [
+                node(
+                  'p',
+                  'Os modelos aparecem aqui quando alguém salva um modelo ou um cartão.',
+                  'hint'
+                ),
+              ])
+        );
+        $('modelsPrev').hidden = !modelsPage;
+        $('modelsNext').hidden = !data.hasMore;
+        modelsVersion = sig;
+      }
+    } catch {
+      if (!modelsVersion)
+        $('savedModels').textContent = 'Não foi possível carregar os modelos.';
+    } finally {
+      loadingModels = false;
     }
-  } catch {
-    if (!modelsVersion)
-      $('savedModels').textContent = 'Não foi possível carregar os modelos.';
-  } finally {
-    loadingModels = false;
   }
-}
-
-
-export function bindCommunityModels(stage) {
   const { teams } = stage;
   const refresh = () => refreshModels(stage.id);
   for (const [id, d] of [
@@ -116,7 +113,7 @@ export function bindCommunityModels(stage) {
     }
   }
   comparison.addEventListener('toggle', compare);
-  document.addEventListener('model-published', refresh);
+  document.addEventListener('model-published', ({ detail }) => { if (detail === stage.id) refresh(); });
   return {
     show: refresh,
     setLocks(locks) {

@@ -23,9 +23,10 @@ const number = (x) => x.toLocaleString('pt-BR');
 const option = (text, value) => new Option(text, value);
 const categories = ['3–0', '3–1 / 3–2', '0–3'];
 const category = (slot) => (slot < 2 ? 0 : slot < 8 ? 1 : 2);
-export async function startSwissEdition(edition, homeView) {
-  const $ = homeView?.get || (id => document.getElementById(id));
-  const entry = homeView?.entry || new URL(location.href);
+export async function startSwissEdition(edition, view) {
+  const homeView = view.path ? null : view;
+  const $ = view.get;
+  const entry = view.entry;
   let owner,
     publishedName,
     editor,
@@ -67,7 +68,7 @@ export async function startSwissEdition(edition, homeView) {
       }));
     if (res?.ok) editingCard = await res.json();
     if (!editingCard || editingCard.serverTime >= editingCard.closesAt) {
-      if (!homeView || homeView.active()) location.replace(phasePath('/ranking#' + encodeURIComponent(editId), stage.id));
+      if (view.active()) location.replace(phasePath('/ranking#' + encodeURIComponent(editId), stage.id));
       return;
     }
     $('editingTitle').textContent = 'Editando o cartão de ' + editingCard.nick;
@@ -142,7 +143,7 @@ export async function startSwissEdition(edition, homeView) {
       toast('Sugestão aplicada ao rascunho.');
     }, $
   );
-  let community;
+  let community, showPage;
   if (!homeView) {
     editor = bindEditor(
       stage.teams,
@@ -156,9 +157,9 @@ export async function startSwissEdition(edition, homeView) {
           refreshNames();
         else renderDuel();
         invalidate({ editing });
-      }
+      }, $
     );
-    community = bindCommunityModels(stage);
+    community = bindCommunityModels(stage, $);
     function applyPersonalSettings(settings) {
       delete state.weights;
       delete state.base;
@@ -172,8 +173,10 @@ export async function startSwissEdition(edition, homeView) {
       refreshNames();
       invalidate();
     }
-    bindPages(stage, applyPersonalSettings, community.show);
-    bindPreviousModels(stage, applyPersonalSettings);
+    showPage = bindPages(stage, applyPersonalSettings, view);
+    showPage(view.entry);
+    if (view.path === '/modelos') community.show();
+    bindPreviousModels(stage, applyPersonalSettings, $);
   } else {
     homeView.describe(stage);
   }
@@ -250,7 +253,7 @@ export async function startSwissEdition(edition, homeView) {
     modelSaving = bindModelSaving(stage, () => state, nick => {
       publishedName = nick;
       refreshNames();
-    });
+    }, $);
   }
   renderCard();
   renderSettings();
@@ -263,18 +266,16 @@ export async function startSwissEdition(edition, homeView) {
     () => {
       runHint();
       invalidate();
-    }
+    }, $
   );
   const feedReady = bindFeed(stage, bracket.setOfficial, (feed) => {
     bracket.setSchedule?.(feed);
     editor?.setSchedule(feed);
     if (feed.locks) community?.setLocks(feed.locks);
-    if (!homeView && feed.locks?.length === 33 && feed.locks.every(side => side === 0 || side === 1))
-      document.dispatchEvent(new Event('swiss-stage-completed'));
-  }, $, homeView?.followSchedule, homeView ? edition.key + '-' : '');
+  }, $, view.followSchedule || view.active, homeView ? edition.key + '-' : '');
   if (entry.hash === '#resultado' && !sharedSimulation) {
     requestAnimationFrame(() => {
-      if (homeView && !homeView.active()) return;
+      if (!view.active()) return;
       $('resultado').focus({ preventScroll: true });
       $('resultado').scrollIntoView({ block: 'start' });
     });
@@ -291,6 +292,8 @@ export async function startSwissEdition(edition, homeView) {
       }
     },
     resume() {
+      showPage?.(view.entry);
+      if (view.path === '/modelos') community.show();
       feedReady.then(refresh => refresh?.());
       if (!last && !worker) queuePreview();
     },
@@ -312,7 +315,7 @@ export async function startSwissEdition(edition, homeView) {
     } catch {
       /* Storage may be disabled. */
     }
-    if ((!homeView || homeView.active()) && location.hash.startsWith('#c='))
+    if (view.active() && location.hash.startsWith('#c='))
       history.replaceState(history.state, '', location.pathname + location.search);
   }
   function makeTile(teamId, cls, caption = '', tag = 'button') {
@@ -462,7 +465,7 @@ export async function startSwissEdition(edition, homeView) {
       state.model,
       nick,
       chooseModel,
-      state.formVersion
+      state.formVersion, $
     );
     renderDuel();
     renderEstimate();
@@ -549,7 +552,7 @@ export async function startSwissEdition(edition, homeView) {
       key,
       personalNick(),
       chooseModel,
-      state.formVersion,
+      state.formVersion, $,
       true
     );
     if (changed && (activeRun === 'exact' || last?.kind === 'exact'))
@@ -565,7 +568,7 @@ export async function startSwissEdition(edition, homeView) {
   }
   function queuePreview() {
     clearTimeout(delay);
-    if ((!homeView || homeView.active()) && !needsCard()) delay = setTimeout(() => start('preview'), 180);
+    if (view.active() && !needsCard()) delay = setTimeout(() => start('preview'), 180);
   }
   function invalidate({ editing = false } = {}) {
     refreshSuggestion?.();
@@ -585,7 +588,7 @@ export async function startSwissEdition(edition, homeView) {
   }
   function start(mode) {
     clearTimeout(delay);
-    if ((homeView && !homeView.active()) || needsCard()) {
+    if (!view.active() || needsCard()) {
       renderEstimate();
       return;
     }
@@ -658,8 +661,6 @@ export async function startSwissEdition(edition, homeView) {
       $('resultado').focus({ preventScroll: true });
       $('resultado').scrollIntoView({ block: 'start' });
     };
-    if (!homeView) window.addEventListener('hashchange', () => {
-      if (location.hash.startsWith('#c=')) location.reload();
-    });
+
   }
 }

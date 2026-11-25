@@ -7,11 +7,20 @@ export function renderCatalog(
   nick,
   choose,
   formVersion,
+  $,
   reopen = false
 ) {
-  const catalog = document.getElementById('catalog');
+  const catalog = $('catalog');
+  const descriptions = {};
+  if (formVersion === 1) descriptions.elo = 'Esta cópia usa o Elo anterior à revisão regional.';
+  if (catalog.dataset.studyPending === 'true') {
+    descriptions.study = 'O estudo desta fase aguarda a análise dos participantes e dos confrontos.';
+    descriptions.custom = 'Combine os modelos disponíveis e ajuste a força de cada equipe desta fase.';
+  } else if (catalog.dataset.studyVersion) {
+    descriptions.study = 'Usa as probabilidades de MD1 e MD3 do estudo específico desta fase.';
+  }
   for (const id of Object.keys(MODELS)) {
-    let button = document.getElementById('tile-' + id);
+    let button = $('tile-' + id);
     if (!button) {
       button = document.createElement('button');
       button.id = 'tile-' + id;
@@ -26,19 +35,16 @@ export function renderCatalog(
     }
     const [name, description, status] = button.children;
     name.textContent = modelName(id, nick, formVersion);
-    description.textContent =
-      id === 'elo' && formVersion === 1
-        ? 'Esta cópia usa o Elo anterior à revisão regional.'
-        : explanations[id];
+    description.textContent = descriptions[id] || explanations[id];
     button.setAttribute('aria-pressed', String(id === selected));
     button.disabled = id === 'study' && catalog.dataset.studyPending === 'true';
     status.textContent = button.disabled ? 'Estudo em preparação'
       : id === selected ? 'Em uso no cartão' : 'Usar no cartão';
   }
-  document.getElementById('legacyFormGuide').hidden = formVersion !== 1;
-  document.getElementById('revisedFormGuide').hidden = formVersion === 1;
+  $('legacyFormGuide').hidden = formVersion !== 1;
+  $('revisedFormGuide').hidden = formVersion === 1;
   if (reopen || catalog.dataset.selected !== selected) {
-    const guide = document.getElementById('guide-' + selected);
+    const guide = $('guide-' + selected);
     for (const other of guide.parentElement.querySelectorAll('details[open]'))
       if (other !== guide) other.open = false;
     if (
@@ -50,14 +56,19 @@ export function renderCatalog(
     catalog.dataset.selected = selected;
   }
 }
-export function bindPages(stage, apply, onModels) {
+export function bindPages(stage, apply, view) {
   const { teams } = stage;
-  const $ = (id) => document.getElementById(id);
+  const $ = view.get;
   const phase = majorPhases.find(p => p.id === stage.id);
   if (phase.key !== 'stage-1') {
     const when = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Cuiaba', dateStyle: 'short', timeStyle: 'short' });
     const cutoff = when.format(new Date(stage.cutoff)) + ' (Cuiabá)';
-    $('vrsEdition').textContent = 'ranking global usado no ' + phase.name;
+    const vrs = document.createElement('a');
+    vrs.href = stage.sources.vrs;
+    vrs.target = '_blank';
+    vrs.rel = 'noopener noreferrer';
+    vrs.textContent = 'ranking global usado no ' + phase.name;
+    $('vrsEdition').replaceChildren(vrs);
     $('formCutoff').textContent = cutoff;
     $('hltvPhase').textContent = 'o ' + phase.name;
     $('readingRanks').textContent = 'posições mundiais da edição desta fase';
@@ -69,6 +80,7 @@ export function bindPages(stage, apply, onModels) {
       when.format(new Date(stage.startsAt)) + ' (Cuiabá). Confira o fechamento do cartão no CS2.';
     const study = studyFor(phase.id);
     $('catalog').dataset.studyPending = String(!study);
+    if (study) $('catalog').dataset.studyVersion = study.version;
     const guide = $('guide-study'), summary = guide.querySelector('summary');
     const description = document.createElement('p');
     description.textContent = study
@@ -164,8 +176,8 @@ export function bindPages(stage, apply, onModels) {
       $('importCopy').hidden = false;
       $('importCopy').onclick = () => {
         apply(personalSettings(model));
-        history.replaceState(null, '', phasePath('/modelos', stage.id));
-        render();
+        history.replaceState({ ...history.state, section: '/modelos', phase: phase.key }, '', '/modelos');
+        show(new URL(location.href));
         $('guide-custom').open = true;
         $('modelos').scrollIntoView({ block: 'start' });
         $(model.weights || model.base ? 'mix-neutral' : 'startMix').focus({
@@ -178,63 +190,13 @@ export function bindPages(stage, apply, onModels) {
           'Não foi possível abrir este modelo. Confira o link e tente novamente.';
     }
   }
-  function render() {
-    const legacy = { '#jogos': '/partidas', '#modelos': '/modelos' };
-    if (legacy[location.hash])
-      history.replaceState(null, '', legacy[location.hash]);
-    const path = location.pathname.replace(/\/$/, '') || '/';
-    const id =
-      path === '/modelos' && new URLSearchParams(location.search).get('modelo');
-    for (const el of document.querySelectorAll('[data-page]'))
-      el.hidden = !el.dataset.page.split(' ').includes(path) || (el.id === 'importPanel' && !id);
-    for (const a of document.querySelectorAll('header a')) {
-      if (a.pathname === path) a.setAttribute('aria-current', 'page');
-      else a.removeAttribute('aria-current');
-    }
-    document.title =
-      ({
-        '/': "Pick'em dos Broxinhas",
-        '/partidas': 'Partidas',
-        '/modelos': 'Modelos',
-      }[path] || "Pick'em dos Broxinhas") + ' · Singapura 2026';
-    if (path === '/modelos') onModels();
-    if (id && id !== requested) {
+  function show(entry) {
+    const id = entry.searchParams.get('modelo');
+    $('importPanel').hidden = !id || view.path !== '/modelos';
+    if (id && view.path === '/modelos' && id !== requested) {
       showPublic(id);
-      $('importPanel').scrollIntoView({ block: 'start' });
+      if (view.active()) $('importPanel').scrollIntoView({ block: 'start' });
     } else if (!id) requested = null;
   }
-  function navigate(path) {
-    const params = new URLSearchParams(location.search);
-    const target = new URL(path, location.origin);
-    if (params.has('fase') || params.has('editar') || params.has('modelo') || params.has('simular'))
-      target.search = new URL(phasePath(path, stage.id), location.origin).search;
-    if (params.get('editar')) target.searchParams.set('editar', params.get('editar'));
-    path = target.pathname + target.search;
-    if (location.pathname + location.search + location.hash !== path)
-      history.pushState(null, '', path);
-    render();
-    window.scrollTo(0, 0);
-  }
-  document.addEventListener('click', (e) => {
-    const link = e.target.closest('a[href]');
-    if (
-      !link ||
-      e.defaultPrevented ||
-      e.button !== 0 ||
-      e.metaKey ||
-      e.ctrlKey ||
-      e.shiftKey ||
-      e.altKey ||
-      link.origin !== location.origin ||
-      !['/', '/partidas', '/modelos'].includes(link.pathname) ||
-      (link.pathname === '/') !== (location.pathname === '/') ||
-      link.search ||
-      link.hash
-    )
-      return;
-    e.preventDefault();
-    navigate(link.pathname);
-  });
-  window.addEventListener('popstate', render);
-  render();
+  return show;
 }

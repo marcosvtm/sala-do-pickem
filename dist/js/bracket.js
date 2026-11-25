@@ -100,10 +100,10 @@ export function bindOfficialLocks(getLocks, onChange, paint) {
   return { setOfficial, syncScenario: () => setOfficial(official) };
 }
 
-export function bindBracket(teams, getLocks, onChange) {
-  const grid = document.getElementById('matches');
+export function bindBracket(teams, getLocks, onChange, $) {
+  const grid = $('matches');
   const scroll = grid.parentElement;
-  const jumps = document.getElementById('roundJumps');
+  const jumps = $('roundJumps');
   for (let i = 0; i <= 5; i++) {
     const button = el('button', 'outline', i === 5 ? 'Final' : 'R' + (i + 1));
     button.type = 'button';
@@ -250,9 +250,9 @@ export function bindBracket(teams, getLocks, onChange) {
     const verified = official.filter((x) => x >= 0).length,
       fixed = locks.filter((x) => x >= 0).length - verified;
     const count = verified + ' oficiais · ' + fixed + ' fixados';
-    document.getElementById('locksCount').textContent = count;
-    document.getElementById('homeLocks').textContent = count;
-    document.getElementById('clearLocks').disabled = !fixed && !previews.size;
+    $('locksCount').textContent = count;
+    $('homeLocks').textContent = count;
+    $('clearLocks').disabled = !fixed && !previews.size;
   }
   function act(btn, lock) {
     const g = projection.games[Number(btn.dataset.match)],
@@ -287,7 +287,7 @@ export function bindBracket(teams, getLocks, onChange) {
       act(e.target, true);
     }
   };
-  document.getElementById('clearLocks').onclick = () => {
+  $('clearLocks').onclick = () => {
     getLocks().splice(0, 33, ...official);
     previews.clear();
     previousTap = null;

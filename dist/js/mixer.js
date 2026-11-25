@@ -1,9 +1,8 @@
 import { MODELS, PRESETS, mixWeights, mixPercentages } from './models.js';
 import { newDraft } from './state.js';
 
-const $ = (id) => document.getElementById(id);
 
-export function bindMixer(current, changed) {
+export function bindMixer(current, changed, $, hasStudy) {
   const controls = new Map();
 
   function setWeights(weights) {
@@ -29,6 +28,10 @@ export function bindMixer(current, changed) {
     label.htmlFor = range.id;
     label.textContent = MODELS[key];
     points.type = 'number';
+    if (key === 'study' && !hasStudy) {
+      points.disabled = range.disabled = true;
+      label.textContent += ' (em preparação)';
+    }
     points.inputMode = 'numeric';
     points.setAttribute('aria-label', 'Pontos de ' + MODELS[key]);
     share.className = 'mix-share';
@@ -80,13 +83,18 @@ export function bindMixer(current, changed) {
       finish();
     };
   }
+  function initialWeights() {
+    const weights = newDraft().weights;
+    if (!hasStudy) weights.study = 0;
+    return weights;
+  }
   $('equalMix').onclick = () => {
-    setWeights(newDraft().weights);
+    setWeights(initialWeights());
     changed(false);
   };
   $('startMix').onclick = () => {
     current().trust.fill(100);
-    setWeights(newDraft().weights);
+    setWeights(initialWeights());
     changed(false);
     controls.get('neutral').range.focus();
   };

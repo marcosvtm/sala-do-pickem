@@ -1,6 +1,7 @@
 import { majorPhases as phases } from './major-phases.js';
+import { loadStageBoard } from './wall.js';
 import { modelName } from './models.js';
-import { bindPhasePickers, readStageCatalog } from './phase-picker.js';
+import { bindSectionNavigation, readStageCatalog } from './phase-picker.js';
 
 const $ = (id) => document.getElementById(id);
 function element(tag, text, cls) {
@@ -29,12 +30,13 @@ function phaseState(stage, pick) {
   return 'Sem cartão';
 }
 
-function initOverall() {
+function initOverall(active) {
   $('overallBoard').hidden = false;
   const previous = history.state?.overall || {};
   const expanded = new Set(previous.expanded);
   let page = previous.page || 0, signature, busy = false, restore = previous.scroll;
   function remember() {
+    if (!active()) return;
     history.replaceState({ ...history.state, overall: { page, expanded: [...expanded], scroll: scrollY } }, '');
   }
   window.addEventListener('pagehide', remember);
@@ -79,6 +81,7 @@ function initOverall() {
           const view = link('Ver cartão', '/ranking?fase=' + p.key + '#' + card.id);
           view.setAttribute('aria-label', 'Ver cartão de ' + player.nick + ' no ' + p.name);
           view.id = 'view-' + card.id;
+          view.dataset.rankingCard = '';
           view.addEventListener('click', remember);
           item.append(element('span', card.hits + (card.hits === 1 ? ' acerto' : ' acertos') +
             ' · ' + modelName(card.model, card.nick, card.formVersion)), view);
@@ -98,7 +101,7 @@ function initOverall() {
       };
     }
     if (focused) $(focused)?.focus({ preventScroll: true });
-    if (restore != null) {
+    if (active() && restore != null) {
       window.scrollTo(0, restore);
       restore = null;
     }
@@ -122,29 +125,49 @@ function initOverall() {
   $('prevRank').onclick = () => { if (page) page--; refresh(); };
   $('nextRank').onclick = () => { page++; refresh(); };
   $('reloadRanking').onclick = refresh;
-  setInterval(() => { if (!document.hidden) refresh(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
-  refresh();
+  setInterval(() => { if (!document.hidden && active()) refresh(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && active()) refresh(); });
+  return refresh;
 }
 
 async function start() {
-  if (!phase) initOverall();
   const catalog = await readStageCatalog();
-  bindPhasePickers(phase, catalog);
-  if (!phase) return;
-  const info = catalog?.stages.find(item => item.id === phase.id);
-  if (phase.key === 'stage-1' || (phase.format === 'swiss' && info?.rosterConfirmed && info.status !== 'preparing')) {
-    $('stageBoard').querySelector('h2').textContent = 'Classificação do ' + phase.name;
-    $('stageBoard').hidden = false;
-    import('./wall.js').then(module => module.loadStageBoard(phase)).catch(() => {
-      $('feed').textContent = 'Não foi possível abrir ' + phase.name + '. Recarregue a página.';
-    });
-  } else {
-    $('futureBoard').hidden = false;
-    $('futureName').textContent = phase.name;
-    $('futureStatus').textContent = phase.key === 'stage-2'
-      ? 'Em preparação. Os cartões aparecerão aqui quando a fase abrir.'
-      : 'Fase futura. A classificação estará disponível quando houver cartões.';
-  }
+  const overall = $('overallBoard');
+  const template = document.createElement('div');
+  template.append($('stageBoard'), $('removeCard'));
+  const host = document.createElement('div');
+  overall.after(host);
+  $('futureBoard').remove();
+  const boards = new Map();
+  let selected, refreshOverall;
+  const hero = document.querySelector('.hero');
+  const subtitle = hero.querySelector('p');
+  const overallText = subtitle.textContent.trim();
+  bindSectionNavigation([hero.querySelector('.phase-picker')], catalog, phase || null, (next, entry) => {
+    selected = next;
+    overall.hidden = Boolean(next);
+    host.hidden = !next;
+    for (const link of document.querySelectorAll('header a:not([aria-current]), footer a'))
+      if (['/', '/modelos', '/partidas'].includes(link.pathname)) link.search = next ? '?fase=' + next.key : '';
+    hero.querySelector('.kicker').lastChild.textContent = next ? next.name + ' · SINGAPURA 2026' : 'PGL MAJOR · SINGAPURA 2026';
+    subtitle.textContent = next ? 'Abra um cartão para ver os picks, os acertos e o modelo usado no ' + next.name + '.' : overallText;
+    document.title = 'Ranking Broxas · ' + (next?.name || 'Geral') + " · Pick'em dos Broxinhas";
+    if (!next) {
+      host.replaceChildren();
+      refreshOverall ??= initOverall(() => !selected);
+      refreshOverall();
+      return;
+    }
+    let board = boards.get(next);
+    if (!board) {
+      const root = template.cloneNode(true);
+      root.querySelector('#stageBoard').hidden = false;
+      root.querySelector('h2').textContent = 'Classificação do ' + next.name;
+      board = { root, show: loadStageBoard(next, root, () => selected === next) };
+      boards.set(next, board);
+    }
+    host.replaceChildren(board.root);
+    board.show(entry.hash.slice(1));
+  });
 }
 start();
