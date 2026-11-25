@@ -1,4 +1,5 @@
 import { sampleRun, exactRun } from './simulation.js';
+import { refreshEditionStudy } from './models.js';
 function probability(teams, state) {
   const exact = state.locks.filter((x) => x === -1).length <= 9;
   const run = exact
@@ -11,11 +12,11 @@ function probability(teams, state) {
     .histograms[state.model].slice(5)
     .reduce((a, b) => a + b, 0);
 }
-onmessage = ({ data: { cards, teams, locks } }) => {
-  const live = locks.some((x) => x !== -1);
-  for (const { id, settings } of cards) {
-    const initial = probability(teams, settings);
-    const current = live ? probability(teams, { ...settings, locks }) : initial;
-    postMessage({ id, initial, current });
+onmessage = async ({ data: { key, teams, settings, locks, edition } }) => {
+  try {
+    await refreshEditionStudy(edition);
+    postMessage({ key, value: probability(teams, { ...settings, locks }) });
+  } catch {
+    postMessage({ key, value: null });
   }
 };

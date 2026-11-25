@@ -25,6 +25,23 @@ export function coverageContext(teams, calendar, stageNumber) {
 }
 const firstCoverage = coverageContext(stage.teams, schedule, 1);
 
+function inDiscoveryWindow(game, now) {
+  return Number.isFinite(game.at) && game.at <= now + 10 * 60000 &&
+    now - game.at <= (game.bo === 1 ? 6 : game.bo === 3 ? 9 : 12) * 3600000;
+}
+
+function matchingRound(detail, game, stageNumber) {
+  const description = String(detail.matchParticularity ?? '').replace(/<[^>]*>/g, ' ');
+  if (stageNumber === 'playoffs' || stageNumber === 4) {
+    const round = /quartas|quarter.?final/i.test(description) ? 1 :
+      /semi.?fina/i.test(description) ? 2 : /terceiro|3[º°o] lugar|third place/i.test(description) ? 3 :
+      /(?:grande |grand )?final\b/i.test(description) ? 4 : null;
+    return round === game.round && !/\bStage\s+[123]\b/i.test(description);
+  }
+  return Number(/\bStage\s+(\d+)\b/i.exec(description)?.[1]) === stageNumber &&
+    Number(/Rodada\s*#?(\d+)/i.exec(description)?.[1]) === game.round;
+}
+
 function findMatches(html, aliases) {
   const matches = [];
   const links = /href="\/partida\/(\d+)-([^"/]+?)-vs-([^"/]+?)-PGL-Major-Singapore-2026"/gi;
@@ -131,6 +148,45 @@ function finalRounds(score) {
   return Math.max(...score) === target;
 }
 
+// DRAFT5's score rows are indexed by map. A veto or a 0-0 row alone is not a played map.
+function draftCompletedMaps(game, detail, reversed, now) {
+  const rows = [...(detail.scores ?? [])].sort((a, b) => a.seriesOrder - b.seriesOrder);
+  const reportedAt = Math.min(now, Number(detail.matchFinishingDate) * 1000 || Date.parse(detail.updatedAt) || now);
+  const boards = [];
+  const series = [0, 0];
+  for (const entry of rows) {
+    const raw = entry.map?.mapName;
+    const score = reversed ? [entry.scoreB, entry.scoreA] : [entry.scoreA, entry.scoreB];
+    if (entry.seriesOrder !== boards.length || !/^de_[a-z0-9_]+$/.test(raw) ||
+        !score.every(n => Number.isSafeInteger(n) && n >= 0) || !finalRounds(score)) break;
+    const name = raw.slice(3);
+    if (game.maps?.[boards.length]?.name && game.maps[boards.length].name !== name) return false;
+    boards.push({ name, score, status: 'end' });
+    series[Number(score[1] > score[0])]++;
+  }
+  if (!boards.length || Math.max(...series) > Math.ceil(game.bo / 2) || boards.length > game.bo ||
+      series.some((n, i) => n < (game.series?.[i] ?? 0))) return false;
+  const officialOrder = reversed ? [detail.seriesScoreB, detail.seriesScoreA] : [detail.seriesScoreA, detail.seriesScoreB];
+  if (!series.every((n, i) => n === officialOrder[i])) return false;
+  game.series = series;
+  const decided = Math.max(...series) === Math.ceil(game.bo / 2);
+  if (game.maps) {
+    for (const [i, board] of boards.entries()) game.maps[i] = board;
+    if (decided) {
+      for (let i = boards.length; i < game.maps.length; i++) {
+        game.maps[i] = { name: game.maps[i].name, score: null, status: 'unplayed' };
+      }
+    }
+    game.completedMaps = boards.map(map => map.name);
+  }
+  if (game.bo === 1 || decided) {
+    const last = boards.at(-1);
+    game.map = { name: last.name, score: last.score, reportedAt, source: 'DRAFT5' };
+    game.awaitingOfficial = true;
+  } else if (game.completedMaps?.includes(game.map?.name)) game.map = null;
+  return true;
+}
+
 // A later PGL response can temporarily contain an earlier series or blank map slots.
 // Completed rounds stay attached to the same fixture and map. Official finals take precedence.
 function retainMapHistory(game, prior) {
@@ -163,9 +219,24 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
   const previousGame = (g) => previous.find((p) => p.round === g.round && p.bo === g.bo &&
     p.slot === g.slot && p.a === g.a && p.b === g.b);
   for (const game of games) {
-    if (game.bo > 1 && game.a != null && game.b != null) retainMapHistory(game, previousGame(game));
+    if (game.a == null || game.b == null) continue;
+    const prior = previousGame(game);
+    if (game.status === 'end' && game.bo === 1 && !game.map?.score && finalRounds(prior?.map?.score) &&
+        (!game.map?.name || game.map.name === prior.map.name) &&
+        game.series?.[Number(prior.map.score[1] > prior.map.score[0])] === 1)
+      game.map = { ...prior.map };
+    if (game.status === 'upcoming' && prior?.status === 'live' && inDiscoveryWindow(game, now)) {
+      // PGL may keep publishing the timetable after a game has verifiably started.
+      Object.assign(game, { status: 'live', series: prior.series, map: prior.map });
+      if (prior.maps) game.maps = structuredClone(prior.maps);
+      if (prior.completedMaps) game.completedMaps = [...prior.completedMaps];
+      if (prior.liveSource) game.liveSource = prior.liveSource;
+      if (prior.awaitingOfficial) game.awaitingOfficial = true;
+    }
+    if (game.bo > 1) retainMapHistory(game, prior);
   }
-  const live = games.filter((g) => g.status === 'live' && g.a !== null && g.b !== null);
+  const live = games.filter(g => g.a != null && g.b != null && (g.status === 'live' ||
+    (g.status === 'upcoming' && inDiscoveryWindow(g, now))));
   if (!live.length) return;
   let listing;
   const broadcasts = new Map();
@@ -173,13 +244,17 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
     if (!broadcasts.has(channel)) broadcasts.set(channel, broadcast(channel, fetcher));
     return broadcasts.get(channel);
   }
-  await Promise.all(live.map(async (g) => {
+  await Promise.all(live.map(async (row) => {
+    // Stage a read-only probe. A scheduled time or a pre-game map announcement is never proof of play.
+    const discovering = row.status === 'upcoming';
+    const g = discovering ? { ...row, status: 'live', series: [0, 0], map: null,
+      ...(row.maps && { maps: structuredClone(row.maps) }) } : row;
+    let confirmedBy;
     const prior = previousGame(g);
-    const scoreboard = readCitoScore(g, matchLink(g, calendar), resolveTeam, fetcher, now);
-    const sameMap = prior?.map && isCurrentMap(g, prior.map.name);
-    const lastRead = sameMap ? prior.broadcastChecked : null;
+    const scoreboard = readCitoScore(g, g.hltv ?? matchLink(g, calendar), resolveTeam, fetcher, now, discovering);
+    const lastRead = prior?.broadcastChecked;
     let streams;
-    if ('stream' in g && (!lastRead || now - lastRead >= 45000)) {
+    if (('stream' in g || discovering) && (!lastRead || now - lastRead >= 45000)) {
       const channel = broadcastChannel(g.stream);
       streams = Promise.all((channel ? [channel] : ['a', 'b']).map(channelFrame));
       g.broadcastChecked = now;
@@ -194,20 +269,23 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
       g.map.source = 'PGL';
     }
     try {
-      if (!match) {
-        listing ??= request(fetcher, '/').then((r) => r.text()).then(html => findMatches(html, aliases));
-        const candidate = (await listing).find((m) =>
+      if (!match || (g.bo > 1 || (g.liveSource && (!g.map?.reportedAt || now - g.map.reportedAt > 60000))) &&
+          match.checked != null && now - match.checked >= 45000) {
+        if (!match) listing ??= request(fetcher, '/').then((r) => r.text()).then(html => findMatches(html, aliases));
+        const candidate = match ?? (await listing).find((m) =>
           (m.a === g.a && m.b === g.b) || (m.b === g.a && m.a === g.b));
         if (!candidate) return;
-        const { data } = await (await request(fetcher, '/api/proxy/matches/' + candidate.id)).json();
-        const a = aliases.get(normalize(data.teamA.teamName)), b = aliases.get(normalize(data.teamB.teamName));
-        if (data.tournament?.tournamentId !== 1801 || data.bestOf !== g.bo ||
-            Number(/\bStage\s+(\d+)\b/i.exec(data.matchParticularity)?.[1]) !== stageNumber ||
-            Number(/Rodada\s*#?(\d+)/i.exec(data.matchParticularity)?.[1]) !== g.round ||
-            !((a === g.a && b === g.b) || (b === g.a && a === g.b))) return;
-        match = { id: candidate.id, reversed: a !== g.a };
+        const data = await request(fetcher, '/api/proxy/matches/' + candidate.id).then(r => r.json())
+          .then(body => body.data).catch(() => null);
+        if (data?.teamA && data?.teamB) {
+          const a = resolveTeam(data.teamA.teamName), b = resolveTeam(data.teamB.teamName);
+          if (data.tournament?.tournamentId !== 1801 || data.bestOf !== g.bo || !matchingRound(data, g, stageNumber) ||
+              !((a === g.a && b === g.b) || (b === g.a && a === g.b))) return;
+          match = { id: candidate.id, reversed: a !== g.a, checked: now };
+          if (draftCompletedMaps(g, data, match.reversed, now)) confirmedBy = 'DRAFT5';
+        } else if (!match) return;
       }
-      g.coverage = match;
+      g.coverage = { ...match, checked: match.checked ?? now };
       const { data } = await (await request(fetcher, '/api/proxy/matches/' + match.id + '/live')).json();
       const rounds = data.filter((e) =>
         /^de_[a-z0-9_]+$/i.test(e.map?.name) && isCurrentMap(g, e.map.name.slice(3)) && Number.isFinite(e.eventDate) &&
@@ -215,6 +293,10 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
         (g.bo === 1 || e.scoreA + e.scoreB > 0 || /começ(?:a|ou) (?:o (?:jogo|mapa)|a partida)/i.test(e.title ?? ''))
       ).sort((a, b) => b.eventDate - a.eventDate || b.id - a.id);
       const event = rounds[0];
+      if (event && event.eventDate * 1000 >= now - 8 * 60000 && event.eventDate * 1000 <= now + 30000 &&
+          (event.scoreA + event.scoreB > 0 || /começ(?:a|ou) (?:o (?:jogo|mapa)|a partida)/i.test(event.title ?? '')))
+        confirmedBy = 'DRAFT5';
+      if (discovering && !confirmedBy && event) return;
       const first = rounds.findLast((e) => e.map.name === event?.map.name);
       const report = openingReport(data, g, event?.map.name.slice(3) ?? g.map?.name, first?.eventDate ?? now / 1000, resolveTeam);
       if (!event) {
@@ -243,6 +325,7 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
     } finally {
       const frame = await scoreboard;
       if (frame && (!g.map || frame.name === g.map.name)) {
+        if (frame.score) confirmedBy = 'Cito';
         const before = g.map;
         if (frame.score && (!before?.score || (frame.score.every((n, i) => n >= before.score[i]) &&
             (frame.reportedAt >= (before.reportedAt ?? 0) || frame.score.some((n, i) => n > before.score[i])))))
@@ -263,6 +346,7 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
       for (const raw of (await streams) ?? []) {
         const map = broadcastMap(raw, g, resolveTeam, now);
         if (!map) continue;
+        confirmedBy = 'CSTV PGL';
         const before = g.map;
         if (!before?.score || (map.score.every((n, i) => n >= before.score[i]) &&
             map.score.some((n, i) => n > before.score[i]))) {
@@ -281,6 +365,14 @@ export async function addRoundScores(games, previous, fetcher, now = Date.now(),
             entry.score = g.map.score;
             entry.status = 'live';
           }
+        }
+      }
+      if (g.bo === 1 && finalRounds(g.map?.score)) g.awaitingOfficial = true;
+      if (discovering) {
+        if (confirmedBy) Object.assign(row, g, { liveSource: confirmedBy });
+        else {
+          if (g.broadcastChecked) row.broadcastChecked = g.broadcastChecked;
+          if (g.coverage) row.coverage = g.coverage;
         }
       }
     }

@@ -37,6 +37,7 @@ export function currentGames(games) {
     );
 }
 export function matchLink(game, base) {
+  if (game.hltvUrl && /^https:\/\/www\.hltv\.org\/matches\/\d+\/[\w-]+$/.test(game.hltvUrl)) return game.hltvUrl;
   if (!base?.links) return null;
   const opening =
     game.round === 1 &&
@@ -136,7 +137,7 @@ function mapName(name) {
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
 }
 function matchNotes(game, games, maps, phase) {
-  const notes = ['R' + game.round, 'MD' + game.bo, seriesStakes(game, games)];
+  const notes = [game.roundLabel || 'R' + game.round, 'MD' + game.bo, game.roundLabel ? '' : seriesStakes(game, games)];
   if (game.bo > 1) {
     if (phase === 'live') {
       const current = maps.findIndex((map) => map.status === 'live');
@@ -147,14 +148,19 @@ function matchNotes(game, games, maps, phase) {
       notes.push('Em mapas', next?.name ? mapName(next.name) + ' a seguir' : 'Aguardando próximo mapa');
     } else if (phase === 'confirming') notes.push('Em mapas', 'Aguardando confirmação');
     else if (phase === 'end') notes.push('Final em mapas');
-  } else if (game.map) notes.push(mapName(game.map.name));
+  } else if (game.map) {
+    notes.push(mapName(game.map.name));
+    if (game.awaitingOfficial) notes.push('Aguardando confirmação da PGL');
+  }
+  if (game.status === 'upcoming' && game.at <= Date.now() && game.a != null && game.b != null)
+    notes.push('Aguardando confirmação de início');
   if (phase === 'live') {
     if (!agendaScore(game, maps, phase)) notes.push('Aguardando placar');
     else {
       if (delayedScore(game)) notes.push('Último placar disponível');
       const reported = game.map?.reportedAt;
       notes.push((game.map?.source ?? (reported ? 'DRAFT5' : 'PGL')) + (reported ? ' ' + scoreTime.format(reported) : ''));
-      if (currentCT(game) == null) notes.push('Aguardando lados CT/TR');
+      if (!game.awaitingOfficial && currentCT(game) == null) notes.push('Aguardando lados CT/TR');
     }
   }
   return notes.filter(Boolean).join(' · ');
@@ -219,21 +225,28 @@ export function renderGame(game, games, teams, base, stale, expanded, prefix = '
   const live = game.status === 'live';
   let when = time.format(game.at);
   if (phase === 'end') when = 'Encerrado';
+  else if (game.awaitingOfficial) when = 'A confirmar';
   else if (phase === 'interval') when = 'Intervalo';
   else if (live) when = stale ? 'Última leitura' : 'Ao vivo';
-  timing.append(el(phase === 'end' ? 'span' : 'b', live ? 'live' : '', when), el('small', '', day.format(game.at)));
+  timing.append(el(phase === 'end' ? 'span' : 'b', live && !game.awaitingOfficial ? 'live' : '', when), el('small', '', day.format(game.at)));
   const score = agendaScore(game, maps, phase);
   const names = el('div', 'scheduled-teams' + (score ? ' has-score' : ''));
-  if (game.a == null || game.b == null) names.append(el('strong', '', 'Adversários a definir'));
+  if (game.a == null || game.b == null) {
+    const known = teams[game.a] || teams[game.b];
+    if (known) names.append(el('strong', '', (game.a == null ? 'A definir × ' + known.name : known.name + ' × A definir')));
+    else names.append(el('strong', '', 'Adversários a definir'));
+  }
   else {
     for (const [i, id] of [game.a, game.b].entries()) {
       if (i) names.append(score ? inlineBoard(game, teams, score, phase) : el('small', '', '×'));
       const lost = phase === 'end' && score && score[i] < score[1 - i];
       const name = el('span', lost ? 'losing-team' : '', teams[id].name);
-      const img = new Image();
-      img.alt = '';
-      img.src = '/assets/' + teams[id].logo;
-      name.prepend(img);
+      if (teams[id].logo) {
+        const img = new Image();
+        img.alt = '';
+        img.src = '/assets/' + teams[id].logo;
+        name.prepend(img);
+      }
       names.append(name);
     }
   }
@@ -324,8 +337,9 @@ export async function bindFeed(stage, applyOfficial, onSchedule, $ = id => docum
     $('agendaStatus').textContent =
       (round ? 'Rodada ' + round + ' · ' : '') + 'Horários de Cuiabá' +
       (stale ? ' · Agenda da última leitura disponível' : ' · Consulta a cada 15 s') +
-      (checked ? ' · PGL ' + day.format(checked) + ' às ' + time.format(checked) : ' · Programação publicada');
-    const sig = JSON.stringify([rows, stale, Boolean(base), rows.map((game) => [delayedScore(game), seriesStakes(game, games)])]);
+      (checked ? ' · Agenda consultada ' + day.format(checked) + ' às ' + time.format(checked) : ' · Programação publicada');
+    const sig = JSON.stringify([rows, stale, Boolean(base), rows.map((game) => [delayedScore(game),
+      game.status === 'upcoming' && game.at <= Date.now(), seriesStakes(game, games)])]);
     if (sig === signature) return;
     signature = sig;
     const focusId = list.contains(document.activeElement) ? document.activeElement.id : '';

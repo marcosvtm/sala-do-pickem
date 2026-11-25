@@ -1,5 +1,5 @@
 import { phasePath, majorPhases } from './major-phases.js';
-import { MODELS, explanations, modelName, describeBase, studyFor } from './models.js';
+import { MODELS, explanations, modelName, describeBase, studyFor, modelAvailable } from './models.js';
 import { personalSettings } from './state.js';
 
 export function renderCatalog(
@@ -8,6 +8,7 @@ export function renderCatalog(
   choose,
   formVersion,
   $,
+  available,
   reopen = false
 ) {
   const catalog = $('catalog');
@@ -37,8 +38,8 @@ export function renderCatalog(
     name.textContent = modelName(id, nick, formVersion);
     description.textContent = descriptions[id] || explanations[id];
     button.setAttribute('aria-pressed', String(id === selected));
-    button.disabled = id === 'study' && catalog.dataset.studyPending === 'true';
-    status.textContent = button.disabled ? 'Estudo em preparação'
+    button.disabled = id !== 'custom' && !available(id);
+    status.textContent = button.disabled ? (id === 'study' ? 'Estudo em preparação' : 'Em atualização')
       : id === selected ? 'Em uso no cartão' : 'Usar no cartão';
   }
   $('legacyFormGuide').hidden = formVersion !== 1;
@@ -60,45 +61,82 @@ export function bindPages(stage, apply, view) {
   const { teams } = stage;
   const $ = view.get;
   const phase = majorPhases.find(p => p.id === stage.id);
-  if (phase.key !== 'stage-1') {
-    const when = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Cuiaba', dateStyle: 'short', timeStyle: 'short' });
-    const cutoff = when.format(new Date(stage.cutoff)) + ' (Cuiabá)';
-    const vrs = document.createElement('a');
-    vrs.href = stage.sources.vrs;
-    vrs.target = '_blank';
-    vrs.rel = 'noopener noreferrer';
-    vrs.textContent = 'ranking global usado no ' + phase.name;
-    $('vrsEdition').replaceChildren(vrs);
-    $('formCutoff').textContent = cutoff;
-    if (stage.formCoverage === 'history-plus-stage1') {
-      $('formScope').textContent = 'Para esta edição, o histórico congelado em 20/11 foi atualizado com as séries oficiais do Stage 1. A janela de 120 dias é contada até o corte desta fase.';
-      $('formScope').hidden = false;
+  const available = key => modelAvailable(teams, key, { stage: stage.id, formVersion: 2 }, stage.modelStatus);
+  const dated = value => value?.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1');
+  function updateEdition() {
+    if (phase.key !== 'stage-1') {
+      const when = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Cuiaba', dateStyle: 'short', timeStyle: 'short' });
+      const cutoff = when.format(new Date(stage.cutoff)) + ' (Cuiabá)';
+      const vrs = document.createElement('a');
+      if (available('vrs')) vrs.href = stage.sources.vrs;
+      vrs.target = '_blank';
+      vrs.rel = 'noopener noreferrer';
+      vrs.textContent = available('vrs')
+        ? 'ranking global ' + (stage.modelDates?.vrs ? 'de ' + dated(stage.modelDates.vrs) : 'usado no ' + phase.name)
+        : 'ranking global da Valve (em atualização)';
+      $('vrsEdition').replaceChildren(vrs);
+      $('formCutoff').textContent = cutoff;
+      if (stage.formCoverage === 'history-plus-stage1') {
+        $('formScope').textContent = 'Para esta edição, o histórico congelado em 20/11 foi atualizado com as séries oficiais do Stage 1. A janela de 120 dias é contada até o corte desta fase.';
+        $('formScope').hidden = false;
+      }
+      $('hltvPhase').textContent = 'o ' + phase.name;
+      $('readingRanks').textContent = 'posições mundiais da edição desta fase';
+      for (const link of [$('hltvEdition'), $('readingRankingLink')]) {
+        if (available('hltv')) link.href = stage.sources.hltv;
+        else link.removeAttribute('href');
+        link.textContent = available('hltv')
+          ? 'Ranking HLTV ' + (stage.modelDates?.hltv ? 'de ' + dated(stage.modelDates.hltv) : 'usado no ' + phase.name)
+          : 'Ranking HLTV em atualização';
+      }
+      $('readingCutoff').textContent = 'Dados congelados em ' + cutoff + '. Estreia prevista para ' +
+        when.format(new Date(stage.startsAt)) + ' (Cuiabá). Confira o fechamento do cartão no CS2.';
+      const study = available('study') && studyFor(phase.id);
+      $('catalog').dataset.studyPending = String(!study);
+      if (study) $('catalog').dataset.studyVersion = study.version;
+      else delete $('catalog').dataset.studyVersion;
+      const guide = $('guide-study'), summary = guide.querySelector('summary');
+      const description = document.createElement('p');
+      description.textContent = study
+        ? 'O estudo do ' + phase.name + ' estima cada um dos 120 duelos em MD1 e MD3. A simulação e a busca de cartões usam as probabilidades da edição ' + study.version + ', com dados até ' + when.format(new Date(study.cutoff)) + ' (Cuiabá).'
+        : 'As probabilidades do ' + phase.name + ' aguardam o estudo desta fase. As previsões estarão disponíveis após a conferência dos 16 times e das matrizes de MD1 e MD3.';
+      guide.replaceChildren(summary, description);
+      if (study?.sourceUrl) {
+        const link = document.createElement('a');
+        link.className = 'study-link';
+        link.href = study.sourceUrl;
+        link.textContent = 'Leia o estudo do Modelo IA para o ' + phase.name;
+        guide.append(link);
+      }
     }
-    $('hltvPhase').textContent = 'o ' + phase.name;
-    $('readingRanks').textContent = 'posições mundiais da edição desta fase';
-    for (const link of [$('hltvEdition'), $('readingRankingLink')]) {
-      link.href = stage.sources.hltv;
-      link.textContent = 'Ranking HLTV usado no ' + phase.name;
+    $('formEvidence').replaceChildren();
+    for (const team of available('elo') ? teams : []) {
+      if (!team.formEvidence) continue;
+      const e = team.formEvidence;
+      const row = $('formEvidence').insertRow();
+      const header = document.createElement('th');
+      header.scope = 'row';
+      header.textContent = team.name;
+      row.append(header);
+      for (const value of [
+        e.series,
+        e.opponents,
+        e.externalOpponents,
+        e.unknownSeries,
+      ])
+        row.insertCell().textContent = value;
     }
-    $('readingCutoff').textContent = 'Dados congelados em ' + cutoff + '. Estreia prevista para ' +
-      when.format(new Date(stage.startsAt)) + ' (Cuiabá). Confira o fechamento do cartão no CS2.';
-    const study = studyFor(phase.id);
-    $('catalog').dataset.studyPending = String(!study);
-    if (study) $('catalog').dataset.studyVersion = study.version;
-    const guide = $('guide-study'), summary = guide.querySelector('summary');
-    const description = document.createElement('p');
-    description.textContent = study
-      ? 'O estudo do ' + phase.name + ' estima cada um dos 120 duelos em MD1 e MD3. A simulação e a busca de cartões usam as probabilidades da edição ' + study.version + ', com dados até ' + when.format(new Date(study.cutoff)) + ' (Cuiabá).'
-      : 'As probabilidades do ' + phase.name + ' aguardam o estudo desta fase. As previsões estarão disponíveis após a conferência dos 16 times e das matrizes de MD1 e MD3.';
-    guide.replaceChildren(summary, description);
-    if (study?.sourceUrl) {
-      const link = document.createElement('a');
-      link.className = 'study-link';
-      link.href = study.sourceUrl;
-      link.textContent = 'Leia o estudo do Modelo IA para o ' + phase.name;
-      guide.append(link);
+    const rankedTeams = available('hltv') ? [...teams].sort((a, b) => a.hltvRank - b.hltvRank) : [];
+    $('hltvPositions').replaceChildren();
+    for (const team of rankedTeams) {
+      const item = document.createElement('li');
+      const rank = document.createElement('strong');
+      rank.textContent = '#' + team.hltvRank;
+      item.append(rank, ' ' + team.name);
+      $('hltvPositions').append(item);
     }
   }
+  updateEdition();
   // Keep the clicked header under the pointer when another guide above it closes.
   $('modelGuides').addEventListener('click', (event) => {
     const header = event.target.closest('.model-guide > summary');
@@ -110,29 +148,6 @@ export function bindPages(stage, apply, view) {
         window.scrollBy({ top: delta, behavior: 'instant' });
     });
   });
-  for (const team of teams) {
-    const e = team.formEvidence;
-    const row = $('formEvidence').insertRow();
-    const header = document.createElement('th');
-    header.scope = 'row';
-    header.textContent = team.name;
-    row.append(header);
-    for (const value of [
-      e.series,
-      e.opponents,
-      e.externalOpponents,
-      e.unknownSeries,
-    ])
-      row.insertCell().textContent = value;
-  }
-  const rankedTeams = [...teams].sort((a, b) => a.hltvRank - b.hltvRank);
-  for (const team of rankedTeams) {
-    const item = document.createElement('li');
-    const rank = document.createElement('strong');
-    rank.textContent = '#' + team.hltvRank;
-    item.append(rank, ' ' + team.name);
-    $('hltvPositions').append(item);
-  }
   let requested;
   async function showPublic(id) {
     requested = id;
@@ -202,5 +217,6 @@ export function bindPages(stage, apply, view) {
       if (view.active()) $('importPanel').scrollIntoView({ block: 'start' });
     } else if (!id) requested = null;
   }
+  show.refreshEdition = updateEdition;
   return show;
 }

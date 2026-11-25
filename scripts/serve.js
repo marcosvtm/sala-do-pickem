@@ -25,7 +25,7 @@ const db = openDb(
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
-    if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.startsWith('/api/') || url.pathname === '/data/edition-s2.json') {
       const chunks = [];
       let size = 0;
       for await (const chunk of req) {
@@ -43,7 +43,7 @@ const server = http.createServer(async (req, res) => {
           headers: req.headers,
           body: chunks.length ? Buffer.concat(chunks) : undefined,
         }),
-        db
+        db, Date.now(), fetch, task => task.catch(error => console.warn(error.message))
       );
       res.writeHead(api.status, Object.fromEntries(api.headers));
       res.end(await api.text());

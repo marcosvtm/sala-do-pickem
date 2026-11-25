@@ -117,9 +117,11 @@ async function readSwissResults(
     .bind(config.id, JSON.stringify(emptyLocks()), now, now - retryAfter)
     .run();
   if (claim.meta.changes) {
-    try {
-      const source = await retrieve(fetcher, config.source);
-      let verified, schedule;
+    let verified, games;
+    const stored = row?.schedule ? JSON.parse(row.schedule) : null;
+    const oldGames = stored?.games ?? [];
+    const source = await retrieve(fetcher, config.source).catch(() => null);
+    if (source) {
       try {
         const old = row ? JSON.parse(row.locks) : emptyLocks();
         const locks = parsePgl(source, old, config.context);
@@ -131,33 +133,37 @@ async function readSwissResults(
         /* The on-screen agenda can still be updated if pairing verification fails. */
       }
       try {
-        const games = parseSchedule(source, config.context);
-        const old = row?.schedule ? JSON.parse(row.schedule).games : [];
-        if (
-          games.filter((g) => g.status === 'end').length >=
-          old.filter((g) => g.status === 'end').length
-        ) {
-          await addRoundScores(games, old, fetcher, now, undefined, config.coverage);
-          schedule = JSON.stringify({ games, checked: now });
-        }
+        const fresh = parseSchedule(source, config.context);
+        if (fresh.filter(g => g.status === 'end').length >= oldGames.filter(g => g.status === 'end').length)
+          games = fresh;
       } catch {
         /* Keep the previous schedule if a date or round is missing. */
       }
-      await db
-        .prepare(
-          'UPDATE stage_results SET locks=coalesce(?,locks), schedule=coalesce(?,schedule), checked=coalesce(?,checked) WHERE stage=? AND attempted=?'
-        )
-        .bind(
-          verified ?? null,
-          schedule ?? null,
-          verified ? now : null,
-          config.id,
-          now
-        )
-        .run();
-    } catch {
-      /* Keep the previous verified board and mark it stale. */
     }
+    const enriched = await enrichAgenda(games, stored, config.calendar.games, fetcher, now, config.coverage);
+    await db.prepare(
+      'UPDATE stage_results SET locks=coalesce(?,locks), schedule=coalesce(?,schedule), checked=coalesce(?,checked) WHERE stage=? AND attempted=?'
+    ).bind(verified ?? null, enriched.checked ? JSON.stringify(enriched) : null,
+      verified ? now : null, config.id, now).run();
   }
   return output(await read());
+}
+
+export async function enrichAgenda(games, stored, fallback, fetcher, now, coverage) {
+  // Round coverage can outlive the PGL calendar; it never settles official picks.
+  const freshCalendar = Boolean(games);
+  games ??= structuredClone(stored?.games ?? fallback);
+  let checked = freshCalendar ? now : stored?.checked ?? 0;
+  try {
+    await addRoundScores(games, stored?.games ?? [], fetcher, now, undefined, coverage);
+    if (!freshCalendar) {
+      for (const game of games) {
+        if (game.status === 'live' && Number.isFinite(game.map?.reportedAt))
+          checked = Math.max(checked, Math.min(now, game.map.reportedAt));
+      }
+    }
+  } catch {
+    // A coverage failure still allows official locks and schedule to advance.
+  }
+  return { games, checked };
 }

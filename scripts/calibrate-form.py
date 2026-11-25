@@ -142,14 +142,11 @@ def main(write):
         path.write_bytes((json.dumps(stage, indent=2, ensure_ascii=False) + "\n").encode())
 
 
-def stage_two_ratings(request):
-    """Replay the frozen calibration, then incorporate only confirmed Singapore series."""
+def stage_two_checkpoint():
+    """Replay the archived history once and validate the first stage's published strengths."""
     history = json.loads(gzip.decompress((ROOT / "research/form-history.json.gz").read_bytes()))
     stage = json.loads((ROOT / "dist/data/stage.json").read_text(encoding="utf-8"))
     freeze = history["cutoff"]
-    cutoff = request["cutoff"]
-    if cutoff < freeze:
-        raise ValueError("Corte do S2 anterior ao histórico congelado.")
     keys = {"fut_esports": "fut", "nemiga": "nemiga", "g2_esports": "g2", "1win": "1win",
             "natus_vincere": "natusvincere", "astralis": "astralis", "the_mongolz": "themongolz", "mibr": "mibr"}
     original, regional = Replay(1, 0), Replay(0.25, 1)
@@ -170,6 +167,32 @@ def stage_two_ratings(request):
             if abs(rating - team[field]) > 1e-7:
                 raise ValueError("O Elo inicial diverge da edição congelada para " + key)
             model.rating[key] = rating, freeze
+    return freeze, keys, original, regional
+
+
+def worker_checkpoint():
+    """Retain sufficient state for games among the 24 candidates and their 120-day evidence."""
+    freeze, keys, original, regional = stage_two_checkpoint()
+    teams = {}
+    for team, key in keys.items():
+        lineup, regions = regional.rank[key]
+        games = [row for row in regional.schedule[key] if row[0] >= freeze - WINDOW]
+        teams[team] = {"key": key, "roster": lineup, "regions": regions,
+                       "elo": original.elo(key, freeze), "formElo": regional.elo(key, freeze),
+                       "schedule": games}
+    names = set(keys.values())
+    meetings = [[a, b, count * decay(freeze - last, 60)]
+                for (a, b), (count, last) in sorted(regional.meetings.items())
+                if a in names and b in names]
+    return {"cutoff": freeze, "teams": teams, "meetings": meetings}
+
+
+def stage_two_ratings(request):
+    """Replay the frozen calibration, then incorporate only confirmed Singapore series."""
+    freeze, keys, original, regional = stage_two_checkpoint()
+    cutoff = request["cutoff"]
+    if cutoff < freeze:
+        raise ValueError("Corte do S2 anterior ao histórico congelado.")
     for game in request["games"]:
         at = game["at"]
         if not freeze < at <= cutoff:
@@ -190,8 +213,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--write", action="store_true", help="Update the stage snapshot after validation")
     parser.add_argument("--stage2", action="store_true", help="Read verified Stage 1 games from stdin and return candidate ratings")
+    parser.add_argument("--worker-checkpoint", action="store_true", help="Rebuild the bundled Stage 2 checkpoint")
     args = parser.parse_args()
-    if args.stage2:
+    if args.worker_checkpoint:
+        path = ROOT / "research/stage2-form-checkpoint.json"
+        path.write_bytes((json.dumps(worker_checkpoint(), allow_nan=False, separators=(",", ":")) + "\n").encode())
+    elif args.stage2:
         print(json.dumps(stage_two_ratings(json.load(sys.stdin)), allow_nan=False))
     else:
         main(args.write)

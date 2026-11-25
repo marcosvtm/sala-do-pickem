@@ -55,7 +55,7 @@ export function* stageRows(source, context = firstAgenda) {
   if (!Array.isArray(source)) throw Error('Agenda inválida');
   for (const row of source) {
     if (!context.dates.has(row.date)) continue;
-    const round = row.round?.startsWith('opening round')
+    const round = context.roundOf ? context.roundOf(row) : row.round?.startsWith('opening round')
       ? 1
       : Number(/^round ([2-5])\b/.exec(row.round)?.[1]);
     if (!Number.isInteger(round)) throw Error('Rodada desconhecida');
@@ -66,8 +66,8 @@ export function* stageRows(source, context = firstAgenda) {
     };
   }
 }
-export function parseSchedule(source, context = firstAgenda) {
-  const counts = Array(5).fill(0),
+export function parseSchedule(source, context = firstAgenda, sizes = ROUND_SIZES) {
+  const counts = Array(sizes.length).fill(0),
     games = [];
   for (const { row, round, maps } of stageRows(source, context)) {
     const slot = ++counts[round - 1];
@@ -102,7 +102,8 @@ export function parseSchedule(source, context = firstAgenda) {
       b,
       bo,
       status,
-      ...(status === 'live' ? { stream: row.stream ?? null } : {}),
+      ...(status === 'live' || (status === 'upcoming' && row.stream && a !== null && b !== null)
+        ? { stream: row.stream ?? null } : {}),
       ...(bo > 1 ? { maps: mapHistory(boards, completed, decided, status) } : {}),
       ...(status === 'live' && bo > 1 ? {
         completedMaps: boards.slice(0, completed).map((m) => m.name).filter(Boolean),
@@ -110,7 +111,7 @@ export function parseSchedule(source, context = firstAgenda) {
       ...(status !== 'upcoming' ? { series, map: status === 'live' && decided ? null : map } : {}),
     });
   }
-  if (counts.some((v, i) => v !== ROUND_SIZES[i]))
+  if (counts.some((v, i) => v !== sizes[i]))
     throw Error('Agenda incompleta');
   return games;
 }

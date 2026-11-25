@@ -147,9 +147,10 @@
               Usar outro nick neste aparelho
             </button>
           </form>
-          <dialog id="confirmCard" aria-labelledby="confirmNick" aria-describedby="confirmNickHint">
+          <dialog id="confirmCard" class="save-confirm" aria-labelledby="confirmNick" aria-describedby="confirmNickHint confirmCardStudy">
             <h3><span aria-hidden="true">⚠️</span> <span id="confirmNick"></span></h3>
             <p id="confirmNickHint">Confira se este é o seu nick. Cada pessoa pode salvar um cartão por fase. Se você usar o nick de um amigo, ele pode ficar sem conseguir salvar o dele, e os pontos vão contar para a pessoa errada no ranking do grupo.</p>
+            <p id="confirmCardStudy" hidden>O Modelo IA desta fase ainda está em preparação. Seu cartão será salvo com o modelo escolhido agora.</p>
             <div class="save-actions">
               <button type="button" id="correctNick" class="outline" autofocus>Voltar e corrigir</button>
               <button type="button" id="confirmSave" class="primary"></button>
@@ -439,7 +440,7 @@
               <div id="legacyMix" hidden>
                 <p class="hint">
                   Este modelo usa a fórmula antiga. Ao iniciar uma mistura, cada
-                  modelo recebe 20% e a confiança das equipes volta a 100%. Os
+                  modelo disponível recebe o mesmo peso e a confiança das equipes volta a 100%. Os
                   ajustes de Major são preservados.
                 </p>
                 <button type="button" class="outline" id="startMix">
@@ -457,10 +458,6 @@
                   ><span>Participação</span>
                 </div>
                 <div id="mixControls"></div>
-                <div id="pendingStudyMix" hidden>
-                  <p class="hint">Esta mistura inclui o Modelo IA, cujo estudo ainda está em preparação. Para usar os outros modelos agora, zere o peso da IA nesta cópia.</p>
-                  <button type="button" class="outline" id="omitPendingStudy">Zerar peso da IA nesta cópia</button>
-                </div>
                 <p class="hint" id="emptyMix" hidden>
                   Todos os pesos estão zerados. Cada equipe tem 50% de chance em
                   qualquer confronto.
@@ -537,6 +534,14 @@
               </div>
               <p id="publishedModel" role="status"></p>
             </form>
+            <dialog id="confirmModel" class="save-confirm" aria-labelledby="confirmModelTitle" aria-describedby="confirmModelHint">
+              <h3 id="confirmModelTitle">Salvar modelo com a IA em preparação?</h3>
+              <p id="confirmModelHint">O Modelo IA desta fase ainda está em preparação. Ele terá peso zero nesta cópia, mesmo quando o estudo ficar disponível.</p>
+              <div class="save-actions">
+                <button type="button" class="outline" id="cancelModelSave" autofocus>Voltar ao editor</button>
+                <button type="button" class="primary" id="confirmModelSave">Salvar modelo</button>
+              </div>
+            </dialog>
           </div>
         </details>
       </section>

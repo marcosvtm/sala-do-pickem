@@ -1118,11 +1118,11 @@ dialog::backdrop {
 }
 #participantChoice { width: 100%; }
 #chooseParticipant + #newParticipant { margin-top: 10px; }
-#confirmCard { width: min(30rem, calc(100% - 24px)); }
-#confirmCard h3, #confirmCard button { overflow-wrap: anywhere; }
-#confirmCard p { color: var(--muted); line-height: 1.5; }
-#confirmCard .save-actions { flex-wrap: wrap; }
-#confirmCard button { min-height: 44px; max-width: 100%; }
+.save-confirm { width: min(30rem, calc(100% - 24px)); }
+.save-confirm h3, .save-confirm button { overflow-wrap: anywhere; }
+.save-confirm p { color: var(--muted); line-height: 1.5; }
+.save-confirm .save-actions { flex-wrap: wrap; }
+.save-confirm button { min-height: 44px; max-width: 100%; }
 #saveMessage a,
 .wall a:not(.brand) {
   color: var(--acid);

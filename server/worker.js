@@ -3,7 +3,7 @@ import { withSharePreview } from './share-preview.js';
 export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.startsWith('/api/') || url.pathname === '/data/edition-s2.json') {
       try {
         return await cardsApi(request, env.DB, Date.now(), fetch, task => context.waitUntil(task),
           env.PAUSE_STAGE2_PICKS === '1' ? 'sg26-s2-v1' : null);

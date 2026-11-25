@@ -33,7 +33,9 @@ function element(tag, className, text) {
   return item;
 }
 
-export function bindEditor(teams, current, onEdit, $) {
+export function bindEditor(stage, current, onEdit, $) {
+  const { teams } = stage;
+  const available = key => modelAvailable(teams, key, current(), stage.modelStatus);
   const list = $('strengthList'),
     rows = [],
     fixed = {},
@@ -44,9 +46,6 @@ export function bindEditor(teams, current, onEdit, $) {
   const formatControl = $('strengthFormat');
   const strengthFormat = () =>
     Number(formatControl.querySelector(':checked').value);
-  for (const key of ['neutral', 'vrs', 'hltv', 'study']) {
-    if (modelAvailable(teams, key, current())) fixed[key] = makeMatrix(teams, key, current());
-  }
   let fixedVersion;
   let personal,
     feed,
@@ -249,15 +248,19 @@ export function bindEditor(teams, current, onEdit, $) {
   function render({ keepTeamInPlace = false } = {}) {
     const s = current(),
       bo = strengthFormat();
-    const version = s.formVersion ?? 1;
+    const version = [stage.editionVersion ?? stage.version, s.formVersion ?? 1, available('study')].join(':');
     if (version !== fixedVersion) {
-      fixed.elo = makeMatrix(teams, 'elo', s);
+      for (const key of Object.keys(columns).filter(key => key !== 'custom')) {
+        fixed[key] = available(key) ? makeMatrix(teams, key, s) : null;
+      }
       fixedVersion = version;
     }
     renderMixer();
-    personal = modelAvailable(teams, 'custom', s) ? makeMatrix(teams, 'custom', s) : null;
+    personal = available('custom') ? makeMatrix(teams, 'custom', s) : null;
     const matrices = { ...fixed, custom: personal };
     for (const key of Object.keys(columns)) {
+      sortHeader.querySelector('[data-column="' + key + '"]').disabled = !matrices[key];
+      if (!matrices[key] && sortKey === key) { sortKey = 'team'; ascending = true; }
       const values = matrices[key] ? fieldStrength(matrices[key][bo]) : teams.map(() => null);
       strengths[key] = values;
       rows.forEach(
@@ -281,7 +284,7 @@ export function bindEditor(teams, current, onEdit, $) {
   const renderMixer = bindMixer(current, (editing) => {
     render();
     onEdit(editing);
-  }, $, Boolean(fixed.study));
+  }, $, stage, available);
   formatControl.onchange = () => render();
   $('resetTeams').onclick = () => {
     const { trust, bonus } = newDraft();
@@ -291,11 +294,10 @@ export function bindEditor(teams, current, onEdit, $) {
   };
   $('resetModel').onclick = () => {
     const s = current(),
-      { weights, trust, bonus } = newDraft();
+      { weights, trust, bonus } = newDraft(stage.id, teams, stage.modelStatus);
     delete s.base;
     delete s.weight;
     delete s.description;
-    if (!fixed.study) weights.study = 0;
     Object.assign(s, { weights, trust, bonus });
     render();
     onEdit(false);

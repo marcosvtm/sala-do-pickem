@@ -50,3 +50,12 @@ export const models = sqliteTable(
   },
   (t) => [uniqueIndex('stage_nick_settings').on(t.stage, t.nickKey, t.settings)]
 );
+
+export const editions = sqliteTable('stage_editions', {
+  stage: text('stage').primaryKey(),
+  attempted: integer('attempted').notNull(),
+  activatedAt: integer('activated_at'),
+  detail: text('detail'),
+  edition: text('edition'),
+  replay: text('replay'),
+});

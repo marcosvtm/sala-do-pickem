@@ -1,3 +1,5 @@
+import { futureAgendaConfig, readFutureAgenda } from './future-agenda.js';
+import { STAGE_TWO, stageTwoActivation } from './stage2-activation.js';
 import { authenticatedParticipant, participantApi, participantDirectory, participantDisplayName } from './participants.js';
 import { modelAvailable, mixWeights, studyFor } from '../dist/js/models.js';
 import {
@@ -7,7 +9,7 @@ import {
   personalSettings,
 } from '../dist/js/state.js';
 import { scoredCardsSql, swissBuckets, majorRanking } from './standings.js';
-import { LEGACY_STAGE_ID, calendarPreview, findStage, navigationCatalog, readStageInfo } from './stages.js';
+import { LEGACY_STAGE_ID, calendarPreview, packagedStageTwo, findStage, navigationCatalog, readStageInfo } from './stages.js';
 
 const json = (body, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -87,18 +89,44 @@ async function changeCard(db, stage, now, id, hash, revision, update) {
 export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer, pausedStage) {
   const url = new URL(req.url);
   if (url.pathname === '/api/participant') return participantApi(req, db, ownerHash);
+  const activationRoute = url.pathname === '/api/stage2/activation';
+  const editionRoute = url.pathname === '/data/edition-s2.json';
+  if ((activationRoute || editionRoute) && !['GET', 'HEAD'].includes(req.method))
+    return failure('Método indisponível.', 405);
+  const needsEdition = activationRoute || editionRoute || url.pathname === '/api/stages' ||
+    url.pathname === '/api/ranking/geral' || url.searchParams.get('stage') === STAGE_TWO;
+  const activation = needsEdition && !packagedStageTwo
+    ? await stageTwoActivation(db, now, fetcher, {
+        check: activationRoute || editionRoute || Boolean(defer),
+        defer: activationRoute || editionRoute ? undefined : defer,
+      })
+    : null;
+  let edition = activation?.edition ?? packagedStageTwo;
+  if (edition) {
+    const study = studyFor(edition.id);
+    const studyReady = Boolean(study && modelAvailable(edition.teams, 'study', { stage: edition.id }));
+    const editionVersion = edition.version + '.' + (edition.revision ?? 0) + (studyReady ? '.' + study.version : '');
+    edition = { ...edition, editionVersion,
+      ...(edition.modelStatus && { modelStatus: { ...edition.modelStatus, study: studyReady ? 'ready' : 'pending' } }) };
+  }
+  if (editionRoute) return req.method === 'HEAD' ? new Response(null, { headers: json(null).headers }) : json(edition);
+  if (activationRoute) {
+    const info = await readStageInfo(findStage(STAGE_TWO, edition), now, pausedStage, db);
+    return json({ ...info, activatedAt: activation?.activatedAt, attemptedAt: activation?.attemptedAt,
+      detail: activation?.detail, modelStatus: edition?.modelStatus });
+  }
   if (url.pathname === '/api/stages')
     return req.method === 'GET'
-      ? json({ serverTime: now, ...await navigationCatalog(db, now, fetcher, defer, pausedStage) })
+      ? json({ serverTime: now, ...await navigationCatalog(db, now, fetcher, defer, pausedStage, edition) })
       : failure('Método indisponível.', 405);
   if (url.pathname === '/api/ranking/geral' && req.method === 'GET') {
     const raw = url.searchParams.get('page') ?? '0';
     if (!/^\d{1,5}$/.test(raw)) return failure('Página inválida.', 400);
-    return json(await majorRanking(db, now, fetcher, Number(raw), 30));
+    return json(await majorRanking(db, now, fetcher, Number(raw), 30, edition));
   }
   const requested = url.searchParams.getAll('stage');
   if (requested.length > 1) return failure('Informe apenas uma fase.', 400);
-  const stage = findStage(requested[0] ?? LEGACY_STAGE_ID);
+  const stage = findStage(requested[0] ?? LEGACY_STAGE_ID, edition);
   if (!stage) return failure('Fase não encontrada.', 404);
   const info = await readStageInfo(stage, now, pausedStage, db);
   if (url.pathname === '/api/stage/participants' && req.method === 'GET')
@@ -106,6 +134,8 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer
   if (url.pathname === '/api/stage' && req.method === 'GET')
     return json({ serverTime: now, ...info, invitedTeams: stage.invitedTeams });
   if (info.status === 'preparing') {
+    if (url.pathname === '/api/results' && req.method === 'GET' && futureAgendaConfig(stage.id))
+      return json(await readFutureAgenda(stage.id, db, now, fetcher));
     if (url.pathname === '/api/results' && req.method === 'GET')
       return stage.previewSchedule ? json(calendarPreview(stage)) : failure('Agenda ainda não publicada.', 409);
     return failure(stage.name + ' em preparação. Aguarde a confirmação das equipes.', 409);
@@ -229,6 +259,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer
       serverTime: now,
       closesAt: stage.closesAt,
       writesPaused: info.writesPaused,
+      editionVersion: stage.editionVersion,
       page,
       hasMore: results.length > size,
       live,
@@ -281,6 +312,8 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer
   if (modelOnly) {
     if (!uuid.test(body.id) || !validPersonal(body.settings))
       return failure('Confira os pesos e os ajustes do modelo.', 400);
+    if (stage.modelStatus && !modelAvailable(stage.teams, 'custom', { ...body.settings, stage: stage.id }, stage.modelStatus))
+      return failure('Um dos modelos com peso nesta mistura ainda está em atualização.', 409);
     const snapshot = JSON.stringify(personalSettings(body.settings));
     await db
       .prepare(
@@ -303,7 +336,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer
   if (!uuid.test(id) || !validate(body.state, { stageId: stage.id }))
     return failure('O cartão ou o modelo está incompleto.', 400);
   const { card, model } = body.state;
-  if (stage.id !== LEGACY_STAGE_ID && !modelAvailable(stage.teams ?? [], model, body.state))
+  if (stage.id !== LEGACY_STAGE_ID && !modelAvailable(stage.teams ?? [], model, body.state, stage.modelStatus))
     return failure('O modelo escolhido ainda não está disponível nesta fase.', 409);
   const usesStudy = model === 'study' || (model === 'custom' && mixWeights(body.state)?.study > 0);
   const settings = JSON.stringify({

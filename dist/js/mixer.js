@@ -2,7 +2,7 @@ import { MODELS, PRESETS, mixWeights, mixPercentages } from './models.js';
 import { newDraft } from './state.js';
 
 
-export function bindMixer(current, changed, $, hasStudy) {
+export function bindMixer(current, changed, $, stage, available) {
   const controls = new Map();
 
   function setWeights(weights) {
@@ -28,10 +28,6 @@ export function bindMixer(current, changed, $, hasStudy) {
     label.htmlFor = range.id;
     label.textContent = MODELS[key];
     points.type = 'number';
-    if (key === 'study' && !hasStudy) {
-      points.disabled = range.disabled = true;
-      label.textContent += ' (em preparação)';
-    }
     points.inputMode = 'numeric';
     points.setAttribute('aria-label', 'Pontos de ' + MODELS[key]);
     share.className = 'mix-share';
@@ -52,10 +48,11 @@ export function bindMixer(current, changed, $, hasStudy) {
     row.append(label, range, entry, share);
     $('mixControls').append(row);
     $('mixBar').append(segment);
-    controls.set(key, { points, range, share, segment });
+    controls.set(key, { points, range, share, segment, label });
 
     let dirty = false;
     function setPoint(value) {
+      if (!available(key)) return;
       const weights = mixWeights(current());
       if (weights[key] === value) return;
       setWeights({ ...weights, [key]: value });
@@ -84,15 +81,8 @@ export function bindMixer(current, changed, $, hasStudy) {
     };
   }
   function initialWeights() {
-    const weights = newDraft().weights;
-    if (!hasStudy) weights.study = 0;
-    return weights;
+    return newDraft(stage.id, stage.teams, stage.modelStatus).weights;
   }
-  $('omitPendingStudy').onclick = () => {
-    setWeights({ ...mixWeights(current()), study: 0 });
-    changed(false);
-    controls.get('neutral').range.focus();
-  };
   $('equalMix').onclick = () => {
     setWeights(initialWeights());
     changed(false);
@@ -108,11 +98,13 @@ export function bindMixer(current, changed, $, hasStudy) {
     const weights = mixWeights(current());
     $('mixEditor').hidden = $('equalMix').hidden = !weights;
     $('legacyMix').hidden = Boolean(weights);
-    $('pendingStudyMix').hidden = hasStudy || !(weights?.study > 0);
     if (!weights) return;
     const percentages = mixPercentages(weights);
     $('emptyMix').hidden = PRESETS.some((key) => weights[key] > 0);
-    for (const [key, { points, range, share, segment }] of controls) {
+    for (const [key, { points, range, share, segment, label }] of controls) {
+      const pending = !available(key);
+      points.disabled = range.disabled = pending;
+      label.textContent = MODELS[key] + (pending ? ' (em preparação)' : '');
       const value = weights[key],
         portion = percentages[key];
       const percent = portion.toLocaleString('pt-BR') + '%';

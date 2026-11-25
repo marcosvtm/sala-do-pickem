@@ -77,8 +77,14 @@ function swissView(phase, templates, entry, active) {
     describe(stage) {
       if (phase === majorPhases[0]) return;
       get('readingRanks').textContent = 'posições mundiais da edição desta fase';
-      get('readingRankingLink').href = stage.sources.hltv;
-      get('readingRankingLink').textContent = 'Ranking HLTV usado no ' + phase.name;
+      const link = get('readingRankingLink');
+      if (stage.modelStatus?.hltv === 'pending' || !stage.sources.hltv) {
+        link.removeAttribute('href');
+        link.textContent = 'Ranking HLTV em atualização';
+      } else {
+        link.href = stage.sources.hltv;
+        link.textContent = 'Ranking HLTV usado no ' + phase.name;
+      }
       get('readingCutoff').textContent = 'Dados congelados em ' + dateTime.format(Date.parse(stage.cutoff)) +
         ' (UTC-4). Confira o fechamento do cartão no CS2.';
     },

@@ -1,6 +1,7 @@
 import { phasePath } from './major-phases.js';
 import { personalSettings } from './state.js';
 import { shareButton } from './share.js';
+import { modelAvailable } from './models.js';
 
 export function savedModelIdentity(stage, current) {
   const key = 'published-model:' + stage.id;
@@ -30,11 +31,13 @@ export function bindModelSaving(stage, current, onName, $) {
     message = $('publishedModel'),
     share = $('modelShare');
   const identity = savedModelIdentity(stage, current);
+  const dialog = $('confirmModel');
+  const available = key => modelAvailable(stage.teams, key, current(), stage.modelStatus);
   let attempt, busy = false, displayed;
   nick.value = identity.receipt?.nick || $('nick').value;
   function refresh() {
     const saved = identity.nameFor(nick.value.trim());
-    button.disabled = busy || !nick.value.trim() || Boolean(saved);
+    button.disabled = busy || !nick.value.trim() || Boolean(saved) || !available('custom');
     button.textContent = busy
       ? 'Salvando…'
       : saved
@@ -56,9 +59,24 @@ export function bindModelSaving(stage, current, onName, $) {
     onName(saved || null);
   }
   nick.oninput = refresh;
-  form.onsubmit = async (e) => {
+  form.onsubmit = e => {
     e.preventDefault();
-    if (button.disabled || !form.reportValidity()) return;
+    if (button.disabled || dialog.open || !form.reportValidity()) return;
+    if (!available('study')) {
+      dialog.showModal();
+      $('cancelModelSave').focus();
+      return;
+    }
+    save();
+  };
+  $('cancelModelSave').onclick = () => dialog.close();
+  $('confirmModelSave').onclick = () => {
+    if (!dialog.open) return;
+    dialog.close();
+    if (!button.disabled && form.reportValidity()) save();
+  };
+  async function save() {
+    if (busy || !available('custom')) return;
     const sig = identity.signature(nick.value.trim());
     if (attempt?.sig !== sig) attempt = { sig, id: crypto.randomUUID() };
     const name = nick.value.trim();
@@ -86,7 +104,7 @@ export function bindModelSaving(stage, current, onName, $) {
       busy = false;
       refresh();
     }
-  };
+  }
   refresh();
   return {
     refresh,

@@ -36,12 +36,12 @@ export function overallStandings(cards) {
   return rows;
 }
 
-export async function majorRanking(db, now, fetcher, page, size) {
-  const { stages } = await navigationCatalog(db, now);
+export async function majorRanking(db, now, fetcher, page, size, edition) {
+  const { stages } = await navigationCatalog(db, now, undefined, undefined, undefined, edition);
   const cards = [];
   let stale = false;
   for (const phase of stages.filter(p => p.status !== 'preparing')) {
-    const stage = findStage(phase.id);
+    const stage = findStage(phase.id, edition);
     const live = await stage.readResults(db, now, fetcher);
     stale ||= Boolean(live.stale);
     const { results } = await db.prepare(`WITH scored AS (${scoredCardsSql})

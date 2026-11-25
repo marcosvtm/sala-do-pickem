@@ -2,20 +2,55 @@ import { studyTeams, studyProbabilities } from '../data/study-v1.js';
 import stage2Study from '../data/study-s2.js';
 
 const stage1Study = { teamIds: studyTeams, probabilities: studyProbabilities };
+let currentStage2Study = stage2Study;
 export function studyFor(stage) {
   if (stage === undefined || stage === 'sg26-s1-v1') return stage1Study;
-  return stage2Study && stage === stage2Study.stage ? stage2Study : null;
+  return currentStage2Study && stage === currentStage2Study.stage ? currentStage2Study : null;
+}
+
+// An already-open tab can receive the newly published study with its edition.
+export async function refreshEditionStudy(stage) {
+  if (stage.id !== 'sg26-s2-v1' || stage.modelStatus?.study !== 'ready' || studyFor(stage.id)) return;
+  const url = '/data/study-s2.js?edition=' + encodeURIComponent(stage.editionVersion ?? stage.version);
+  try {
+    const { default: published } = await import(url);
+    if (published?.stage === stage.id) currentStage2Study = published;
+  } catch { /* Keep other models usable while the study asset is unavailable. */ }
 }
 
 function studyIndices(study, teams) {
   return teams.map(team => study.teamIds.indexOf(study === stage1Study ? team.name : team.id));
 }
 
-export function modelAvailable(teams, model, settings) {
-  if (model !== 'study' && !(model === 'custom' && mixWeights(settings)?.study > 0))
-    return true;
-  const study = studyFor(settings?.stage);
-  return Boolean(study && studyIndices(study, teams).every(index => index >= 0));
+export function modelAvailable(teams, model, settings, status) {
+  if (status?.[model] === 'pending') return false;
+  if (model === 'neutral') return true;
+  if (!teams?.length) return false;
+  if (model === 'vrs') return teams.every(t => Number.isFinite(t.vrs) && t.vrs > 0);
+  if (model === 'hltv') return teams.every(t => Number.isInteger(t.hltvRank) && t.hltvRank > 0);
+  if (model === 'elo') return teams.every(t => Number.isFinite(t[eloField(settings)]));
+  if (model === 'study') {
+    const study = studyFor(settings?.stage);
+    return Boolean(study && studyIndices(study, teams).every(index => index >= 0));
+  }
+  if (model !== 'custom' || !settings) return false;
+  const weights = mixWeights(settings);
+  const required = weights ? BASE_MODELS.filter(key => weights[key] > 0) : ['vrs', 'elo'];
+  return required.every(key => modelAvailable(teams, key, settings, status));
+}
+
+// Apply only to a working draft. Published settings and previous-stage copies remain immutable.
+export function omitPendingWeights(teams, settings, status) {
+  const weights = mixWeights(settings);
+  if (!weights) return [];
+  const omitted = BASE_MODELS.filter(key => weights[key] > 0 && !modelAvailable(teams, key, settings, status));
+  if (omitted.length) {
+    for (const key of omitted) weights[key] = 0;
+    delete settings.base;
+    delete settings.weight;
+    settings.weights = weights;
+  }
+  return omitted;
 }
 
 export const MODELS = {

@@ -65,7 +65,7 @@ function unavailable(id, reason) {
   lastFailure.set(id, reason);
   return null;
 }
-export async function readCitoScore(game, link, resolveTeam, fetcher, now) {
+export async function readCitoScore(game, link, resolveTeam, fetcher, now, discovering = false) {
   const match = /^https:\/\/www\.hltv\.org\/matches\/(\d+)\/([^/?#]+)/.exec(link ?? '');
   if (!match) return null;
   const id = 'cs2-match-' + match[1];
@@ -78,6 +78,8 @@ export async function readCitoScore(game, link, resolveTeam, fetcher, now) {
     if (response.url.startsWith(base + '/')) canonicalLinks.set(id, response.url);
     const state = publicLiveState(await response.text(), id);
     if (!state) return unavailable(id, 'No live snapshot');
+    if (discovering && !((state.currentRound ?? 0) > 0 || (state.score?.team1 + state.score?.team2) > 0))
+      return null;
     const frame = mapSnapshot(state, game, resolveTeam, now);
     if (frame) lastFailure.delete(id);
     return frame;

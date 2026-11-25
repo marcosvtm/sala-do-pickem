@@ -1,4 +1,4 @@
-import { modelName, makeMatrix, describeBase, modelAvailable } from './models.js';
+import { modelName, makeMatrix, describeBase, modelAvailable, refreshEditionStudy } from './models.js';
 import { phasePath } from './major-phases.js';
 import { progress, pickStatus, fixtureBrier } from './progress.js';
 import { shareButton } from './share.js';
@@ -123,7 +123,8 @@ export function loadStageBoard(phase, root, active) {
         : finished.length === 0
           ? ' · Aguardando o primeiro resultado.'
           : '');
-    const signature = JSON.stringify([page, data.cards, data.live.locks, isLocked()]);
+    const edition = stage.editionVersion ?? stage.version;
+    const signature = JSON.stringify([edition, page, data.cards, data.live.locks, isLocked()]);
     if (version === signature) return;
     const firstRender = !polled;
     version = signature;
@@ -137,24 +138,37 @@ export function loadStageBoard(phase, root, active) {
     );
     const container = $('entries');
     container.replaceChildren();
-    const outputs = new Map();
+    const pending = new Map();
     job = null;
-    function compute(card) {
+    function estimate(card, locks, paint) {
+      const key = [edition, card.id, card.revision, locks.join(',')].join(':');
+      if (cache.has(key)) return paint(cache.get(key));
+      if (pending.has(key)) {
+        pending.get(key).push(paint);
+        return;
+      }
+      pending.set(key, [paint]);
       if (!job) {
         job = new Worker(new URL('./wall-worker.js', import.meta.url), { type: 'module' });
-        job.onmessage = ({ data: result }) => {
-          const out = outputs.get(result.id);
-          if (!out) return;
-          if (cache.size > 500) cache.clear();
-          cache.set(out.key, result);
-          out.paint(result);
+        job.onmessage = ({ data: { key, value } }) => {
+          if (Number.isFinite(value)) {
+            if (cache.size >= 500) cache.delete(cache.keys().next().value);
+            cache.set(key, value);
+          } else version = null;
+          for (const update of pending.get(key) || []) update(value);
+          pending.delete(key);
         };
         job.onerror = () => {
-          for (const out of outputs.values()) out.failed();
+          for (const updates of pending.values())
+            for (const update of updates) update(null);
+          pending.clear();
           version = null;
+          job?.terminate();
+          job = null;
         };
       }
-      job.postMessage({ cards: [card], teams: stage.teams, locks: data.live.locks });
+      job.postMessage({ key, settings: card.settings, teams: stage.teams, locks,
+        edition: { id: stage.id, editionVersion: edition, modelStatus: stage.modelStatus } });
     }
     for (const c of data.cards) {
       const item = node('div', undefined, 'wall-card');
@@ -219,10 +233,20 @@ export function loadStageBoard(phase, root, active) {
           picks.append(row);
         }
       }
-      const canEstimate = modelAvailable(stage.teams, c.settings.model, c.settings);
-      const openPicks = canEstimate && c.settings.card.some((id, i) => pickStatus(i, teams[id]) === 'open');
-      if (!canEstimate) initial.textContent = current.textContent = 'Estudo em preparação';
-      if (openPicks) chance.textContent = 'Ver chance';
+      const canEstimate = modelAvailable(stage.teams, c.settings.model, c.settings, stage.modelStatus);
+      const undecided = c.settings.card.filter((id, i) => pickStatus(i, teams[id]) === 'open').length;
+      const certain = c.hits >= 5 ? 1 : c.hits + undecided < 5 ? 0 : null;
+      function paintCurrent(value) {
+        current.textContent = value === null ? 'Indisponível' : pct(value);
+        chance.textContent = value === null ? 'Chance indisponível' : pct(value) + ' de 5+';
+      }
+      if (!canEstimate) initial.textContent = 'Modelo em preparação';
+      if (certain !== null) paintCurrent(certain);
+      else if (!canEstimate) chance.textContent = current.textContent = 'Modelo em preparação';
+      else {
+        chance.textContent = 'Calculando…';
+        estimate(c, data.live.locks, paintCurrent);
+      }
       function buildModelDetails() {
         if (canEstimate) modelInfo.append(
           node(
@@ -281,10 +305,11 @@ export function loadStageBoard(phase, root, active) {
         head.setAttribute('aria-expanded', String(open));
         details.hidden = !open;
         if (open && !picks.childElementCount) buildPickRows();
-        if (open && canEstimate && !requested && !cache.has(key)) {
+        if (open && canEstimate && !requested) {
           requested = true;
-          chance.textContent = 'Calculando…';
-          compute(c);
+          estimate(c, c.settings.locks, value => {
+            initial.textContent = value === null ? 'Indisponível' : pct(value);
+          });
         }
       }
       let requested = false;
@@ -312,19 +337,6 @@ export function loadStageBoard(phase, root, active) {
       bar.append(head, actions);
       item.append(bar, details);
       container.append(item);
-      const key = c.id + ':' + c.revision + ':' + data.live.locks.join(',');
-      const paint = ({ initial: p, current: q }) => {
-        initial.textContent = pct(p);
-        current.textContent = pct(q);
-        chance.textContent = openPicks ? pct(q) + ' de 5+' : '';
-      };
-      if (cache.has(key)) paint(cache.get(key));
-      outputs.set(c.id, { paint, key, failed() {
-        if (initial.textContent === '…') {
-          chance.textContent = '';
-          initial.textContent = current.textContent = 'Indisponível';
-        }
-      } });
       expand(expanded.has(c.id) || (firstRender && focusId === c.id));
     }
     if (!data.cards.length) {
@@ -359,6 +371,8 @@ export function loadStageBoard(phase, root, active) {
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error();
       const data = await res.json();
+      if (data.editionVersion && data.editionVersion !== (stage.editionVersion ?? stage.version)) await loadRoster();
+      if (!active()) return;
       if (target !== focusId) { refreshAgain = true; return; }
       page = data.page;
       render(data);
@@ -384,11 +398,16 @@ export function loadStageBoard(phase, root, active) {
     }
   }
 
-  async function init() {
-    const res = await fetch(phase.rosterUrl);
+  async function loadRoster() {
+    const res = await fetch(phase.rosterUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error();
-    stage = await res.json();
-    if (stage?.id !== phase.id) throw Error('Elenco indisponível para esta fase.');
+    const roster = await res.json();
+    if (roster?.id !== phase.id) throw Error('Elenco indisponível para esta fase.');
+    await refreshEditionStudy(roster);
+    stage = roster;
+  }
+  async function init() {
+    await loadRoster();
     $('cancelRemove').onclick = () => $('removeCard').close();
     $('confirmRemove').onclick = confirmRemove;
     window.addEventListener('pageshow', (event) => {
@@ -418,7 +437,7 @@ export function loadStageBoard(phase, root, active) {
     $('feed').textContent = 'Não foi possível carregar a fase.';
     $('reload').onclick = () => init().catch(() => { $('feed').textContent = 'Falha ao tentar novamente.'; });
   });
-  return function show(hash) {
+  function show(hash) {
     if (hash !== focusId) {
       focusId = hash;
       scrolled = false;
@@ -427,5 +446,10 @@ export function loadStageBoard(phase, root, active) {
       $('cardActionMessage').textContent = '';
     }
     if (ready) refresh();
-  };
+  }
+  return { show, pause() {
+    job?.terminate();
+    job = null;
+    version = null;
+  } };
 }

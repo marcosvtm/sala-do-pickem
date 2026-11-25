@@ -19,6 +19,18 @@ export function kickoffCountdown(at, now) {
   return (total >= 3600 ? two(Math.floor(total / 3600)) + ':' : '') + minutes + ':' + seconds;
 }
 
+function updateClock(clock, now) {
+  const at = Number(clock.dataset.kickoff);
+  const waiting = at <= now;
+  const text = waiting ? 'Aguarda' : kickoffCountdown(at, now);
+  if (clock.textContent !== text) {
+    clock.textContent = text;
+    clock.title = (waiting ? 'Aguardando confirmação de início · ' : 'Início previsto em ') +
+      kickoffTime.format(at) + ' (Cuiabá)';
+    clock.setAttribute('aria-label', clock.title);
+  }
+}
+
 export function mergeOfficial(locks, official) {
   const merged = [...locks];
   for (let r = 0; r < 5; r++) {
@@ -149,7 +161,7 @@ export function bindBracket(teams, getLocks, onChange, $) {
   function updateCenter(fixture, g) {
     const game = schedule.get(g.key + '/' + g.bo);
     const center = fixture.children[1];
-    const live = game?.status === 'live' && !game.stale && g.source !== 'official';
+    const live = game?.status === 'live' && !game.awaitingOfficial && !game.stale && g.source !== 'official';
     fixture.classList.toggle('is-live', live);
     if (live) {
       if (center.classList.contains('fixture-live') && center.getAttribute('href') === game.href) return;
@@ -165,17 +177,18 @@ export function bindBracket(teams, getLocks, onChange, $) {
       center.replaceWith(badge);
     } else if (game?.status === 'upcoming' && Number.isFinite(game.at) && g.source !== 'official') {
       if (center.dataset.kickoff === String(game.at)) return;
-      const clock = el('time', 'fixture-clock', kickoffCountdown(game.at, Date.now()));
+      const clock = el('time', 'fixture-clock');
       clock.dateTime = new Date(game.at).toISOString();
       clock.dataset.kickoff = game.at;
-      clock.title = 'Início previsto em ' + kickoffTime.format(game.at) + ' (Cuiabá) · MD' + g.bo;
+      updateClock(clock, Date.now());
       center.replaceWith(clock);
     } else {
       const ended = game?.status === 'end' || g.source === 'official';
-      const text = ended ? 'FIM' : 'vs';
+      const text = ended ? 'FIM' : game?.awaitingOfficial ? 'A conf.' : 'vs';
       if (center.className === 'fixture-status' && center.textContent === text) return;
       const status = el('small', 'fixture-status', text);
-      status.title = (ended ? 'Encerrado' : 'Aguardando confirmação da agenda') + ' · MD' + g.bo;
+      status.title = (ended ? 'Encerrado' : game?.awaitingOfficial ?
+        'Placar final recebido. Aguardando confirmação da PGL' : 'Aguardando confirmação da agenda') + ' · MD' + g.bo;
       center.replaceWith(status);
     }
   }
@@ -184,7 +197,7 @@ export function bindBracket(teams, getLocks, onChange, $) {
     for (const game of games) {
       if (game.a == null || game.b == null) continue;
       schedule.set(pairingKey(game.round - 1, game.a, game.b) + '/' + game.bo, {
-        status: game.status, at: game.at, stale, href: matchLink(game, base) ?? null,
+        status: game.status, at: game.at, awaitingOfficial: game.awaitingOfficial, stale, href: matchLink(game, base) ?? null,
       });
     }
     for (const fixture of grid.querySelectorAll('.fixture')) {
@@ -194,10 +207,7 @@ export function bindBracket(teams, getLocks, onChange, $) {
   function tick() {
     if (document.hidden || !grid.getClientRects().length) return;
     const now = Date.now();
-    for (const clock of grid.querySelectorAll('time[data-kickoff]')) {
-      const value = kickoffCountdown(Number(clock.dataset.kickoff), now);
-      if (clock.textContent !== value) clock.textContent = value;
-    }
+    for (const clock of grid.querySelectorAll('time[data-kickoff]')) updateClock(clock, now);
   }
   setInterval(tick, 1000);
   document.addEventListener('visibilitychange', tick);

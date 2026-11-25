@@ -1,6 +1,6 @@
 import { phasePath } from './major-phases.js';
 import { bindCommunityModels } from './community-models.js';
-import { MODELS, makeMatrix, modelName, modelAvailable, FORM_VERSION } from './models.js';
+import { MODELS, makeMatrix, modelName, modelAvailable, omitPendingWeights, refreshEditionStudy, FORM_VERSION } from './models.js';
 import { bindSuggestions } from './suggestion-dialog.js';
 import { bindBracket, bindOfficialLocks } from './bracket.js';
 import { bindPages, renderCatalog } from './pages.js';
@@ -55,8 +55,10 @@ export async function startSwissEdition(edition, view) {
   stage = await response.json();
   if (stage.id !== edition.id) throw Error('O elenco não pertence à fase.');
   stage.scheduleUrl = edition.scheduleUrl;
-  state = newDraft(stage.id);
-  if (!modelAvailable(stage.teams, 'study', state)) state.weights.study = 0;
+  await refreshEditionStudy(stage);
+  const available = key => modelAvailable(stage.teams, key, state, stage.modelStatus);
+  const blankDraft = () => newDraft(stage.id, stage.teams, stage.modelStatus);
+  state = blankDraft();
   if (!homeView) $('bracketResultLink').href = phasePath('/#resultado', stage.id);
   const receipt = readReceipt(stage);
   const editId = entry.searchParams.get('editar');
@@ -115,6 +117,7 @@ export async function startSwissEdition(edition, view) {
           published.signature ===
             JSON.stringify([published.nick, personalSettings(state)]));
       state.formVersion ??= frozen ? 1 : FORM_VERSION;
+      if (!frozen) omitPendingWeights(stage.teams, state, stage.modelStatus);
     } else if (saved) toast('Cartão incompatível. Abrimos um cartão vazio.');
   } catch {
     if (entry.hash.startsWith('#c='))
@@ -146,7 +149,7 @@ export async function startSwissEdition(edition, view) {
   let community, showPage;
   if (!homeView) {
     editor = bindEditor(
-      stage.teams,
+      stage,
       () => state,
       (editing) => {
         const changed = state.model !== 'custom';
@@ -169,9 +172,11 @@ export async function startSwissEdition(edition, view) {
         model: 'custom',
         formVersion: settings.formVersion ?? 1,
       });
+      const omitted = omitPendingWeights(stage.teams, state, stage.modelStatus);
       renderSettings();
       refreshNames();
       invalidate();
+      return omitted.map(key => MODELS[key]);
     }
     showPage = bindPages(stage, applyPersonalSettings, view);
     showPage(view.entry);
@@ -219,7 +224,7 @@ export async function startSwissEdition(edition, view) {
       const switchingPerson = Boolean(owner && !nick);
       owner = nick;
       if (switchingPerson) {
-        state = { ...newDraft(stage.id), locks: state.locks };
+        state = { ...blankDraft(), locks: state.locks };
         modelSaving?.clear();
         renderCard();
         renderSettings();
@@ -280,6 +285,35 @@ export async function startSwissEdition(edition, view) {
       $('resultado').scrollIntoView({ block: 'start' });
     });
   }
+  let refreshingEdition = false;
+  async function refreshModels(event) {
+    const info = event.detail;
+    if (info.id !== stage.id || !view.active() || !info.editionVersion || refreshingEdition) return;
+    const sameEdition = info.editionVersion === (stage.editionVersion ?? stage.version);
+    const missingStudy = stage.modelStatus?.study === 'ready' && !available('study');
+    if (sameEdition && !missingStudy) return;
+    refreshingEdition = true;
+    try {
+      const response = await fetch(edition.rosterUrl, { cache: 'no-store' });
+      if (!response.ok) return;
+      const updated = await response.json();
+      if (updated.id !== stage.id || updated.teams?.length !== stage.teams.length ||
+          !updated.teams.every((t, i) => t.id === stage.teams[i].id)) return;
+      await refreshEditionStudy(updated);
+      if (sameEdition && !modelAvailable(updated.teams, 'study', state, updated.modelStatus)) return;
+      const teams = stage.teams;
+      for (const [i, team] of updated.teams.entries()) Object.assign(teams[i], team);
+      Object.assign(stage, updated, { teams, scheduleUrl: edition.scheduleUrl });
+      showPage?.refreshEdition();
+      homeView?.describe(stage);
+      renderSettings();
+      refreshNames();
+      refreshSaving?.();
+      invalidate();
+    } catch { /* The next catalog refresh retries; the current draft stays usable. */ }
+    finally { refreshingEdition = false; }
+  }
+  document.addEventListener('phase-card-writes', refreshModels);
   runHint();
   start('preview');
   return {
@@ -431,11 +465,11 @@ export async function startSwissEdition(edition, view) {
       const line = document.createElement('div');
       line.className = 'duel-row';
       const strong = document.createElement('b');
-      strong.textContent = modelAvailable(stage.teams, key, state)
+      strong.textContent = available(key)
         ? stage.teams[a].short + ' ' + percent(makeMatrix(stage.teams, key, state)[bo][a][b])
-        : 'Aguardando estudo da fase';
+        : key === 'study' ? 'Aguardando estudo da fase' : 'Em atualização';
       const label =
-        key === 'hltv'
+        key === 'hltv' && available(key)
           ? modelName(key, nick, state.formVersion) +
             ' (#' +
             stage.teams[a].hltvRank +
@@ -452,7 +486,7 @@ export async function startSwissEdition(edition, view) {
     $('legacyFormHome').hidden = state.formVersion !== 1;
     if (!homeView) $('legacyForm').hidden = state.formVersion !== 1;
     for (const opt of $('activeModel').options) {
-      opt.disabled = !modelAvailable(stage.teams, opt.value, state);
+      opt.disabled = !available(opt.value);
       opt.textContent = modelName(
         opt.value,
         nick,
@@ -465,10 +499,11 @@ export async function startSwissEdition(edition, view) {
       state.model,
       nick,
       chooseModel,
-      state.formVersion, $
+      state.formVersion, $, available
     );
     renderDuel();
     renderEstimate();
+    refreshSaving?.();
   }
   function runHint() {
     const mode = $('mode').value;
@@ -486,9 +521,9 @@ export async function startSwissEdition(edition, view) {
   function renderEstimate() {
     const incomplete = needsCard();
     const nick = personalNick();
-    const available = modelAvailable(stage.teams, state.model, state);
-    $('run').disabled = incomplete || !available;
-    $('suggest').disabled = !available;
+    const canSimulate = available(state.model);
+    $('run').disabled = incomplete || !canSimulate;
+    $('suggest').disabled = !canSimulate;
     $('saveModel').textContent =
       'Modelo em uso: ' +
       modelName(state.model, nick, state.formVersion);
@@ -510,7 +545,7 @@ export async function startSwissEdition(edition, view) {
             wilson(p, last.count).map(percent).join(' a ');
     } else {
       $('prob').textContent = '—';
-      $('uncertainty').textContent = !available ? 'Este modelo depende do estudo de IA da fase.' : incomplete
+      $('uncertainty').textContent = !canSimulate ? 'Este modelo aguarda dados desta fase.' : incomplete
         ? (picksClosed ? 'Escolha um cartão salvo para simular.' : 'Complete os dez picks para simular.')
         : 'Calculando a prévia…';
     }
@@ -524,7 +559,7 @@ export async function startSwissEdition(edition, view) {
         row.onclick = () => chooseModel(key);
         $('comparison').append(row);
       }
-      row.disabled = !modelAvailable(stage.teams, key, state);
+      row.disabled = !available(key);
       row.firstChild.textContent = modelName(
         key,
         nick,
@@ -538,9 +573,9 @@ export async function startSwissEdition(edition, view) {
     }
   }
   function chooseModel(key) {
-    if (key === 'study' && !modelAvailable(stage.teams, key, state)) {
+    if (key !== 'custom' && !available(key)) {
       $('activeModel').value = state.model;
-      toast('O estudo do Modelo IA desta fase está em preparação.');
+      toast(MODELS[key] + ' em preparação nesta fase.');
       return;
     }
     const changed = state.model !== key;
@@ -552,12 +587,13 @@ export async function startSwissEdition(edition, view) {
       key,
       personalNick(),
       chooseModel,
-      state.formVersion, $,
+      state.formVersion, $, available,
       true
     );
     if (changed && (activeRun === 'exact' || last?.kind === 'exact'))
       invalidate();
     else renderEstimate();
+    refreshSaving?.();
   }
   function cancelWorker() {
     if (worker) worker.terminate();
@@ -588,7 +624,7 @@ export async function startSwissEdition(edition, view) {
   }
   function start(mode) {
     clearTimeout(delay);
-    if (!view.active() || needsCard()) {
+    if (!view.active() || needsCard() || !available(state.model)) {
       renderEstimate();
       return;
     }
@@ -647,7 +683,7 @@ export async function startSwissEdition(edition, view) {
     $('activeModel').onchange = (e) => chooseModel(e.target.value);
     if (!homeView) for (const id of ['left', 'right', 'bo']) $(id).onchange = renderDuel;
     $('restore').onclick = () => {
-      state.card = newDraft(stage.id).card;
+      state.card = blankDraft().card;
       renderCard();
       invalidate();
       toast('Picks removidos.');

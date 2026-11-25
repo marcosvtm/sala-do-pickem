@@ -135,7 +135,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
       existingCard(occupied);
     }
     const draft = current();
-    const available = modelAvailable(stage.teams, draft.model, draft);
+    const available = modelAvailable(stage.teams, draft.model, draft, stage.modelStatus);
     $('saveModelUnavailable').hidden = available || closed;
     submit.disabled =
       writesPaused ||
@@ -189,6 +189,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     if (!choice?.nick) return;
     confirmedChoice = { ...choice };
     $('confirmNick').textContent = "Deseja realmente Salvar como '" + choice.nick + "'?";
+    $('confirmCardStudy').hidden = modelAvailable(stage.teams, 'study', current(), stage.modelStatus);
     confirm.textContent = 'Sim, salvar como ' + choice.nick;
     dialog.showModal();
     $('correctNick').focus();
@@ -203,7 +204,8 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     if (!dialog.open || !confirmedChoice || pending) return;
     const { nick, id: selectedId } = confirmedChoice;
     dialog.close();
-    if (writesPaused || Date.now() + offset >= closeAt) { refresh(); return; }
+    if (writesPaused || Date.now() + offset >= closeAt ||
+        !modelAvailable(stage.teams, current().model, current(), stage.modelStatus)) { refresh(); return; }
     pending = true;
     refresh();
     feedback('Salvando o cartão…');

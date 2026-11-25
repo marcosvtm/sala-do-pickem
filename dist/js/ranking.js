@@ -144,6 +144,7 @@ async function start() {
   const subtitle = hero.querySelector('p');
   const overallText = subtitle.textContent.trim();
   bindSectionNavigation([hero.querySelector('.phase-picker')], catalog, phase || null, (next, entry) => {
+    if (selected !== next) boards.get(selected)?.pause();
     selected = next;
     overall.hidden = Boolean(next);
     host.hidden = !next;
@@ -163,7 +164,7 @@ async function start() {
       const root = template.cloneNode(true);
       root.querySelector('#stageBoard').hidden = false;
       root.querySelector('h2').textContent = 'Classificação do ' + next.name;
-      board = { root, show: loadStageBoard(next, root, () => selected === next) };
+      board = { root, ...loadStageBoard(next, root, () => selected === next) };
       boards.set(next, board);
     }
     host.replaceChildren(board.root);

@@ -68,10 +68,11 @@ export function bindPreviousModels(stage, apply, $) {
     try {
       const model = await get(phasePath('/api/models/' + encodeURIComponent(select.value), previous.id));
       const { settings, adjusted } = copyTeamSettings(model, roster.teams, stage.teams);
-      apply(settings);
+      const omitted = apply(settings);
       message.textContent = adjusted.length
         ? 'Modelo copiado. Ajustes individuais mantidos para ' + adjusted.join(', ') + '.'
         : 'Modelo copiado. Todas as equipes começam com os ajustes padrão.';
+      if (omitted?.length) message.textContent += ' Peso zerado nesta cópia enquanto a fase aguarda ' + omitted.join(', ') + '.';
     } catch { message.textContent = 'Falha ao copiar o modelo. Tente novamente.'; }
     finally { select.disabled = false; copy.disabled = !select.value; }
   };

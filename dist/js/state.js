@@ -1,4 +1,4 @@
-import { MODELS, BASE_MODELS, PRESETS, FORM_VERSION } from './models.js';
+import { MODELS, BASE_MODELS, PRESETS, FORM_VERSION, omitPendingWeights } from './models.js';
 import { ROUND_SIZES, ROUND_START } from './swiss.js';
 
 export const STAGE = 'sg26-s1-v1';
@@ -14,13 +14,15 @@ export function defaults(card, stageId = STAGE) {
     locks: zeros(33, -1),
   };
 }
-export function newDraft(stageId = STAGE) {
-  return {
+export function newDraft(stageId = STAGE, teams, modelStatus) {
+  const draft = {
     ...defaults(zeros(10, -1), stageId),
     model: 'custom',
     formVersion: FORM_VERSION,
     weights: { neutral: 20, vrs: 20, hltv: 20, elo: 20, study: 20 },
   };
+  if (teams) omitPendingWeights(teams, draft, modelStatus);
+  return draft;
 }
 const inRange = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
 const intArray = (x, n, min, max) =>
