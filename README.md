@@ -1,6 +1,12 @@
 # Pick'em dos Broxinhas
 
-Calculadora em português para montar um cartão do Stage 1 do PGL Major de Singapura, testar modelos pessoais e compartilhar cartões salvos e modelos por link. O cálculo roda no navegador em um Web Worker. O endereço de produção fica no campo **About** deste repositório.
+Site do grupo para montar cartões por fase do PGL Major de Singapura, simular picks com modelos pessoais e acompanhar os acertos no Ranking Broxas. O cálculo de probabilidades roda no navegador. [Abrir o site](https://pickem-dos-broxinhas.marcosvtm.chatgpt.site/)
+
+## Acompanhar o projeto
+
+- [Planejamento até a final](docs/planejamento-stage-2-e-playoffs.md) · Próximas entregas, dependências e critérios de conclusão.
+- [Histórico das entregas](docs/historico-do-projeto.md) · O que foi publicado e conferido, em ordem de data.
+- [Sugestões de melhoria](docs/propostas-de-melhoria.md) · Ideias de interface, desempenho e encerramento para avaliação do grupo.
 
 ## Licença
 
