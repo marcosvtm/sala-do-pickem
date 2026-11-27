@@ -40,6 +40,8 @@ export function officialStageTwoField(openingFeed, lastFeed) {
   const context = agendaContext(seeded, calendar.games);
   const games = parseSchedule(openingFeed, context);
   const opening = games.filter(game => game.round === 1);
+  if (opening.some(game => game.a == null || game.b == null))
+    throw Error('Há equipes sem identificação confirmada nos confrontos de abertura da PGL.');
   const pairs = opening.map(({ a, b }) => [a, b].sort((x, y) => x - y).join('/'));
   if (!Array.from({ length: 8 }, (_, i) => pairs.includes(i + '/' + (i + 8))).every(Boolean))
     throw Error('Os oito confrontos da PGL precisam corresponder às seeds calculadas para o Stage 2.');

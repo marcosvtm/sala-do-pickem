@@ -1,5 +1,5 @@
 import baseline from './future-agenda-baseline.json' with { type: 'json' };
-import { parseSchedule } from './agenda.js';
+import { parseSchedule, pglTeamId } from './agenda.js';
 import { coverageContext } from './round-scores.js';
 import { enrichAgenda, retrieve } from './results.js';
 import { ROUND_START } from '../dist/js/swiss.js';
@@ -23,7 +23,7 @@ export function parseFutureAgenda(id, rows, previousTeams = []) {
   const dates = new Set(fixture.rows.map(row => row.date));
   // PGL's playoff endpoint is shared with other events. Only Singapore match days belong here.
   const relevant = rows.filter(row => dates.has(row.date));
-  const teams = previousTeams.map(t => ({ ...t }));
+  const teams = previousTeams.map(t => ({ ...t, id: pglTeamId(t.id) }));
   const teamIndex = new Map(teams.map((t, i) => [t.id, i]));
   const playoffSlots = new Map(fixture.rows.map((row, i) => [row.round.toLowerCase(), i]));
   if (playoffs) {
@@ -34,7 +34,7 @@ export function parseFutureAgenda(id, rows, previousTeams = []) {
   }
   for (const row of relevant) {
     for (const side of ['left', 'right']) {
-      const key = row[side + 'TeamKey'];
+      const key = pglTeamId(row[side + 'TeamKey']);
       if (!key) continue;
       if (typeof key !== 'string' || !/^[\w-]{1,80}$/.test(key)) throw Error('Identificação de equipe inválida.');
       const name = row[side + 'Team'], short = row[side + 'Strict'];

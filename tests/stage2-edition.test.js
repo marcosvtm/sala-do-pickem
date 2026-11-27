@@ -11,6 +11,11 @@ import { newDraft } from '../dist/js/state.js';
 
 test('Stage 2 freezes a rated field only after the 33 Stage 1 results agree with all eight PGL opening pairs', () => {
   const { first, second, input, edition } = rehearsal();
+  const pglKeys = { nemiga: 'nemiga_gaming', '1win': 'the_one' };
+  const officialNames = second.map(row => ({ ...row,
+    leftTeamKey: pglKeys[row.leftTeamKey] ?? row.leftTeamKey,
+    rightTeamKey: pglKeys[row.rightTeamKey] ?? row.rightTeamKey }));
+  assert.deepEqual(prepareEdition(input, officialNames, first), edition);
   const half = structuredClone(first);
   half.at(-1).status = 'live';
   assert.throws(() => prepareEdition(input, second, half), /33 resultados/);
@@ -34,6 +39,11 @@ test('Stage 2 reads its own official schedule and settles its worker results ind
   const url = 'https://news.pglesports.com/api/groupStageEndpoint?stage=2';
   const read = createSwissResultReader(edition, url);
   const rows = fixtureRows(edition.teams, '28.11.2026', true);
+  for (const row of rows) {
+    const pgl = key => key === 'nemiga' ? 'nemiga_gaming' : key === '1win' ? 'the_one' : key;
+    row.leftTeamKey = pgl(row.leftTeamKey);
+    row.rightTeamKey = pgl(row.rightTeamKey);
+  }
   const db = openDb();
   try {
     const firstId = 'sg26-s1-v1';

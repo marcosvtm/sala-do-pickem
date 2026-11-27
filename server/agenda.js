@@ -2,6 +2,10 @@ import stage from '../dist/data/stage.json' with { type: 'json' };
 import openingSchedule from '../dist/data/schedule.json' with { type: 'json' };
 import { ROUND_SIZES } from '../dist/js/swiss.js';
 
+// The event feed and the saved cards use different identifiers for these rosters.
+const pglAliases = new Map([['nemiga_gaming', 'nemiga'], ['the_one', '1win']]);
+export const pglTeamId = key => pglAliases.get(key) ?? key;
+
 export function agendaContext(teams, games) {
   const teamIndex = new Map(teams.map((team, index) => [team.id ?? team.logo.split('.')[0], index]));
   const dates = new Set(games.map(game =>
@@ -36,8 +40,9 @@ function readMap(raw, row) {
   if (!raw) return { name, score: null };
   let score = readScore(raw.leftScore, raw.rightScore);
   if (raw.leftTeamKey || raw.rightTeamKey) {
-    if (raw.leftTeamKey === row.rightTeamKey && raw.rightTeamKey === row.leftTeamKey) score?.reverse();
-    else if (raw.leftTeamKey !== row.leftTeamKey || raw.rightTeamKey !== row.rightTeamKey) score = null;
+    const left = pglTeamId(raw.leftTeamKey), right = pglTeamId(raw.rightTeamKey);
+    if (left === row.rightTeamKey && right === row.leftTeamKey) score?.reverse();
+    else if (left !== row.leftTeamKey || right !== row.rightTeamKey) score = null;
   }
   return { name, score: score?.some((n) => n > 0) ? score : null };
 }
@@ -60,7 +65,7 @@ export function* stageRows(source, context = firstAgenda) {
       : Number(/^round ([2-5])\b/.exec(row.round)?.[1]);
     if (!Number.isInteger(round)) throw Error('Rodada desconhecida');
     yield {
-      row,
+      row: { ...row, leftTeamKey: pglTeamId(row.leftTeamKey), rightTeamKey: pglTeamId(row.rightTeamKey) },
       round,
       maps: row.maps ?? [],
     };

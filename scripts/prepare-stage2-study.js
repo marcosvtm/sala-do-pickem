@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import stage1 from '../dist/data/stage.json' with { type: 'json' };
 import invitations from '../dist/data/stage2-invites.json' with { type: 'json' };
 import installed from '../dist/data/study-s2.js';
+import { pglTeamId } from '../server/agenda.js';
 
 const stageId = 'sg26-s2-v1';
 const scheduleUrl = 'https://news.pglesports.com/api/groupStageEndpoint?stage=2';
@@ -16,7 +17,7 @@ const pool = [
 
 export function validateStage2Study(study, schedule) {
   const opening = schedule.filter(match => /^opening round\b/i.test(match.round));
-  const ids = opening.flatMap(match => [match.leftTeamKey, match.rightTeamKey]);
+  const ids = opening.flatMap(match => [pglTeamId(match.leftTeamKey), pglTeamId(match.rightTeamKey)]);
   const field = new Set(ids);
   if (opening.length !== 8 || field.size !== 16 ||
       !ids.every(id => pool.some(team => team.id === id)) ||
@@ -35,8 +36,8 @@ export function validateStage2Study(study, schedule) {
   if (typeof study.cutoff !== 'string' || !/(Z|[+-]\d\d:\d\d)$/.test(study.cutoff) ||
       !Number.isFinite(Date.parse(study.cutoff)) || Date.parse(study.cutoff) > deadline)
     throw Error('O corte dos dados deve ter fuso horário e anteceder ou coincidir com o fechamento.');
-  if (!Array.isArray(study.teamIds) || study.teamIds.length !== 16 ||
-      new Set(study.teamIds).size !== 16 || !study.teamIds.every(id => field.has(id)))
+  const teamIds = Array.isArray(study.teamIds) ? study.teamIds.map(pglTeamId) : [];
+  if (teamIds.length !== 16 || new Set(teamIds).size !== 16 || !teamIds.every(id => field.has(id)))
     throw Error('As 16 chaves de equipe do estudo precisam coincidir com as da PGL.');
   for (const bo of [1, 3]) {
     const matrix = study.probabilities?.[bo];
@@ -52,7 +53,7 @@ export function validateStage2Study(study, schedule) {
   return {
     stage: stageId, version: study.version, cutoff: study.cutoff,
     ...(study.sourceUrl ? { sourceUrl: study.sourceUrl } : {}),
-    teamIds: study.teamIds, probabilities: { 1: study.probabilities[1], 3: study.probabilities[3] },
+    teamIds, probabilities: { 1: study.probabilities[1], 3: study.probabilities[3] },
   };
 }
 

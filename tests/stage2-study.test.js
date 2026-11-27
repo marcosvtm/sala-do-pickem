@@ -24,6 +24,10 @@ function example() {
 test('Stage 2 accepts a complete frozen study in its own order, preserving precision', () => {
   const { study, schedule } = example();
   assert.deepEqual(validateStage2Study(study, schedule), study);
+  schedule.find(match => match.leftTeamKey === 'nemiga').leftTeamKey = 'nemiga_gaming';
+  schedule.find(match => match.leftTeamKey === '1win').leftTeamKey = 'the_one';
+  const officialIds = study.teamIds.map(id => id === '1win' ? 'the_one' : id);
+  assert.deepEqual(validateStage2Study({ ...study, teamIds: officialIds }, schedule), study);
   const edited = structuredClone(study);
   edited.probabilities[3][9][0] = 0.15;
   assert.throws(() => validateStage2Study(edited, schedule), /Probabilidade/);
