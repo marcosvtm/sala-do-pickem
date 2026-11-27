@@ -18,7 +18,7 @@ export function renderCatalog(
     descriptions.study = 'O estudo desta fase aguarda a análise dos participantes e dos confrontos.';
     descriptions.custom = 'Combine os modelos disponíveis e ajuste a força de cada equipe desta fase.';
   } else if (catalog.dataset.studyVersion) {
-    descriptions.study = 'Usa as probabilidades de MD1 e MD3 do estudo específico desta fase.';
+    descriptions.study = 'Combina o ranking da Valve, a forma dos times após o Stage 1 e os vetos de mapas para estimar cada confronto.';
   }
   for (const id of Object.keys(MODELS)) {
     let button = $('tile-' + id);
@@ -98,9 +98,22 @@ export function bindPages(stage, apply, view) {
       const guide = $('guide-study'), summary = guide.querySelector('summary');
       const description = document.createElement('p');
       description.textContent = study
-        ? 'O estudo do ' + phase.name + ' estima cada um dos 120 duelos em MD1 e MD3. A simulação e a busca de cartões usam as probabilidades da edição ' + study.version + ', com dados até ' + when.format(new Date(study.cutoff)) + ' (Cuiabá).'
+        ? 'O estudo estima os 120 confrontos possíveis entre as 16 equipes. O histórico inclui as 33 séries e os 53 mapas do Stage 1, com dados até ' + when.format(new Date(study.cutoff)) + ' (Cuiabá).'
         : 'As probabilidades do ' + phase.name + ' aguardam o estudo desta fase. As previsões estarão disponíveis após a conferência dos 16 times e das matrizes de MD1 e MD3.';
       guide.replaceChildren(summary, description);
+      if (study) {
+        for (const [heading, text] of [
+          ['De onde vem a força de cada time?', 'O modelo combina os pontos da Valve com o Elo dos resultados anteriores. Resultados recentes pesam mais. Reencontros pesam menos, e a estimativa fica mais próxima de 50% quando há pouca evidência entre as duas regiões. Mudanças de jogadores reduzem o peso do histórico daquele quinteto.'],
+          ['Qual é a diferença entre MD1 e MD3?', 'Na MD1, metade da previsão vem da força das equipes e metade do mapa que deve sobrar após os vetos. Na MD3, o estudo já estima a chance de ganhar a série inteira.'],
+          ['FUT contra FlyQuest', 'Com os ajustes padrão, a FUT tem 51,44% em MD1 e 56,83% em MD3. A simulação e a sugestão de cartão usam a previsão correspondente ao formato de cada confronto.'],
+        ]) {
+          const p = document.createElement('p');
+          const strong = document.createElement('strong');
+          strong.textContent = heading;
+          p.append(strong, ' ' + text);
+          guide.append(p);
+        }
+      }
       if (study?.sourceUrl) {
         const link = document.createElement('a');
         link.className = 'study-link';

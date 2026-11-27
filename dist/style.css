@@ -153,7 +153,7 @@ button:disabled {
 .hero-copy {
   padding: 30px 35px;
 }
-.wall .hero-copy {
+.group-hero .hero-copy {
   max-width: 65%;
 }
 .kicker,
@@ -1349,6 +1349,8 @@ dialog::backdrop {
   background: #141b20;
 }
 .pick-crest img {
+  position: absolute;
+  inset: 11%;
   width: 78%;
   height: 78%;
   object-fit: contain;
@@ -2329,14 +2331,13 @@ html:has(#homePanels) { scrollbar-gutter: stable; }
 }
 
 .hero { container-type: inline-size; }
-.models-hero .hero-copy,
-.matches-hero .hero-copy { max-width: 57%; }
+.models-hero .hero-copy { max-width: 57%; }
 .models-hero .kicker,
 .matches-hero .kicker { text-transform: uppercase; }
 .models-hero p { max-width: 44ch; }
 .models-hero { background-color: #0c1717; }
 .models-hero .hero-art { object-fit: contain; object-position: right center; }
-.matches-hero h1 { margin-bottom: 18px; }
+.group-hero .hero-copy > p { min-block-size: 2lh; }
 .phase-picker {
   --phases: 4;
   display: grid;
@@ -2431,18 +2432,13 @@ html:has(#homePanels) { scrollbar-gutter: stable; }
     max-width: none;
     padding: clamp(80px, 23vw, 140px) clamp(10px, 3.5vw, 22px) 14px;
   }
-  .wall .hero { --group-picture: url('/assets/banner-ranking.webp'); }
-  .matches-hero { --group-picture: url('/assets/banner-cartoes.webp'); }
-  .wall .hero .hero-art, .matches-hero .hero-art {
+  .group-hero .hero-art {
     height: clamp(130px, 45vw, 218px);
     object-position: right center;
     mask-image: linear-gradient(#000 65%, transparent);
   }
-  .wall .hero:before, .matches-hero:before {
-    z-index: -3;
-    background: linear-gradient(0deg, rgb(12 17 22 / 89%), rgb(12 17 22 / 90%)), var(--group-picture) right center / cover;
-  }
-  .wall .hero .hero-copy, .matches-hero .hero-copy {
+  .group-hero:before { display: none; }
+  .group-hero .hero-copy {
     padding-top: clamp(105px, 37.5vw, 185px);
   }
   .models-hero .hero-art { object-fit: cover; object-position: 75% center; }
@@ -2462,12 +2458,17 @@ html:has(#homePanels) { scrollbar-gutter: stable; }
 @container (max-width: 18rem) {
   .hero-home .deadline { grid-template-rows: minmax(2.5rem, auto) auto; }
 }
-@container (max-width: 20.6rem) {
-  .phase-picker[data-destination="/ranking"] { --phases: 4; }
-  .phase-picker .all-phases { grid-column: 1 / -1; }
+@container (max-width: 21.5rem) {
+  .group-hero .hero-copy > p { min-block-size: 3lh; }
+  .group-hero h1 { font-size: clamp(1.9rem, 10cqi, 2.4rem); }
+  .group-hero .phase-picker { --phases: 2; width: 100%; }
+  .group-hero .phase-picker[data-destination="/ranking"] { --phases: 4; }
+  .group-hero .all-phases { grid-column: 1 / -1; }
 }
 @container (max-width: 16rem) {
-  .phase-picker, .phase-picker[data-destination="/ranking"] { --phases: 2; }
+  .phase-picker, .group-hero .phase-picker[data-destination="/ranking"] { --phases: 2; }
+  .group-hero .kicker { min-block-size: 2lh; }
+  .group-hero .phase-picker { min-height: calc(3 * 2.75rem + 12px); }
 }
 .phase-preview, .phase-agenda { margin-block: 18px; }
 .phase-agenda select { width: auto; margin: 0 0 10px; }

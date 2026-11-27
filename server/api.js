@@ -28,6 +28,15 @@ async function ownerHash(req) {
     b.toString(16).padStart(2, '0')
   ).join('');
 }
+// A retry can cross a catalog update while the player's submitted picks and model stay identical.
+function sameCardSettings(saved, requested) {
+  if (saved === requested) return true;
+  const prior = JSON.parse(saved), current = JSON.parse(requested);
+  if (!prior.editionVersion || !current.editionVersion) return false;
+  current.editionVersion = prior.editionVersion;
+  return JSON.stringify(current) === saved;
+}
+
 async function changeCard(db, stage, now, id, hash, revision, update) {
   if (now >= stage.closesAt) return closed();
   if (!hash)
@@ -76,7 +85,7 @@ async function changeCard(db, stage, now, id, hash, revision, update) {
     update &&
     prior.revision === revision + 1 &&
     prior.nick === update.nick &&
-    prior.settings === update.settings
+    sameCardSettings(prior.settings, update.settings)
   )
     return json({ id, revision: prior.revision });
   if (prior.revision !== revision)
@@ -169,6 +178,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer
       id: publicId,
       nick: row.nick,
       ...personalSettings(settings),
+      ...(settings.studyVersion && { studyVersion: settings.studyVersion }),
       description: settings.description || '',
     });
   }
@@ -314,7 +324,8 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer
       return failure('Confira os pesos e os ajustes do modelo.', 400);
     if (stage.modelStatus && !modelAvailable(stage.teams, 'custom', { ...body.settings, stage: stage.id }, stage.modelStatus))
       return failure('Um dos modelos com peso nesta mistura ainda está em atualização.', 409);
-    const snapshot = JSON.stringify(personalSettings(body.settings));
+    const studyVersion = mixWeights(body.settings)?.study > 0 ? studyFor(stage.id)?.version : undefined;
+    const snapshot = JSON.stringify({ ...personalSettings(body.settings), studyVersion });
     await db
       .prepare(
         `INSERT INTO personal_models(id,stage,nick,nick_key,submitted,settings)
@@ -381,7 +392,7 @@ export async function cardsApi(req, db, now = Date.now(), fetcher = fetch, defer
       .first();
     return (
       prior?.nick_key === nickKey &&
-      prior.settings === settings &&
+      sameCardSettings(prior.settings, settings) &&
       prior.edit_hash === hash &&
       (prior.participant_id ?? prior.id) === participantId
     );

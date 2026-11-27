@@ -136,6 +136,7 @@ export function bindSaving(current, stage, receipt, onOwner, editing, onDeadline
     }
     const draft = current();
     const available = modelAvailable(stage.teams, draft.model, draft, stage.modelStatus);
+    if (dialog.open) $('confirmCardStudy').hidden = modelAvailable(stage.teams, 'study', draft, stage.modelStatus);
     $('saveModelUnavailable').hidden = available || closed;
     submit.disabled =
       writesPaused ||

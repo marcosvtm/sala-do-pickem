@@ -66,6 +66,7 @@ async function main([action, input, fixture]) {
     throw Error('Use --pool, --check estudo.json [agenda-pgl.json] ou --install estudo.json.');
   if (fixture && action === '--install') throw Error('A instalação confere o elenco diretamente na PGL.');
   const study = JSON.parse(await readFile(input, 'utf8'));
+  study.sourceUrl ??= 'https://singapore-major-pickem-2026-br.marcosvtm.chatgpt.site/stage-2';
   let schedule;
   if (fixture) schedule = JSON.parse(await readFile(fixture, 'utf8'));
   else {

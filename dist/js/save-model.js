@@ -36,6 +36,7 @@ export function bindModelSaving(stage, current, onName, $) {
   let attempt, busy = false, displayed;
   nick.value = identity.receipt?.nick || $('nick').value;
   function refresh() {
+    if (dialog.open && available('study')) dialog.close();
     const saved = identity.nameFor(nick.value.trim());
     button.disabled = busy || !nick.value.trim() || Boolean(saved) || !available('custom');
     button.textContent = busy

@@ -1,7 +1,7 @@
 import { majorPhases } from './major-phases.js';
 
 const labels = {
-  'picks-open': 'Picks abertos',
+  'picks-open': 'Aberto',
   paused: 'Pausado',
   starting: 'A iniciar',
   live: 'LIVE',
@@ -38,7 +38,6 @@ export function bindSectionNavigation(navs, catalog, initial, show) {
     const path = url.pathname.replace(/\/$/, '');
     const nav = navs.find(item => item.dataset.destination === path);
     if (!nav) return;
-    if (nav.nextElementSibling !== notice) nav.after(notice);
     const key = url.searchParams.get('fase') ||
       (history.state?.section === path && history.state.phase);
     const requested = majorPhases.find(p => p.key === key) || (key === 'geral' ? null : initial);
@@ -53,6 +52,8 @@ export function bindSectionNavigation(navs, catalog, initial, show) {
     currentAddress = address.href;
     picker.select(phase);
     show(phase, address);
+    const anchor = nav.closest('.group-hero') ?? nav;
+    if (anchor.nextElementSibling !== notice) anchor.after(notice);
   }
   document.addEventListener('click', event => {
     const link = event.target.closest('a[href]');
